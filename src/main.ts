@@ -3,8 +3,16 @@ import { pass } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { Avatar } from './game/avatar';
+import { Bot } from './game/bot';
+import { Controls } from './game/controls';
+import { Hud } from './game/hud';
+import { SimRunner } from './game/runner';
 import { CameraOcclusion } from './occlusion';
-import { Player } from './player';
+import { defaultConfig as config } from './sim/config';
+import { createInitialState } from './sim/sim';
+import type { SimState } from './sim/types';
 import { beginFrame, gpuDone, gpuName } from './gpu';
 import { StatsOverlay } from './stats';
 import './style.css';
@@ -50,16 +58,48 @@ for (const clip of stage.animations) {
   if (/^(idle|hover_idle)/.test(clip.name)) stageMixer.clipAction(clip).play();
 }
 
-ball.scene.position.set(1.2, 1.2, 4); // 直径約0.22m。M0では表示確認のため浮かせて置く
+// 試合球は見た目と判定を同じ大きさにする（rules.md M1細則）。モデルは直径約0.22m。
+const BALL_MODEL_DIAMETER = 0.22;
+ball.scene.scale.setScalar(config.ballDiameter / BALL_MODEL_DIAMETER);
 scene.add(ball.scene);
 
 const height = new THREE.Box3().setFromObject(character.scene).getSize(new THREE.Vector3()).y;
 character.scene.scale.setScalar(CHARACTER_HEIGHT / height);
-character.scene.position.set(0, 0, 6);
-scene.add(character.scene);
-const player = new Player(character.scene, character.animations, camera, renderer.domElement);
+const opponentModel = cloneSkinned(character.scene);
+scene.add(character.scene, opponentModel);
+const avatars = {
+  p1: new Avatar(character.scene, character.animations),
+  p2: new Avatar(opponentModel, character.animations),
+};
+
+// 初球の陣は試合ごとに抽選（rules.md）。sim内では乱数を使わないため、ここで決める。
+const runner = new SimRunner(createInitialState(Math.random() < 0.5 ? 'p1' : 'p2'), config, [new Bot('p2')]);
+const controls = new Controls(renderer.domElement, runner, 'p1');
+const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
 const occlusion = new CameraOcclusion(stage.scene);
 const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
+
+/** 直前と最新のsim状態の間を補間した足元の位置。 */
+function playerPosition(id: 'p1' | 'p2', out: THREE.Vector3): THREE.Vector3 {
+  const index = id === 'p1' ? 0 : 1;
+  const a = runner.previous.players[index].position;
+  const b = runner.state.players[index].position;
+  return out.set(a.x, 0, a.z).lerp(new THREE.Vector3(b.x, 0, b.z), runner.alpha);
+}
+
+const HELD_FORWARD = 0.45;
+const HELD_HEIGHT = 1.2;
+function placeBall(state: SimState): void {
+  const b = state.ball;
+  ball.scene.visible = b.mode !== 'absent';
+  if (b.mode === 'held') {
+    const holder = state.players.find((p) => p.id === b.owner)!;
+    const at = playerPosition(holder.id, new THREE.Vector3());
+    ball.scene.position.set(at.x - Math.sin(holder.yaw) * HELD_FORWARD, HELD_HEIGHT, at.z - Math.cos(holder.yaw) * HELD_FORWARD);
+  } else if (b.mode === 'loose' || b.mode === 'flight') {
+    ball.scene.position.set(b.position.x, b.position.y, b.position.z);
+  }
+}
 
 const scenePass = pass(scene, camera);
 const color = scenePass.getTextureNode('output');
@@ -73,7 +113,7 @@ startButton.addEventListener('click', () => {
   canvas.requestPointerLock({ unadjustedMovement: true }).catch(() => canvas.requestPointerLock().catch(() => {}));
 });
 document.addEventListener('pointerlockchange', () => {
-  overlay.hidden = player.locked;
+  overlay.hidden = controls.locked;
 });
 document.addEventListener('pointerlockerror', () => {
   startButton.textContent = 'マウスを捕捉できませんでした。もう一度クリック';
@@ -85,15 +125,25 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, character: character.scene, ball: ball.scene, camera, step, gpuDone } });
+if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, runner, camera, step, gpuDone } });
 
+const tmp = new THREE.Vector3();
 function step(dt: number): void {
-  player.update(dt);
-  stageMixer.update(dt);
-  lookTargets[0].copy(character.scene.position).setY(1.6);
-  lookTargets[1].copy(character.scene.position).setY(1.0);
-  occlusion.update(camera, lookTargets, dt);
+  controls.update();
+  runner.advance(dt * 1000);
+  const state = runner.state;
+  for (const id of ['p1', 'p2'] as const) {
+    const yaw = id === 'p1' ? controls.yaw : state.players[1].yaw;
+    avatars[id].update(playerPosition(id, tmp), yaw, dt);
+  }
+  placeBall(state);
   ball.scene.rotation.y += dt * 0.6;
+  hud.update(state, runner.drainEvents(), performance.now());
+  stageMixer.update(dt);
+  controls.placeCamera(camera, avatars.p1.root.position);
+  lookTargets[0].copy(avatars.p1.root.position).setY(1.6);
+  lookTargets[1].copy(avatars.p1.root.position).setY(1.0);
+  occlusion.update(camera, lookTargets, dt);
   pipeline.render();
 }
 
