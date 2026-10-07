@@ -22,6 +22,21 @@ export class Bot {
 
   constructor(private readonly id: PlayerId) {}
 
+  get player(): PlayerId { return this.id; }
+
+  /** ホストの未確定区間を再思考するため、simと一緒に内部記憶を保存する。 */
+  snapshot() {
+    return { heldSince: this.heldSince, thrown: this.thrown, feinted: this.feinted,
+      throwCount: this.throwCount, seq: this.seq, roundStartsAt: this.roundStartsAt,
+      attemptedFlightAt: this.attemptedFlightAt, defenseCount: this.defenseCount };
+  }
+
+  restore(memory: ReturnType<Bot['snapshot']>): void {
+    this.heldSince = memory.heldSince; this.thrown = memory.thrown; this.feinted = memory.feinted;
+    this.throwCount = memory.throwCount; this.seq = memory.seq; this.roundStartsAt = memory.roundStartsAt;
+    this.attemptedFlightAt = memory.attemptedFlightAt; this.defenseCount = memory.defenseCount;
+  }
+
   reset(): void {
     this.heldSince = null; this.thrown = false; this.feinted = false;
     this.throwCount = 0; this.seq = 0; this.roundStartsAt = null;

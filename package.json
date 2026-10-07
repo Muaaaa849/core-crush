@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "test": "vitest run",
+    "netbench": "vitest run --config tests/net/netbench.config.ts",
     "assets": "node scripts/assets/build.mjs"
   },
   "dependencies": {
