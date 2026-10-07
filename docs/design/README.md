@@ -55,3 +55,4 @@ CORE-CRUSHは、1v1・1v2・2v2に対応するFPS/TPSドッジボール。8秒�
 | 2026-10-07 | 作業場所をD:/corecrush、初期の配信先をGitHub Pagesに決定（platform.md） | ユーザー指定。`docs/decisions/0001-workspace-and-hosting.md` |
 | 2026-10-07 | rules.md「M1細則」を追加（試合球の拡大と爆発後2秒は要件、他は初期案） | ユーザー指定・`docs/decisions/0004-m1-sim-architecture.md` |
 | 2026-10-07 | **企画変更**：最短到達240msを球種別の最低飛翔時間（240／270／320ms）に変更し、球速の下限6.5m/sを追加（rules.md M1細則） | ユーザー確定。`docs/decisions/0005-homing-trajectory.md` |
+| 2026-10-07 | **企画変更**：プレイエリアを白線からケージの金網の内側まで拡大、小物は衝突なし。カメラを遮る物体は半透明化（feel.md） | ユーザー指定 |

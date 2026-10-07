@@ -3,6 +3,7 @@ import { pass } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { CameraOcclusion } from './occlusion';
 import { Player } from './player';
 import { beginFrame, gpuDone, gpuName } from './gpu';
 import { StatsOverlay } from './stats';
@@ -57,6 +58,8 @@ character.scene.scale.setScalar(CHARACTER_HEIGHT / height);
 character.scene.position.set(0, 0, 6);
 scene.add(character.scene);
 const player = new Player(character.scene, character.animations, camera, renderer.domElement);
+const occlusion = new CameraOcclusion(stage.scene);
+const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
 
 const scenePass = pass(scene, camera);
 const color = scenePass.getTextureNode('output');
@@ -87,6 +90,9 @@ if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, cha
 function step(dt: number): void {
   player.update(dt);
   stageMixer.update(dt);
+  lookTargets[0].copy(character.scene.position).setY(1.6);
+  lookTargets[1].copy(character.scene.position).setY(1.0);
+  occlusion.update(camera, lookTargets, dt);
   ball.scene.rotation.y += dt * 0.6;
   pipeline.render();
 }
