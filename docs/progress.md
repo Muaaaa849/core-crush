@@ -50,7 +50,7 @@ v2.0のM0（rules.md「開発順序と受け入れID」）のうち、今回の�
 
 ## 次の一手
 
-1. ユーザー：Cloudflare無料アカウント作成と `npx.cmd wrangler login`（`docs/deploy-online.md` の2）。その後、親が配備し `VITE_ROOM_URL` を設定、ユーザーと別端末で接続試験（T10-29）。
+1. ユーザーと別端末・別回線で接続試験（T10-29）：公開版で「部屋を作る」→招待コードを相手へ→相手が参加→ホストが開始。TURNは無効のまま（直接接続のみ）。
 2. M2スライス⑤（切断・再接続、T10-32〜34）。外部サービス不要の部分から。
 3. 並行：ユーザーの試遊（M1の返球の快感、被弾・落球の数値、受付の発生3F、1v2・2v2）、実機の性能再計測、アニメーション素材の追加。
 
@@ -93,7 +93,7 @@ v2.0のM0（rules.md「開発順序と受け入れID」）のうち、今回の�
 | ① 複数人simとローカル試遊（T10-1〜12） | 達成（操作感はユーザー確認待ち） | `tests/sim/team.test.ts`・`tests/game/team.test.ts`・`controls.test.ts` ほか、replay/long-matchを3形式へ拡張（全492件）。実装はSol、親がレビューし、仕様外の開始カウントダウンを削除、HUDの陣名を味方陣／敵陣に。プレビューで2v2の4人表示・ロック表示、1v2で単独側HP160・2勝で試合終了を確認 |
 | ② Q・カバー・同時接触（T10-13〜24、R09・R10） | 達成（操作感はユーザー確認待ち） | `tests/sim/cover.test.ts`・`targeting.test.ts`・`tests/game/cover.test.ts`・`targetview.test.ts`（全551件）。Qでロック巡回、発射時に正面±80度の対象を確定、非対象の味方のカバー、同時防御は接触時刻→距離→ID、正面外へは非追尾の直球、1球を一度だけ処理。実装はSol、親がレビュー。ボット同士の90秒：1v1はボットが自分では防御しない（従来どおり）、2v2は非対象のボットがカバーし40回成功・直撃8回。カバー成功率が高すぎないかは試遊で判断 |
 | ③前半 同期方式（メモリ内、T10-25〜28） | 達成（実回線は未検証） | `src/net/`（ホスト確定・100ms受付・20Hz完全状態・予測訂正・再送と重複排除）、`tests/net/memory.test.ts`（全589件）、`npm run netbench` の90条件×60秒で確定不一致0・不変条件違反0（`docs/benchmarks/net-m2-memory.md`）。2v2・RTT80ms・損失1%で約46MB/分（JSON、0011の見積もり10分0.17〜0.35GBに対し約0.46GB）。直接接続ならTURN転送量は増えないため、圧縮は必要になってから。実装はSol、親がレビュー |
-| ④ シグナリング・TURNとオンライン最小画面（T10-29〜31） | 実装済み・実回線は未検証 | `worker/`（Workers＋SQLite Durable Objects：部屋・招待コード・参加トークン・SDP/ICE中継・短命TURN資格情報・回数上限、TURNは既定で無効）、`src/net/{room,webrtc,online}.ts`、開始画面の「部屋を作る／コードで参加」、全員ロード後の3秒カウント。全608件、ローカルの `wrangler dev` で作成→参加→中継、4タブの2v2でDataChannel接続と入力の確定反映を確認。手順は `docs/deploy-online.md`。実装はSol（1回目は途中で中断、2回目で完成）、親がレビューし許可Originへ公開先を設定、手順を簡略化。Cloudflareアカウント未作成のため未配備 |
+| ④ シグナリング・TURNとオンライン最小画面（T10-29〜31） | 実装済み・実回線は未検証 | `worker/`（Workers＋SQLite Durable Objects：部屋・招待コード・参加トークン・SDP/ICE中継・短命TURN資格情報・回数上限、TURNは既定で無効）、`src/net/{room,webrtc,online}.ts`、開始画面の「部屋を作る／コードで参加」、全員ロード後の3秒カウント。全608件、ローカルの `wrangler dev` で作成→参加→中継、4タブの2v2でDataChannel接続と入力の確定反映を確認。手順は `docs/deploy-online.md`。実装はSol（1回目は途中で中断、2回目で完成）、親がレビューし許可Originへ公開先を設定、手順を簡略化。2026-10-08にユーザーがアカウント作成と `wrangler login`、親が1d2f296の版を配備（`https://corecrush-rooms.phantom82509673.workers.dev`、TURN無効）し、Actions変数 `VITE_ROOM_URL` を設定してPagesを再ビルド。公開版の配信物にURLが入り、Pagesのオリジンから部屋を作成できること、他オリジンは403で拒否されることを確認。別端末の接続は未検証 |
 
 ### カメラ（R07）の受け入れ条件
 
