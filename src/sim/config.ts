@@ -59,6 +59,11 @@ export interface SimConfig {
   defenseJustDuration: number;
   defenseGoodDuration: number;
   defenseArcDegrees: number;
+  gestureLookback: number;
+  gestureFollowthrough: number;
+  gestureThresholdDegrees: number;
+  incomingNeutralDegrees: number;
+  feintCost: number;
   catchDuration: number;
   catchWhiffDuration: number;
   parryWhiffDuration: number;
@@ -132,6 +137,11 @@ export const defaultConfig: SimConfig = {
   defenseJustDuration: 2 * FRAME,
   defenseGoodDuration: 3 * FRAME,
   defenseArcDegrees: 160,
+  gestureLookback: 80 * SECOND / 1000,
+  gestureFollowthrough: 50 * SECOND / 1000,
+  gestureThresholdDegrees: 2,
+  incomingNeutralDegrees: 10,
+  feintCost: 1,
   catchDuration: 24 * FRAME,
   catchWhiffDuration: 54 * FRAME,
   parryWhiffDuration: 30 * FRAME,

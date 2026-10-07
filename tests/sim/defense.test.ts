@@ -66,7 +66,8 @@ describe('R05 shared defense window', () => {
   it.each(kinds)('%s uses yaw at contact and a 160 degree front arc', kind => {
     for (const angle of [79, 81]) {
       const command: Command = { kind: 'yaw', yaw: angle * Math.PI / 180, at: F, seq: 1, player: 'p1' };
-      const result = run(incoming(), F + 1, [press(kind), command]);
+      const gesture: Command = { kind: 'mouse', player: 'p1', at: F, seq: 2, rightDegrees: config.gestureThresholdDegrees, pullDegrees: 0 };
+      const result = run(incoming(), F + 1, [press(kind), command, ...(kind === 'primary' ? [gesture] : [])]);
       expect(result.events.some(e => e.kind === 'hit')).toBe(angle > 80);
     }
   });
@@ -75,7 +76,8 @@ describe('R05 shared defense window', () => {
     const ball = flight(state);
     ball.position.y = ball.origin.y = ball.segmentOrigin.y = config.defenseHeight + 10;
     ball.velocity.y = -600;
-    const result = run(state, F + 1, [press(kind)]);
+    const gesture: Command = { kind: 'mouse', player: 'p1', at: 0, seq: 1, rightDegrees: 0, pullDegrees: config.gestureThresholdDegrees };
+    const result = run(state, F + 1, [press(kind), ...(kind === 'primary' ? [gesture] : [])]);
     expect(result.events.some(e => e.kind === (kind === 'secondary' ? 'catch' : 'parry'))).toBe(true);
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
   });
@@ -93,7 +95,11 @@ describe('R05 shared defense window', () => {
   it.each(kinds)('explosion wins %s contact at the same time without reward', kind => {
     const state = incoming(); state.danger!.expiresAt = F;
     const result = run(state, F + 1, [press(kind)]);
-    expect(result.events.map(e => e.kind)).toEqual(['explosion']);
+    expect(result.events).toEqual([
+      { kind: 'defense-start', at: 0, player: 'p1', defense: kind === 'secondary' ? 'catch' : 'parry',
+        endsAt: config.defenseStartup + config.defenseWindowFrames[config.defaultStat - 1] * F },
+      { kind: 'explosion', at: F, side: 'p1' },
+    ]);
     expect(result.state.players[0].cost).toBe(4);
     expect(result.state.players[0].hp).toBe(70);
   });

@@ -1,11 +1,19 @@
 // 練習用の相手。simと同じコマンドだけで動き、乱数を使わない。
+// 球種を ストレート→左→右→上 の順に巡回し、4回に1回はフリを入れてから投げる（0007）。
+import { defaultConfig } from '../sim/config';
 import type { Command, PlayerId, SimState } from '../sim/types';
 
-const HOLD_BEFORE_THROW = 1.5 * 60_000;
+const HOLD_BEFORE_THROW = 1.5 * defaultConfig.timeUnitsPerSecond;
+const SHOTS = [
+  { forward: 0, right: 0 }, { forward: 0, right: -1 },
+  { forward: 0, right: 1 }, { forward: -1, right: 0 },
+];
 
 export class Bot {
   private heldSince: number | null = null;
   private thrown = false;
+  private feinted = false;
+  private throwCount = 0;
   private seq = 0;
 
   constructor(private readonly id: PlayerId) {}
@@ -16,20 +24,29 @@ export class Bot {
     if (!holding) {
       this.heldSince = null;
       this.thrown = false;
+      this.feinted = false;
       return [];
     }
     this.heldSince ??= state.now;
     if (this.thrown || state.now - this.heldSince < HOLD_BEFORE_THROW) return [];
 
-    const self = state.players.find((p) => p.id === this.id)!;
-    const target = state.players.find((p) => p.id !== this.id)!;
+    const self = state.players.find(p => p.id === this.id)!;
+    if (!state.danger || self.hp <= 0) return [];
+    if (self.action) return [];
+    if (!this.feinted && (this.throwCount + 1) % 4 === 0 && self.cost >= defaultConfig.feintCost) {
+      this.feinted = true;
+      return [{ kind: 'feint', player: this.id, at: state.now, seq: this.seq++ }];
+    }
+    const target = state.players.find(p => p.id !== this.id)!;
     // yaw 0 で -z を向く（simの規約）。
     const yaw = Math.atan2(-(target.position.x - self.position.x), -(target.position.z - self.position.z));
+    const keys = SHOTS[this.throwCount % SHOTS.length];
+    this.throwCount++;
     this.thrown = true;
-    const at = state.now;
     return [
-      { kind: 'yaw', player: this.id, yaw, at, seq: this.seq++ },
-      { kind: 'primary', player: this.id, at, seq: this.seq++ },
+      { kind: 'yaw', player: this.id, yaw, at: state.now, seq: this.seq++ },
+      { kind: 'keys', player: this.id, ...keys, at: state.now, seq: this.seq++ },
+      { kind: 'primary', player: this.id, at: state.now, seq: this.seq++ },
     ];
   }
 }

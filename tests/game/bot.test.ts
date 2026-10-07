@@ -1,5 +1,6 @@
 // G2：P2のボットはsimと同じコマンドだけで動く。
 import { describe, expect, it } from 'vitest';
+import { defaultConfig } from '../../src/sim/config';
 import { Bot } from '../../src/game/bot';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, SimEvent, SimState } from '../../src/sim/types';
@@ -34,5 +35,40 @@ describe('Bot', () => {
     const b = play(createInitialState('p2'), 60 * 4);
     expect(a.events).toEqual(b.events);
     expect(a.state).toEqual(b.state);
+  });
+});
+
+// S5-14: feed bot Commands into the real sim, observing shots at release.
+describe('S5-14 bot shot cycle and feint', () => {
+  it('cycles straight/left/right/upper twice and feints before every fourth throw', () => {
+    const bot = new Bot('p2');
+    let state = createInitialState('p2');
+    const shots: string[] = [];
+    for (let turn = 1; turn <= 8; turn++) {
+      state.ball = { mode: 'held', owner: 'p2' };
+      state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+      state.players.forEach(p => { p.action = null; p.hp = p.maxHp; p.cost = defaultConfig.maxCost; });
+      const feints: Command[] = [], primaries: Command[] = [];
+      let feintEnd: number | undefined;
+      let released = false;
+      for (let tick = 0; tick < 3 * defaultConfig.timeUnitsPerSecond / defaultConfig.tick && !released; tick++) {
+        const commands = bot.think(state);
+        feints.push(...commands.filter(c => c.kind === 'feint'));
+        primaries.push(...commands.filter(c => c.kind === 'primary'));
+        const result = step(state, commands); state = result.state;
+        if (state.players[1].action?.kind === 'feint') feintEnd = state.players[1].action.endsAt;
+        if (result.events.some(e => e.kind === 'release')) {
+          expect(state.ball.mode).toBe('flight');
+          if (state.ball.mode === 'flight') shots.push(state.ball.attack!.shot);
+          released = true;
+        }
+      }
+      expect(released).toBe(true);
+      expect(feints).toHaveLength(turn % 4 === 0 ? 1 : 0);
+      expect(primaries).toHaveLength(1);
+      if (turn % 4 === 0) expect(primaries[0].at).toBe(feintEnd);
+      expect(bot.think(state)).toEqual([]); // Observe release before next held episode.
+    }
+    expect(shots).toEqual(['straight', 'left', 'right', 'upper', 'straight', 'left', 'right', 'upper']);
   });
 });
