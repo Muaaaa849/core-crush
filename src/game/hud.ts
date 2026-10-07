@@ -9,7 +9,6 @@ const FACE = [
 ];
 const SIDE_LABEL = { p1: 'P1側', p2: 'P2側' };
 const GRADE_LABEL = { just: 'JUST', good: 'GOOD', 'so-so': 'SO-SO' };
-const GESTURE_LABEL = { neutral: '振らない', left: '左へ振る', right: '右へ振る', upper: '手前へ引く', invalid: '奥へ押す' };
 
 export class Hud {
   private message = '';
@@ -25,10 +24,7 @@ export class Hud {
         this.flash(`${who}：${e.kind === 'catch' ? 'キャッチ' : '跳ね返し'} ${GRADE_LABEL[e.grade]}`, now);
       }
       if (e.kind === 'whiff' && e.player === this.local) this.flash('空振り', now);
-      if (e.kind === 'hit') {
-        const miss = e.required && e.actual ? `　方向ミス（必要：${GESTURE_LABEL[e.required]}／入力：${GESTURE_LABEL[e.actual]}）` : '';
-        this.flash(`${e.player === this.local ? '被弾' : '命中'}！ ${Math.round(e.damage)}ダメージ${miss}`, now);
-      }
+      if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : '命中'}！ ${Math.round(e.damage)}ダメージ`, now);
     }
     const second = this.config.timeUnitsPerSecond;
     let clock = '危険時計：待機中';
