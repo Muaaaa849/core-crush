@@ -5,6 +5,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { Avatar } from './game/avatar';
+import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
 import { CameraBlend } from './game/camera';
 import { Controls } from './game/controls';
@@ -14,7 +15,7 @@ import { SimRunner } from './game/runner';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
 import { createInitialState } from './sim/sim';
-import type { SimState } from './sim/types';
+import type { SimState, Vec3 } from './sim/types';
 import { beginFrame, gpuDone, gpuName } from './gpu';
 import { StatsOverlay } from './stats';
 import './style.css';
@@ -96,6 +97,8 @@ function playerPosition(id: 'p1' | 'p2', out: THREE.Vector3): THREE.Vector3 {
 // 保持中の球の表示位置（キャラの向き基準）。FPSでは画面右下へ寄せ、正面の視界を空ける（feel.md）。
 const HELD = { forward: 0.45, right: 0, height: 1.2 };
 const HELD_FPS = { forward: 1.1, right: 0.6, height: 0.95 };
+let lastBall: { mode: SimState['ball']['mode']; position: Vec3 } = { mode: 'absent', position: { x: 0, y: 0, z: 0 } };
+const rollQuaternion = new THREE.Quaternion();
 function placeBall(state: SimState): void {
   const b = state.ball;
   ball.scene.visible = b.mode !== 'absent';
@@ -112,8 +115,19 @@ function placeBall(state: SimState): void {
       at.z - Math.cos(yaw) * forward - Math.sin(yaw) * right,
     );
   } else if (b.mode === 'loose' || b.mode === 'flight') {
-    ball.scene.position.set(b.position.x, b.position.y, b.position.z);
+    // simの確定位置（落球は1Fごと）の間を補間する。状態が切り替わった直後は最新位置へ。
+    const a = runner.previous.ball;
+    const from = a.mode === b.mode ? a.position : b.position;
+    const shown = { x: THREE.MathUtils.lerp(from.x, b.position.x, runner.alpha),
+      y: THREE.MathUtils.lerp(from.y, b.position.y, runner.alpha), z: THREE.MathUtils.lerp(from.z, b.position.z, runner.alpha) };
+    // 床を転がる分だけ球を回す（0009）。保持・飛行から切り替わった瞬間の移動は数えない。
+    const roll = b.mode === 'loose' && lastBall.mode === 'loose' ? rollRotation(lastBall.position, shown, config.ballDiameter / 2) : null;
+    if (roll) ball.scene.quaternion.premultiply(rollQuaternion.setFromAxisAngle(tmp.set(roll.axis.x, roll.axis.y, roll.axis.z), roll.angle));
+    ball.scene.position.set(shown.x, shown.y, shown.z);
+    lastBall = { mode: b.mode, position: shown };
+    return;
   }
+  lastBall = { mode: b.mode, position: { x: 0, y: 0, z: 0 } };
 }
 
 const scenePass = pass(scene, camera);
@@ -143,6 +157,11 @@ addEventListener('resize', () => {
 if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, runner, camera, step, gpuDone } });
 
 const tmp = new THREE.Vector3();
+/** 被弾硬直の残り（1→0）。被弾クリップができるまでの仮の姿勢に使う（0009）。 */
+function hitstun(state: SimState, id: 'p1' | 'p2'): number {
+  const action = state.players.find((p) => p.id === id)!.action;
+  return action?.kind === 'hitstun' ? Math.max(0, (action.endsAt - state.now) / (action.endsAt - action.startedAt)) : 0;
+}
 function step(dt: number): void {
   controls.update();
   runner.advance(dt * 1000);
@@ -154,11 +173,11 @@ function step(dt: number): void {
   cameraBlend.update(state, 'p1', dt * 1000);
   for (const id of ['p1', 'p2'] as const) {
     const yaw = id === 'p1' ? controls.yaw : state.players[1].yaw;
-    avatars[id].update(playerPosition(id, tmp), yaw, dt, shown);
+    avatars[id].update(playerPosition(id, tmp), yaw, dt, shown, hitstun(state, id));
   }
   placeBall(state);
   avatars.p1.root.visible = cameraBlend.fps < 0.5; // FPS中は自分の体で視界を塞がない
-  ball.scene.rotation.y += shown * 0.6;
+  if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
   if (events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
   if (rematchAt !== null && now >= rematchAt) {
     rematchAt = null;

@@ -35,7 +35,7 @@ describe('HitStop', () => {
   it('H2: other events do not trigger it', () => {
     const stop = new HitStop();
     stop.trigger([{ kind: 'whiff', at: 0, player: 'p1' },
-      { kind: 'hit', at: 0, player: 'p1', damage: 20, position: { x: 0, y: 1, z: 0 } }], 0);
+      { kind: 'hit', at: 0, player: 'p1', damage: 20, position: { x: 0, y: 1, z: 0 }, direction: { x: 0, y: 0, z: 1 }, ko: false }], 0);
     expect(stop.timeScale(0)).toBe(1);
     expect(size(stop.shake(10))).toBe(0);
   });

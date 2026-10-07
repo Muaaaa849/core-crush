@@ -135,7 +135,8 @@ describe('0008 rounds and match result', () => {
     }
     expect(reset.players[0].move).toEqual(initial.players[0].move);
     expect(reset.players[0].keys).toEqual(initial.players[0].keys);
-    expect(reset.ball).toEqual({ mode: 'loose', position: c.supply.p1, startsAt: resetAt + c.ballStartDelay });
+    expect(reset.ball).toEqual({ mode: 'loose', position: c.supply.p1, startsAt: resetAt + c.ballStartDelay,
+      velocity: { x: 0, y: 0, z: 0 }, motionAt: resetAt, nextPhysicsAt: (Math.floor(resetAt / F) + 1) * F });
     expect(reset.danger).toBeNull();
     const beforeStart = run(reset, resetAt + c.ballStartDelay - 1).state;
     expect(beforeStart.players[0].position).toEqual(reset.players[0].position);

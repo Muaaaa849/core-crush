@@ -41,7 +41,8 @@ describe('cameraModeFor', () => {
   });
 
   it('C3: losing the ball (loose / absent) is TPS', () => {
-    expect(cameraModeFor('fps', stateWith({ mode: 'loose', position: { x: 0, y: 0.3, z: 5 }, startsAt: 0 }, null), 'p1')).toBe('tps');
+    expect(cameraModeFor('fps', stateWith({ mode: 'loose', position: { x: 0, y: 0.325, z: 5 }, startsAt: 0,
+      velocity: { x: 0, y: 0, z: 0 }, motionAt: 0, nextPhysicsAt: 1000 }, null), 'p1')).toBe('tps');
     expect(cameraModeFor('fps', stateWith({ mode: 'absent', side: 'p1', appearsAt: 0 }, null), 'p1')).toBe('tps');
   });
 });

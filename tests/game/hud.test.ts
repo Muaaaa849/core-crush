@@ -13,6 +13,12 @@ function render(events: Parameters<Hud['update']>[1], edit?: (s: ReturnType<type
 }
 
 describe('Hud rounds', () => {
+  it('shows HP as a whole number, rounding up so a living player never shows 0', () => {
+    const text = render([], (s) => { s.players[0].hp = 49.48953125; s.players[1].hp = 0.2; });
+    expect(text).toContain('あなた HP 50/100');
+    expect(text).toContain('相手 HP 1/100');
+  });
+
   it('U1: shows round number, wins and remaining round time', () => {
     const text = render([], (s) => {
       s.match.round = 2;

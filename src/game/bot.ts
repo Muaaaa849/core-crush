@@ -29,12 +29,24 @@ export class Bot {
       this.feinted = false;
       this.roundStartsAt = state.match.roundStartsAt;
     }
-    if (!holding || state.match.phase !== 'play') return [];
+    const self = state.players.find(p => p.id === this.id)!;
+    if (state.match.phase !== 'play' || self.hp <= 0
+      || (self.action?.kind === 'hitstun' && state.now < self.action.endsAt)) return [];
+    if (!holding) {
+      if (state.danger && state.ball.mode === 'loose' && (state.ball.position.z > 0 ? 'p1' : 'p2') === self.side) {
+        const dx = state.ball.position.x - self.position.x, dz = state.ball.position.z - self.position.z;
+        const distance = Math.hypot(dx, dz);
+        return [{ kind: 'move', player: this.id, at: state.now, seq: this.seq++,
+          x: distance === 0 ? 0 : dx / distance, z: distance === 0 ? 0 : dz / distance }];
+      }
+      return [];
+    }
     this.heldSince ??= state.now;
+    // 取得後は追いかける入力を止め、保持時間と球種巡回は従来どおり。
+    if (self.move.x !== 0 || self.move.z !== 0) return [{ kind: 'move', player: this.id, at: state.now, seq: this.seq++, x: 0, z: 0 }];
     if (this.thrown || state.now - this.heldSince < HOLD_BEFORE_THROW) return [];
 
-    const self = state.players.find(p => p.id === this.id)!;
-    if (!state.danger || self.hp <= 0) return [];
+    if (!state.danger) return [];
     if (self.action) return [];
     if (!this.feinted && (this.throwCount + 1) % 4 === 0 && self.cost >= defaultConfig.feintCost) {
       this.feinted = true;

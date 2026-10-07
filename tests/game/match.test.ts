@@ -7,14 +7,25 @@ import { createInitialState } from '../../src/sim/sim';
 import type { SimEvent } from '../../src/sim/types';
 
 describe('practice match', () => {
-  it('P1 throws on pickup, both sides get hit, and a stopped ball stays inside the white lines', () => {
+  it('P1 chases drops and throws on pickup, both sides get hit, and loose balls stay inside the white lines', () => {
     const runner = new SimRunner(createInitialState('p1'), config, [new Bot('p2')]);
     const events: SimEvent[] = [];
     let requested = false;
     for (let frame = 0; frame < 60 * 30; frame++) {
       const { ball } = runner.state;
+      const self = runner.state.players[0];
       const holding = ball.mode === 'held' && ball.owner === 'p1';
-      if (holding && !requested) runner.input({ kind: 'primary', player: 'p1' });
+      if (ball.mode === 'loose' && ball.position.z > 0 && runner.state.danger && self.action?.kind !== 'hitstun') {
+        const dx = ball.position.x - self.position.x, dz = ball.position.z - self.position.z;
+        const distance = Math.hypot(dx, dz);
+        runner.input({ kind: 'move', player: 'p1', x: distance === 0 ? 0 : dx / distance, z: distance === 0 ? 0 : dz / distance });
+      }
+      if (holding && !requested) {
+        runner.input({ kind: 'move', player: 'p1', x: 0, z: 0 });
+        const target = runner.state.players[1];
+        runner.input({ kind: 'yaw', player: 'p1', yaw: Math.atan2(-(target.position.x - self.position.x), -(target.position.z - self.position.z)) });
+        runner.input({ kind: 'primary', player: 'p1' });
+      }
       requested = holding;
       runner.advance(1000 / 60);
       events.push(...runner.drainEvents());

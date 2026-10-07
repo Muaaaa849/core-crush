@@ -3,6 +3,7 @@ import { sweptCapsuleContact } from './contact';
 import type { BallState, PlayerState, Rally, Shot, Side, Vec3 } from './types';
 
 type Flight = Extract<BallState, { mode: 'flight' }>;
+type Loose = Extract<BallState, { mode: 'loose' }>;
 const still = { x: 0, y: 0, z: 0 };
 export function opposite(side: Side): Side { return side === 'p1' ? 'p2' : 'p1'; }
 
@@ -126,8 +127,67 @@ export function attackLossAt(ball: BallState, now: number, config: SimConfig): n
   return next;
 }
 
-export function dropBall(ball: Flight, at: number, config: SimConfig): BallState {
-  const x = Math.max(-config.ballHalfWidth, Math.min(config.ballHalfWidth, ball.position.x));
-  const z = Math.max(-config.ballHalfDepth, Math.min(config.ballHalfDepth, ball.position.z));
-  return { mode: 'loose', position: { x, y: config.ballDiameter / 2, z: ball.side === 'p1' ? Math.max(0, z) : Math.min(0, z) }, startsAt: at };
+export function createLooseBall(position: Vec3, at: number, startsAt: number, config: SimConfig): Loose {
+  return { mode: 'loose', position: { ...position }, velocity: { ...still }, startsAt, motionAt: at,
+    nextPhysicsAt: (Math.floor(at / config.frame) + 1) * config.frame };
+}
+
+function floorBoundary(ball: Loose, config: SimConfig): void {
+  const radius = config.ballDiameter / 2;
+  if (ball.position.y <= radius && ball.velocity.y < 0) {
+    ball.position.y = radius;
+    ball.velocity.y *= -config.looseFloorRestitution;
+    if (ball.velocity.y <= config.looseGroundSpeedThreshold) ball.velocity.y = 0;
+  }
+}
+
+function horizontalBoundary(ball: Loose, side: Side, config: SimConfig): void {
+  const radius = config.ballDiameter / 2;
+  // 角ではx、zの順。内向き成分は保ち、余った移動距離は折り返さない。
+  for (const [axis, min, max] of [['x', -config.ballHalfWidth, config.ballHalfWidth],
+    ['z', side === 'p1' ? radius : -config.ballHalfDepth, side === 'p1' ? config.ballHalfDepth : -radius]] as const) {
+    const position = ball.position[axis], velocity = ball.velocity[axis];
+    if ((position <= min && velocity < 0) || (position >= max && velocity > 0)) ball.velocity[axis] *= -config.looseBoundaryRestitution;
+    ball.position[axis] = Math.max(min, Math.min(max, position));
+  }
+}
+
+export function dropBall(ball: Flight, at: number, config: SimConfig, reason: 'hit' | 'loss'): Loose {
+  const loose = createLooseBall({ ...ball.position, y: Math.max(config.ballDiameter / 2, ball.position.y) }, at, at, config);
+  const speed = Math.hypot(ball.velocity.x, ball.velocity.z);
+  const horizontal = Math.min(speed * config.looseSpeedFraction, config.looseSpeedCap) * (reason === 'hit' ? -1 : 1);
+  loose.velocity = { x: speed === 0 ? 0 : ball.velocity.x / speed * horizontal,
+    y: reason === 'hit' ? config.looseHitUpSpeed : Math.max(-config.looseLossVerticalSpeedCap,
+      Math.min(config.looseLossVerticalSpeedCap, ball.velocity.y * config.looseSpeedFraction)),
+    z: speed === 0 ? 0 : ball.velocity.z / speed * horizontal };
+  floorBoundary(loose, config);
+  horizontalBoundary(loose, ball.side, config);
+  return loose;
+}
+
+/** 絶対60Hz境界でだけ更新する。入力による区間分割では積分しない（0009）。 */
+export function updateLooseBall(input: Loose, config: SimConfig): Loose {
+  const ball = structuredClone(input);
+  const dt = (ball.nextPhysicsAt - ball.motionAt) / config.timeUnitsPerSecond;
+  const side = ball.position.z > 0 ? 'p1' : 'p2';
+  const grounded = ball.position.y === config.ballDiameter / 2 && ball.velocity.y === 0;
+  ball.position.x += ball.velocity.x * dt;
+  ball.position.z += ball.velocity.z * dt;
+  if (!grounded) {
+    ball.position.y += ball.velocity.y * dt - 0.5 * config.looseGravity * dt ** 2;
+    ball.velocity.y -= config.looseGravity * dt;
+    floorBoundary(ball, config);
+  } else {
+    const speed = Math.hypot(ball.velocity.x, ball.velocity.z);
+    const reduced = Math.max(0, speed - config.looseRollDeceleration * dt);
+    if (reduced <= config.looseStopSpeed) { ball.velocity.x = 0; ball.velocity.z = 0; }
+    else {
+      ball.velocity.x *= reduced / speed;
+      ball.velocity.z *= reduced / speed;
+    }
+  }
+  horizontalBoundary(ball, side, config);
+  ball.motionAt = ball.nextPhysicsAt;
+  ball.nextPhysicsAt += config.frame;
+  return ball;
 }

@@ -1,5 +1,5 @@
 import { defaultConfig, type SimConfig } from './config';
-import { attackLossAt, centerCrossingAt, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance } from './ball';
+import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
 import type { Command, DefenseGrade, PlayerState, Side, SimEvent, SimState, Stats, Vec3 } from './types';
 
@@ -17,7 +17,7 @@ export function createInitialState(side: Side, config: SimConfig = defaultConfig
         yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
       };
     }),
-    ball: { mode: 'loose', position: { ...config.supply[side] }, startsAt: config.ballStartDelay },
+    ball: createLooseBall(config.supply[side], 0, config.ballStartDelay, config),
     danger: null,
     rally: { speed: 0, power: 0 },
   };
@@ -40,7 +40,7 @@ function movementVelocity(player: PlayerState, state: SimState, config: SimConfi
   const { minZ, maxZ } = bounds(player, config);
   let x = player.move.x * scale;
   let z = player.move.z * scale;
-  if (player.action?.kind === 'step') {
+  if (player.action?.kind === 'step' || player.action?.kind === 'hitstun') {
     const moving = state.now < player.action.moveEndsAt;
     x = moving ? player.action.velocity.x : 0;
     z = moving ? player.action.velocity.z : 0;
@@ -69,21 +69,18 @@ function movementBoundaryAt(state: SimState, config: SimConfig): number {
   return next;
 }
 
-function pickupAt(state: SimState, config: SimConfig): { at: number; player: PlayerState | null } {
-  let result: { at: number; player: PlayerState | null } = { at: Infinity, player: null };
-  if (state.ball.mode !== 'loose' || !state.danger) return result;
+function pickupPlayer(state: SimState, config: SimConfig): PlayerState | null {
+  if (state.ball.mode !== 'loose' || !state.danger || state.ball.position.y > config.pickupHeight) return null;
+  const side = state.ball.position.z > 0 ? 'p1' : 'p2';
+  let result: PlayerState | null = null, distance = Infinity;
   for (const player of state.players) {
-    if (player.hp <= 0) continue;
+    if (player.hp <= 0 || player.side !== side || player.action?.kind === 'hitstun') continue;
     const dx = player.position.x - state.ball.position.x;
     const dz = player.position.z - state.ball.position.z;
-    const c = dx * dx + dz * dz - config.pickupRadius ** 2;
-    const v = movementVelocity(player, state, config);
-    const a = v.x * v.x + v.z * v.z;
-    const b = 2 * (dx * v.x + dz * v.z);
-    const discriminant = b * b - 4 * a * c;
-    const seconds = c <= 0 ? 0 : a > 0 && b < 0 && discriminant >= 0 ? (-b - Math.sqrt(discriminant)) / (2 * a) : Infinity;
-    const at = Math.ceil(state.now + seconds * config.timeUnitsPerSecond);
-    if (at < result.at) result = { at, player };
+    const squared = dx * dx + dz * dz;
+    if (squared <= config.pickupRadius ** 2 && (squared < distance || (squared === distance && (!result || player.id < result.id)))) {
+      result = player; distance = squared;
+    }
   }
   return result;
 }
@@ -300,7 +297,7 @@ function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]):
     player.stepRecoveryProgress = 0;
     player.action = null;
   }
-  state.ball = { mode: 'loose', position: { ...config.supply[match.firstBall] }, startsAt: match.roundStartsAt };
+  state.ball = createLooseBall(config.supply[match.firstBall], state.now, match.roundStartsAt, config);
   state.danger = null;
   state.rally = { speed: 0, power: 0 };
   events.push({ kind: 'spawn', at: state.now, side: match.firstBall });
@@ -327,14 +324,14 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const guidance = guidanceAt(state.ball, config);
     const hit = hitAt(state, config);
     const loss = attackLossAt(state.ball, state.now, config);
-    const pickup = pickupAt(state, config);
+    const physicsAt = state.ball.mode === 'loose' ? state.ball.nextPhysicsAt : Infinity;
     const appearsAt = state.ball.mode === 'absent' ? state.ball.appearsAt : Infinity;
     const startsAt = state.ball.mode === 'loose' && !state.danger ? state.ball.startsAt : Infinity;
-    const actionAt = Math.min(...state.players.map(p => p.action?.kind === 'step' && p.action.moveEndsAt > state.now
+    const actionAt = Math.min(...state.players.map(p => (p.action?.kind === 'step' || p.action?.kind === 'hitstun') && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
     const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
       state.players.some(p => p.hp <= 0) ? state.now : state.match.roundEndsAt,
-      appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, pickup.at, movementBoundaryAt(state, config));
+      appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
 
     // 同時刻の中央通過より爆発を先に確定する。
@@ -359,7 +356,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
 
     if (state.ball.mode === 'absent' && state.ball.appearsAt === at) {
       const side = state.ball.side;
-      state.ball = { mode: 'loose', position: { ...config.supply[side] }, startsAt: at + config.ballStartDelay };
+      state.ball = createLooseBall(config.supply[side], at, at + config.ballStartDelay, config);
       events.push({ kind: 'spawn', at, side });
     }
     if (state.ball.mode === 'loose' && !state.danger && state.ball.startsAt === at) {
@@ -417,14 +414,21 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       if (!defense) {
         const damage = ball.attack!.damage;
         receiver.hp = Math.max(0, receiver.hp - damage);
+        const horizontal = Math.hypot(ball.velocity.x, ball.velocity.z);
+        const direction = horizontal <= config.hitDirectionEpsilon ? { x: 0, y: 0, z: receiver.side === 'p1' ? 1 : -1 }
+          : { x: ball.velocity.x / horizontal, y: 0, z: ball.velocity.z / horizontal };
+        const ko = receiver.hp === 0;
+        const speed = config.hitKnockbackDistance / config.hitKnockbackMoveDuration * config.timeUnitsPerSecond;
+        receiver.action = ko ? null : { kind: 'hitstun', startedAt: at, moveEndsAt: at + config.hitKnockbackMoveDuration,
+          endsAt: at + config.hitstunDuration, velocity: { x: direction.x * speed, z: direction.z * speed } };
         events.push({ kind: 'hit', at, player: receiver.id, damage,
-          position: ballContactPoint(ball.position, receiver.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop) });
-        state.ball = dropBall(ball, at, config);
+          position: ballContactPoint(ball.position, receiver.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop), direction, ko });
+        state.ball = dropBall(ball, at, config, 'hit');
         state.rally = { speed: 0, power: 0 };
       }
     }
     if (!(at === end && hit === at) && state.ball === contactingBall && state.ball.mode === 'flight' && loss === at) {
-      state.ball = dropBall(state.ball, at, config);
+      state.ball = dropBall(state.ball, at, config, 'loss');
       state.rally = { speed: 0, power: 0 };
     }
     if (!(at === end && hit === at) && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack?.homing && guidance === at) {
@@ -432,16 +436,19 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       ball.attack!.guidanceIndex++;
       updateGuidance(ball, state.players.find(p => p.id === ball.attack!.target)!, at, config);
     }
-    if (state.ball.mode === 'loose' && state.danger) {
-      // 起動時も、その場の球は自動回収する。
-      const currentPickup = pickup.at === at ? pickup : pickupAt(state, config);
-      if (currentPickup.at === at && currentPickup.player) {
-        state.ball = { mode: 'held', owner: currentPickup.player.id };
-        events.push({ kind: 'pickup', at, player: currentPickup.player.id });
+    // 終了境界は次tickの入力を待つ。この時刻に生まれたlooseの予定は必ず次の境界。
+    if (at !== end && state.ball.mode === 'loose' && state.ball.nextPhysicsAt === at) {
+      state.ball = updateLooseBall(state.ball, config);
+      const player = pickupPlayer(state, config);
+      if (player) {
+        state.ball = { mode: 'held', owner: player.id };
+        events.push({ kind: 'pickup', at, player: player.id });
       }
     }
-    // tick終了の接触は次tickの同時刻入力を待つので、勝敗もその後で決める。
-    if (!(at === end && hit === at && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)) {
+    // tick終了の接触・物理更新は同時刻入力を待つので、勝敗もその後で決める。
+    const pendingBoundary = at === end && ((hit === at && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)
+      || (state.ball.mode === 'loose' && state.ball.nextPhysicsAt === at));
+    if (!pendingBoundary) {
       if (decideRound(state, config, events)) break;
     }
     if (at === end) break;

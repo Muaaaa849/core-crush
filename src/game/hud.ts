@@ -52,7 +52,7 @@ export class Hud {
     const players = state.players
       .map((p) => {
         const name = p.id === this.local ? 'あなた' : '相手';
-        return `${name} HP ${p.hp}/${p.maxHp}　コスト ${(p.cost / 4).toFixed(2)}　ステップ ${p.stepPoints}`;
+        return `${name} HP ${Math.ceil(p.hp)}/${p.maxHp}　コスト ${(p.cost / 4).toFixed(2)}　ステップ ${p.stepPoints}`;
       })
       .join('\n');
     const message = now < this.messageUntil ? `\n${this.message}` : '';

@@ -23,7 +23,8 @@ function press(state: SimState, kind: 'step' | 'primary' | 'summon', player: 'p1
   return { kind, player, at: state.now, seq: 0 };
 }
 function loose(state: SimState, side: 'p1' | 'p2' = 'p1') {
-  state.ball = { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: side === 'p1' ? 10 : -10 }, startsAt: 0 };
+  state.ball = { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: side === 'p1' ? 10 : -10 }, startsAt: 0,
+    velocity: { x: 0, y: 0, z: 0 }, motionAt: state.now, nextPhysicsAt: (Math.floor(state.now / config.frame) + 1) * config.frame };
 }
 
 describe('stats and resources', () => {

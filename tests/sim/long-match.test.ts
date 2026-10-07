@@ -42,6 +42,7 @@ describe('M8-7 long random matches', () => {
         const freeToWalk = state.now >= state.match.roundStartsAt && previous.match.phase === 'play'
           && previous.match.roundStartsAt === state.match.roundStartsAt && before.hp > 0
           && p.action?.kind !== 'step' && before.action?.kind !== 'step'
+          && p.action?.kind !== 'hitstun' && before.action?.kind !== 'hitstun'
           && Math.hypot(p.move.x, p.move.z) > 0
           && Math.abs(p.position.x) < c.playerHalfWidth - c.walkSpeed * c.tick / c.timeUnitsPerSecond
           && depth > c.playerMinDepth + c.walkSpeed * c.tick / c.timeUnitsPerSecond

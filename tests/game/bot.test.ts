@@ -18,6 +18,55 @@ function play(state: SimState, ticks: number) {
 }
 
 describe('Bot', () => {
+  it('K9-10: chases an own-side loose ball with move commands and stops after pickup', () => {
+    const bot = new Bot('p2');
+    const state = createInitialState('p2');
+    state.now = defaultConfig.ballStartDelay;
+    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    state.ball = { mode: 'loose', position: { x: 3, y: 2, z: -6 }, velocity: { x: 2, y: 3, z: 0 },
+      startsAt: state.now, motionAt: state.now, nextPhysicsAt: state.now + defaultConfig.frame };
+    const before = structuredClone(state);
+    const commands = bot.think(state);
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({ kind: 'move', player: 'p2', at: state.now });
+    expect(state).toEqual(before);
+    const moving = step(state, commands).state;
+    expect(moving.players[1].move.x).toBeGreaterThan(0);
+    moving.ball = { mode: 'held', owner: 'p2' };
+    expect(bot.think(moving)).toEqual([{ kind: 'move', player: 'p2', at: moving.now, seq: 1, x: 0, z: 0 }]);
+  });
+
+  it('K9-2: waits through hitstun and resumes chasing exactly when it ends', () => {
+    const bot = new Bot('p2');
+    const state = createInitialState('p2'); state.now = defaultConfig.ballStartDelay;
+    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    if (state.ball.mode !== 'loose') throw Error('loose');
+    state.ball.position.x = 3;
+    state.players[1].action = { kind: 'hitstun', startedAt: state.now, moveEndsAt: state.now + 12_000,
+      endsAt: state.now + 24_000, velocity: { x: 0, z: -7 } };
+    expect(bot.think(state)).toEqual([]);
+    state.now += 24_000;
+    expect(bot.think(state).some(c => c.kind === 'move')).toBe(true);
+  });
+
+  it('K9-10 K9-14: both bots recover drops and keep exchanging throws deterministically', () => {
+    const replay = () => {
+      const config = { ...defaultConfig, baseHp: 1000 };
+      let state = createInitialState('p1', config);
+      const bots = [new Bot('p1'), new Bot('p2')], events: SimEvent[] = [];
+      for (let tick = 0; tick < 60 * 40; tick++) {
+        const result = step(state, bots.flatMap(bot => bot.think(state)), config);
+        state = result.state; events.push(...result.events);
+      }
+      expect(events.filter(e => e.kind === 'release').length).toBeGreaterThanOrEqual(10);
+      expect(events.filter(e => e.kind === 'pickup').length).toBeGreaterThanOrEqual(10);
+      expect(events.some(e => e.kind === 'explosion')).toBe(false);
+      expect(state.players.every(p => p.hp < p.maxHp)).toBe(true);
+      return { state, events };
+    };
+    expect(replay()).toEqual(replay());
+  });
+
   it('resets per-hold state across a draw replay even if intermediate ticks were not observed', () => {
     const bot = new Bot('p2');
     const state = createInitialState('p2');

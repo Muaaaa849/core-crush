@@ -36,12 +36,13 @@ export interface PlayerState {
     | { kind: 'catch' | 'parry'; pressedAt: number; startsAt: number; endsAt: number }
     | { kind: 'catch-recovery' | 'catch-whiff' | 'parry-whiff'; endsAt: number }
     | { kind: 'feint'; startedAt: number; endsAt: number }
+    | { kind: 'hitstun'; startedAt: number; moveEndsAt: number; endsAt: number; velocity: { x: number; z: number } }
     | { kind: 'step'; endsAt: number; moveEndsAt: number; velocity: { x: number; z: number } } | null;
 }
 
 export type BallState =
   | { mode: 'absent'; side: Side; appearsAt: number }
-  | { mode: 'loose'; position: Vec3; startsAt: number }
+  | { mode: 'loose'; position: Vec3; startsAt: number; velocity: Vec3; motionAt: number; nextPhysicsAt: number }
   | { mode: 'held'; owner: PlayerId }
   | { mode: 'flight'; position: Vec3; origin: Vec3; releasedAt: number; velocity: Vec3; side: Side;
       segmentOrigin: Vec3; segmentAt: number; attack: BallAttack | null };
@@ -82,4 +83,4 @@ export type SimEvent =
   | { kind: 'explosion' | 'spawn' | 'clock-start' | 'crossing'; at: number; side: Side }
   | { kind: 'pickup' | 'release' | 'summon'; at: number; player: PlayerId }
   | { kind: 'step'; at: number; player: PlayerId; direction: StepDirection }
-  | { kind: 'hit'; at: number; player: PlayerId; damage: number; position: Vec3 };
+  | { kind: 'hit'; at: number; player: PlayerId; damage: number; position: Vec3; direction: Vec3; ko: boolean };

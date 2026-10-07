@@ -242,7 +242,8 @@ describe('homing flight', () => {
     const result = step(state, []);
     expect(result.state.ball.mode).toBe('loose');
     if (result.state.ball.mode !== 'loose') throw Error('loose');
-    expect(result.state.ball.position.y).toBe(config.ballDiameter / 2);
+    expect(result.state.ball.position.y).toBe(boundary === 'floor' ? config.ballDiameter / 2 : config.defenseHeight);
+    expect(result.state.ball.velocity.y).toBe(boundary === 'floor' ? config.minimumBallSpeed * 0.2 * 0.5 : 0);
     expect(result.state.ball.position.x).toBeLessThanOrEqual(config.ballHalfWidth);
     expect(result.state.ball.position.z).toBeGreaterThanOrEqual(-config.ballHalfDepth);
     expect(result.state.danger!.expiresAt).toBe(deadline);
@@ -253,8 +254,9 @@ describe('homing flight', () => {
   it('drops on the current side without resetting danger and cannot hit twice', () => {
     const state = setup('straight');
     if (state.ball.mode !== 'flight') throw Error('flight');
-    const dropped = dropBall(state.ball, state.now, config);
-    expect(dropped.mode === 'loose' && dropped.position.y).toBe(config.ballDiameter / 2);
+    const dropped = dropBall(state.ball, state.now, config, 'hit');
+    expect(dropped.position.y).toBe(state.ball.position.y);
+    expect(dropped.velocity.y).toBe(config.looseHitUpSpeed);
     const result = run(state);
     expect(result.hit).toMatchObject({ player: 'p2', damage: 20 });
     const crossed = result.events.find(e => e.kind === 'crossing')!;

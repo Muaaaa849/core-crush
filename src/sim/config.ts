@@ -21,6 +21,21 @@ export interface SimConfig {
   playerMaxDepth: number;
   supply: Record<Side, Vec3>;
   pickupRadius: number;
+  pickupHeight: number;
+  hitDirectionEpsilon: number;
+  hitKnockbackDistance: number;
+  hitKnockbackMoveDuration: number;
+  hitstunDuration: number;
+  looseSpeedFraction: number;
+  looseSpeedCap: number;
+  looseHitUpSpeed: number;
+  looseLossVerticalSpeedCap: number;
+  looseGravity: number;
+  looseFloorRestitution: number;
+  looseGroundSpeedThreshold: number;
+  looseRollDeceleration: number;
+  looseStopSpeed: number;
+  looseBoundaryRestitution: number;
   ballDiameter: number;
   shotSpeed: Record<Shot, number>;
   minimumFlightSeconds: Record<Shot, number>;
@@ -98,6 +113,22 @@ export const defaultConfig: SimConfig = {
   playerMaxDepth: 17.6,
   supply: { p1: { x: 0, y: BALL_DIAMETER / 2, z: 7.8 }, p2: { x: 0, y: BALL_DIAMETER / 2, z: -7.8 } },
   pickupRadius: 1.2,
+  pickupHeight: 0.8,
+  // 被弾と未所持球の運動（決定0009）。能力値の倍率は掛けない。
+  hitDirectionEpsilon: 0.000001,
+  hitKnockbackDistance: 1.4,
+  hitKnockbackMoveDuration: 12 * FRAME,
+  hitstunDuration: 24 * FRAME,
+  looseSpeedFraction: 0.20,
+  looseSpeedCap: 5.0,
+  looseHitUpSpeed: 3.0,
+  looseLossVerticalSpeedCap: 3.0,
+  looseGravity: 9.8,
+  looseFloorRestitution: 0.50,
+  looseGroundSpeedThreshold: 0.50,
+  looseRollDeceleration: 3.0,
+  looseStopSpeed: 0.10,
+  looseBoundaryRestitution: 0.50,
   ballDiameter: BALL_DIAMETER,
   shotSpeed: { straight: 36.4, left: 29.9, right: 29.9, upper: 22.1 }, // 拡大したコートに合わせ1.3倍（0006）
   minimumFlightSeconds: { straight: 0.240, left: 0.270, right: 0.270, upper: 0.320 },

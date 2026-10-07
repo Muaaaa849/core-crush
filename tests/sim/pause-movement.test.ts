@@ -66,7 +66,8 @@ describe('M8-6 movement during the explosion pause', () => {
   it.each(['primary', 'secondary', 'feint', 'summon'] as const)('%s still requires a running clock', kind => {
     const initial = exploded();
     if (kind === 'primary' || kind === 'feint') initial.ball = { mode: 'held', owner: 'p1' };
-    if (kind === 'summon') initial.ball = { mode: 'loose', position: { ...c.supply.p1, x: c.pickupRadius * 2 }, startsAt: initial.now + c.ballStartDelay };
+    if (kind === 'summon') initial.ball = { mode: 'loose', position: { ...c.supply.p1, x: c.pickupRadius * 2 }, startsAt: initial.now + c.ballStartDelay,
+      velocity: { x: 0, y: 0, z: 0 }, motionAt: initial.now, nextPhysicsAt: initial.now + F };
     const result = step(initial, [{ kind, player: 'p1', at: initial.now, seq: 0 }]);
     expect(result.state.players[0].action).toBeNull();
     expect(result.state.players[0].cost).toBe(initial.players[0].cost);

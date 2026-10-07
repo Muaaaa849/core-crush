@@ -154,7 +154,8 @@ describe('whiffs', () => {
     }
     for (const kind of ['primary', 'summon', 'secondary'] as const) {
       const whiffed = run(empty(), 11 * F, [press('secondary')]).state;
-      whiffed.ball = kind === 'summon' ? { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: 10 }, startsAt: 0 } : { mode: 'held', owner: 'p1' };
+      whiffed.ball = kind === 'summon' ? { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: 10 }, startsAt: 0,
+        velocity: { x: 0, y: 0, z: 0 }, motionAt: whiffed.now, nextPhysicsAt: whiffed.now + F } : { mode: 'held', owner: 'p1' };
       const result = step(whiffed, [press(kind, whiffed.now)], config);
       expect(result.state.players[0].action).toEqual(whiffed.players[0].action);
       expect(result.events).toEqual([]);
