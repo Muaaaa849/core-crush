@@ -98,8 +98,9 @@ describe('0008 rounds and match result', () => {
   it('contact-time yaw input can save a lethal hit before timeout is adjudicated', () => {
     const initial = deadlineHit();
     initial.players[1].yaw = 0; // Facing away until the exact contact timestamp.
-    const boundary = step(initial, [{ kind: 'secondary', player: 'p2', at: initial.now, seq: 0 }]);
-    const result = step(boundary.state, [{ kind: 'yaw', player: 'p2', at: boundary.state.now, seq: 1, yaw: Math.PI }]);
+    const quick = { ...c, defenseStartup: F }; // 1F前の押下で接触時刻に受付が開いている状態を作る
+    const boundary = step(initial, [{ kind: 'secondary', player: 'p2', at: initial.now, seq: 0 }], quick);
+    const result = step(boundary.state, [{ kind: 'yaw', player: 'p2', at: boundary.state.now, seq: 1, yaw: Math.PI }], quick);
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
     expect(result.events.filter(e => e.kind === 'catch' || e.kind === 'round-end').map(e => e.kind)).toEqual(['catch', 'round-end']);
     expect(result.events.find(e => e.kind === 'round-end')).toEqual({ kind: 'round-end', at: initial.match.roundEndsAt, winner: 'p1', reason: 'time' });

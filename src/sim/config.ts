@@ -165,7 +165,7 @@ export const defaultConfig: SimConfig = {
   stepDistance: 2.8,
   stepMoveDuration: 12 * FRAME,
   stepActionDuration: 18 * FRAME,
-  defenseStartup: FRAME,
+  defenseStartup: 3 * FRAME, // 押してから受付開始まで。1Fでは早めに押す必要があったため2F遅らせた（rules.md M1細則）
   defenseWindowFrames: [7, 7, 8, 8, 9, 9, 10, 10, 11, 11],
   defenseJustDuration: 2 * FRAME,
   defenseGoodDuration: 3 * FRAME,

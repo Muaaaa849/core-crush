@@ -3,7 +3,8 @@ import { defaultConfig } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, SimEvent, SimState } from '../../src/sim/types';
 
-const config = defaultConfig;
+// 受付内の判定・報酬は発生1Fの設定で検証する。既定の発生3F（rules.md M1細則）は下の専用テストで確認する。
+const config = { ...defaultConfig, defenseStartup: defaultConfig.frame };
 const contactRadius = config.capsuleRadius + config.ballDiameter / 2;
 // Invert contact time using a one-metre-per-frame incoming flight.
 const incomingSpeed = config.timeUnitsPerSecond / config.frame;
@@ -27,10 +28,10 @@ function empty(): SimState {
   state.ball = { mode: 'held', owner: 'p2' };
   return state;
 }
-function run(state: SimState, until: number, commands: Command[] = []) {
+function run(state: SimState, until: number, commands: Command[] = [], base = config) {
   const events: SimEvent[] = [];
   while (state.now < until) {
-    const result = step(state, commands, { ...config, tick: Math.min(F, until - state.now) });
+    const result = step(state, commands, { ...base, tick: Math.min(F, until - state.now) });
     state = result.state; events.push(...result.events);
   }
   return { state, events };
@@ -39,6 +40,22 @@ function flight(state: SimState) {
   if (state.ball.mode !== 'flight') throw Error(`expected flight, got ${state.ball.mode}`);
   return state.ball;
 }
+
+describe('defense startup (rules.md M1細則, 2F later by user request)', () => {
+  for (const kind of kinds) it(`${kind}: the window opens 3F after the press, with just/good/so-so counted from there`, () => {
+    const at = (contact: number) => {
+      const result = run(incoming(contact), contact + 1, [press(kind)], defaultConfig);
+      return result.events.find(e => e.kind === 'hit' || e.kind === 'catch' || e.kind === 'parry');
+    };
+    expect(at(2 * F)?.kind).toBe('hit');
+    expect(at(3 * F)).toMatchObject({ grade: 'just' });
+    expect(at(5 * F)).toMatchObject({ grade: 'good' });
+    expect(at(8 * F)).toMatchObject({ grade: 'so-so' });
+    const end = 3 * F + 9 * F; // 防御5の受付W＝9F
+    expect(at(end - 1)?.kind).not.toBe('hit');
+    expect(at(end)?.kind).toBe('hit');
+  });
+});
 
 describe('R05 shared defense window', () => {
   for (const kind of kinds) for (let defense = 1; defense <= 10; defense++) {
