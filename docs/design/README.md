@@ -60,3 +60,4 @@ CORE-CRUSHは、1v1・1v2・2v2に対応するFPS/TPSドッジボール。8秒�
 | 2026-10-07 | **企画変更**：ステージ約1.3倍（白線 片側13×15.6m、ケージ21×36m）、球の直径0.65m、基本球速1.3倍（rules.md、feel.md） | ユーザー指定。`docs/decisions/0006-stage-enlargement.md` |
 | 2026-10-07 | 細則：フリは8F・コスト0.25・完了後硬直なし（rules.md M1細則） | 初期案。`docs/decisions/0007-defense-input-and-feint.md` |
 | 2026-10-07 | **企画変更**：跳ね返しのマウス方向入力を廃止し、ボタンを押すだけに（球種は移動キー）。爆発後の停止中も歩行・ステップ可。ラウンド制と勝敗をM1に入れる | ユーザー指定。`docs/decisions/0007-defense-input-and-feint.md`、`docs/decisions/0008-rounds-and-pause-movement.md` |
+| 2026-10-07 | **企画変更**：被弾でノックバックと落球のバウンド・転がりを追加。未所持球は白線内・同じ陣で反射し、即時床上静止を廃止。落球後の運動・高さ付き回収は60Hz境界で判定し、将来の動作表示はsimの状態・イベントから引く（設計採用、実装・試遊は未検証） | ユーザー指定、数値は初期案。[0009 被弾ノックバックと落球のバウンド・転がり](../decisions/0009-hit-knockback-and-ball-bounce.md) |
