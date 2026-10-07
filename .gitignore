@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+# 中間生成物（派生素材の最終成果物 public/assets/ は管理対象）
+.cache/

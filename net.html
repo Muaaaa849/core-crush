@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CORE-CRUSH — M0 通信計測</title>
+    <style>
+      body { margin: 2rem auto; padding: 0 1rem; max-width: 48rem; font-family: system-ui, sans-serif; color: #e5edf5; background: #101820; }
+      input, button { font: inherit; padding: .5rem; }
+      input { width: 6rem; }
+      pre { padding: 1rem; background: #1d2a36; overflow: auto; }
+      a { color: #8dcfff; }
+    </style>
+  </head>
+  <body>
+    <h1>M0 WebRTC 通信計測</h1>
+    <p>同一ページ内の2つの接続で往復を計測します。インターネット越しの通信性能は測りません。</p>
+    <p>state: 順序保証なし・再送なし ／ event: 順序保証あり・再送あり</p>
+    <form id="measure">
+      <label for="count">各チャンネルのping回数</label>
+      <input id="count" type="number" min="1" max="1000" step="1" value="100" required />
+      <button id="start" type="submit">計測開始</button>
+    </form>
+    <p id="status" role="status">未計測</p>
+    <p>p50/p95: 応答分のRTT（ms）。timedOut: 1秒以内に応答しなかった回数。</p>
+    <pre id="results">結果はここに表示されます。</pre>
+    <a href="./">ゲームへ戻る</a>
+    <script type="module" src="/src/net/loopback.ts"></script>
+  </body>
+</html>
