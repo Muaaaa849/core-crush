@@ -1,4 +1,4 @@
-import type { Shot, Side, Vec3 } from './types';
+import type { DefenseGrade, Shot, Side, Vec3 } from './types';
 
 export interface SimConfig {
   timeUnitsPerSecond: number;
@@ -54,11 +54,26 @@ export interface SimConfig {
   stepDistance: number;
   stepMoveDuration: number;
   stepActionDuration: number;
+  defenseStartup: number;
+  defenseWindowFrames: number[];
+  defenseJustDuration: number;
+  defenseGoodDuration: number;
+  defenseArcDegrees: number;
+  catchDuration: number;
+  catchWhiffDuration: number;
+  parryWhiffDuration: number;
+  parryRecovery: number;
+  catchReward: Record<DefenseGrade, number>;
+  catchHealFraction: number;
+  parryReward: number;
+  rallyGain: Record<DefenseGrade, { speed: number; power: number }>;
+  rallySpeedCap: number;
+  rallyPowerCap: number;
 }
 
 const SECOND = 60_000;
 const FRAME = 1_000;
-const BALL_DIAMETER = 0.5;
+const BALL_DIAMETER = 0.65; // 決定0006
 export const defaultConfig: SimConfig = {
   timeUnitsPerSecond: SECOND,
   frame: FRAME,
@@ -71,13 +86,13 @@ export const defaultConfig: SimConfig = {
   throwRecovery: 8 * FRAME,
   windupWalkMultiplier: 0.3,
   walkSpeed: 5,
-  playerHalfWidth: 7.1,
+  playerHalfWidth: 10.1,
   playerMinDepth: 0.5,
-  playerMaxDepth: 13.1,
-  supply: { p1: { x: 0, y: BALL_DIAMETER / 2, z: 6 }, p2: { x: 0, y: BALL_DIAMETER / 2, z: -6 } },
+  playerMaxDepth: 17.6,
+  supply: { p1: { x: 0, y: BALL_DIAMETER / 2, z: 7.8 }, p2: { x: 0, y: BALL_DIAMETER / 2, z: -7.8 } },
   pickupRadius: 1.2,
   ballDiameter: BALL_DIAMETER,
-  shotSpeed: { straight: 28, left: 23, right: 23, upper: 17 },
+  shotSpeed: { straight: 36.4, left: 29.9, right: 29.9, upper: 22.1 }, // 拡大したコートに合わせ1.3倍（0006）
   minimumFlightSeconds: { straight: 0.240, left: 0.270, right: 0.270, upper: 0.320 },
   minimumBallSpeed: 6.5,
   speedCapMultiplier: 1.6,
@@ -90,12 +105,12 @@ export const defaultConfig: SimConfig = {
   capsuleRadius: 0.30,
   capsuleBottom: 0.30,
   capsuleTop: 1.50,
-  // 白線（片側10m×12m）の内側から半径分（rules.md「球の範囲」）。小物の陰で止まらないようにする。
-  ballHalfWidth: 4.75,
-  ballHalfDepth: 11.75,
+  // 白線（片側13m×15.6m）の内側から半径分（rules.md「球の範囲」）。小物の陰で止まらないようにする。
+  ballHalfWidth: 6.175,
+  ballHalfDepth: 15.275,
   // 追尾はキャラの移動範囲（金網の内側）まで追う。白線の外へ逃げて追尾を切れないようにする（R03）。
-  guidanceHalfWidth: 7.25,
-  guidanceHalfDepth: 13.25,
+  guidanceHalfWidth: 10.175,
+  guidanceHalfDepth: 17.675,
   guidanceDistance: 0.05,
   curveEndFraction: 0.65,
   horizontalCurveFraction: 0.60,
@@ -112,4 +127,19 @@ export const defaultConfig: SimConfig = {
   stepDistance: 2.8,
   stepMoveDuration: 12 * FRAME,
   stepActionDuration: 18 * FRAME,
+  defenseStartup: FRAME,
+  defenseWindowFrames: [7, 7, 8, 8, 9, 9, 10, 10, 11, 11],
+  defenseJustDuration: 2 * FRAME,
+  defenseGoodDuration: 3 * FRAME,
+  defenseArcDegrees: 160,
+  catchDuration: 24 * FRAME,
+  catchWhiffDuration: 54 * FRAME,
+  parryWhiffDuration: 30 * FRAME,
+  parryRecovery: 6 * FRAME,
+  catchReward: { 'so-so': 1, good: 2, just: 4 },
+  catchHealFraction: 0.03,
+  parryReward: 1,
+  rallyGain: { 'so-so': { speed: 0.03, power: 0.05 }, good: { speed: 0.05, power: 0.08 }, just: { speed: 0.07, power: 0.12 } },
+  rallySpeedCap: 0.4,
+  rallyPowerCap: 0.8,
 };

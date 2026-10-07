@@ -1,6 +1,6 @@
 import { defaultConfig, type SimConfig } from './config';
 import { sweptCapsuleContact } from './contact';
-import type { BallState, PlayerState, Shot, Side, Vec3 } from './types';
+import type { BallState, PlayerState, Rally, Shot, Side, Vec3 } from './types';
 
 type Flight = Extract<BallState, { mode: 'flight' }>;
 const still = { x: 0, y: 0, z: 0 };
@@ -47,16 +47,16 @@ function guide(position: Vec3, feet: Vec3, shot: Shot, length: number, traveled:
     y: (point.y - position.y) / distance, z: (point.z - position.z) / distance }, pure: pure || traveled >= config.curveEndFraction * length };
 }
 
-export function rawLaunchSpeed(shot: Shot, attack: number, elapsedSeconds: number, config: SimConfig): number {
+export function rawLaunchSpeed(shot: Shot, attack: number, elapsedSeconds: number, config: SimConfig, rallySpeed = 0): number {
   const base = config.shotSpeed[shot];
   const danger = elapsedSeconds / (config.dangerDuration / config.timeUnitsPerSecond);
   return Math.min(base * (1 + config.attackSpeedCoefficient * (attack - config.defaultStat))
-    * (1 + config.dangerSpeedCoefficient * danger ** 2), config.speedCapMultiplier * base);
+    * (1 + config.dangerSpeedCoefficient * danger ** 2) * (1 + rallySpeed), config.speedCapMultiplier * base);
 }
 
-export function launchDamage(elapsedSeconds: number, config: SimConfig): number {
+export function launchDamage(elapsedSeconds: number, config: SimConfig, rallyPower = 0): number {
   const danger = elapsedSeconds / (config.dangerDuration / config.timeUnitsPerSecond);
-  return config.hitDamage * Math.min(1 + config.dangerPowerCoefficient * danger ** 2, config.powerCapMultiplier);
+  return config.hitDamage * Math.min((1 + config.dangerPowerCoefficient * danger ** 2) * (1 + rallyPower), config.powerCapMultiplier);
 }
 
 /** 静止受け手までの軌道長。実飛行と同じ誘導・接触・整数時刻を使う。 */
@@ -76,10 +76,10 @@ function stationaryPathLength(origin: Vec3, feet: Vec3, shot: Shot, side: Side, 
   }
 }
 
-export function launchBall(player: PlayerState, receiver: PlayerState, at: number, elapsedSeconds: number, aim: boolean, config: SimConfig): Flight {
-  const origin = { ...player.position, y: player.position.y + config.defenseHeight };
+export function launchBall(player: PlayerState, receiver: PlayerState, at: number, elapsedSeconds: number, aim: boolean, config: SimConfig,
+  origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }): Flight {
   const shot = aim ? 'straight' : selectShot(player);
-  const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config);
+  const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config, rally.speed);
   let speed = Math.max(config.minimumBallSpeed, raw);
   if (!aim) {
     // 丸めが速度へ与える微小な差も、同じ誘導で再評価する。
@@ -91,7 +91,7 @@ export function launchBall(player: PlayerState, receiver: PlayerState, at: numbe
   const ball: Flight = { mode: 'flight', position: { ...origin }, origin, releasedAt: at, side: player.side,
     segmentOrigin: { ...origin }, segmentAt: at,
     velocity: { x: -Math.sin(player.yaw) * speed, y: 0, z: -Math.cos(player.yaw) * speed },
-    attack: { target: receiver.id, shot, damage: launchDamage(elapsedSeconds, config), speed,
+    attack: { target: receiver.id, shot, damage: launchDamage(elapsedSeconds, config, rally.power), speed,
       homing: !aim, pure: false, launchDistance: Math.hypot(receiver.position.x - origin.x,
         receiver.position.y + config.defenseHeight - origin.y, receiver.position.z - origin.z), throwerSide: player.side, guidanceIndex: 1 } };
   if (!aim) updateGuidance(ball, receiver, at, config);

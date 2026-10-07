@@ -29,8 +29,14 @@ export class Controls {
       this.yaw -= e.movementX * MOUSE_RAD_PER_COUNT;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_RAD_PER_COUNT, -PITCH_LIMIT, PITCH_LIMIT);
     });
+    // 左：所持中は投擲、非所持は跳ね返し。右：キャッチ（rules.md「入力設定とHUD」）。
     document.addEventListener('mousedown', (e) => {
-      if (this.locked && e.button === 0) this.send({ kind: 'primary' });
+      if (!this.locked) return;
+      if (e.button === 0) this.send({ kind: 'primary' });
+      if (e.button === 2) this.send({ kind: 'secondary' });
+    });
+    document.addEventListener('contextmenu', (e) => {
+      if (this.locked) e.preventDefault();
     });
     document.addEventListener('keydown', (e) => {
       this.keys.add(e.code);
@@ -83,7 +89,7 @@ export class Controls {
     camera.lookAt(camera.position.clone().add(look));
   }
 
-  private send(input: { kind: 'primary' | 'step' | 'summon' } | { kind: 'move'; x: number; z: number } | { kind: 'yaw'; yaw: number }): void {
+  private send(input: { kind: 'primary' | 'secondary' | 'step' | 'summon' } | { kind: 'move'; x: number; z: number } | { kind: 'yaw'; yaw: number }): void {
     this.runner.input({ ...input, player: this.player });
   }
 }

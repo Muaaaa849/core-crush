@@ -23,7 +23,7 @@ function press(state: SimState, kind: 'step' | 'primary' | 'summon', player: 'p1
   return { kind, player, at: state.now, seq: 0 };
 }
 function loose(state: SimState, side: 'p1' | 'p2' = 'p1') {
-  state.ball = { mode: 'loose', position: { x: 4, y: 0.25, z: side === 'p1' ? 10 : -10 }, startsAt: 0 };
+  state.ball = { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: side === 'p1' ? 10 : -10 }, startsAt: 0 };
 }
 
 describe('stats and resources', () => {
@@ -64,13 +64,13 @@ describe('basic step', () => {
     state.players[0].move = { x: 0, z: -1 };
     const commands: Command[] = [press(state, 'step'), { kind: 'move', player: 'p1', at: 3_000, seq: 1, x: 1, z: 0 }];
     const half = advance(state, 6_000, commands);
-    expect(half.state.players[0].position.z).toBeCloseTo(4.6);
+    expect(half.state.players[0].position.z).toBeCloseTo(state.players[0].position.z - config.stepDistance / 2);
     const moved = advance(half.state, 12_000, commands);
     expect(moved.state.players[0].stepPoints).toBe(1);
-    expect(moved.state.players[0].position.z).toBeCloseTo(3.2);
+    expect(moved.state.players[0].position.z).toBeCloseTo(state.players[0].position.z - config.stepDistance);
     const recovered = advance(moved.state, 18_000, commands);
     expect(recovered.state.players[0].position.x).toBe(0);
-    expect(recovered.state.players[0].position.z).toBeCloseTo(3.2);
+    expect(recovered.state.players[0].position.z).toBeCloseTo(state.players[0].position.z - config.stepDistance);
     expect(half.events).toContainEqual({ kind: 'step', at: 0, player: 'p1', direction: 'forward' });
     expect(step(recovered.state, []).state.players[0].position.x).toBeCloseTo(5 / 60);
   });
@@ -183,9 +183,9 @@ describe('R08 recovery', () => {
   it('switches both players at the exact integer center crossing inside a tick', () => {
     const state = active();
     state.players.forEach(p => { p.stepPoints = 0; });
-    state.ball = { mode: 'flight', side: 'p1', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -28 } };
+    state.ball = { mode: 'flight', side: 'p1', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -config.shotSpeed.straight } };
     const result = step(state, []);
-    const crossing = Math.ceil(0.1 / 28 * S);
+    const crossing = Math.ceil(0.1 / config.shotSpeed.straight * S);
     expect(result.events).toContainEqual({ kind: 'crossing', at: crossing, side: 'p2' });
     expect(result.state.players[0].stepRecoveryProgress).toBe(config.tick - crossing);
     expect(result.state.players[1].stepRecoveryProgress).toBe(crossing);
@@ -248,7 +248,11 @@ describe('common summon and simultaneous action priority', () => {
     const primary = step(state, [press(state, 'summon'), press(state, 'primary'), press(state, 'step')]);
     expect(primary.state.players[0].action?.kind).toBe('windup');
     loose(state);
-    const summoned = step(state, [press(state, 'summon'), press(state, 'primary'), press(state, 'step'), press(state, 'summon')]);
+    const parried = step(state, [press(state, 'summon'), press(state, 'primary'), press(state, 'step'), press(state, 'summon')]);
+    expect(parried.state.players[0].cost).toBe(4);
+    expect(parried.state.players[0].action?.kind).toBe('parry');
+    expect(parried.events.filter(e => e.kind === 'summon')).toHaveLength(0);
+    const summoned = step(state, [press(state, 'summon'), press(state, 'step'), press(state, 'summon')]);
     expect(summoned.state.players[0].cost).toBe(0);
     expect(summoned.state.players[0].action).toBeNull();
     expect(summoned.events.filter(e => e.kind === 'summon')).toHaveLength(1);

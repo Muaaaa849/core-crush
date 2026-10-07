@@ -4,6 +4,8 @@ export interface Vec3 { x: number; y: number; z: number }
 export interface Stats { attack: number; defense: number; agility: number }
 export type StepDirection = 'forward' | 'back' | 'left' | 'right';
 export type Shot = 'straight' | 'left' | 'right' | 'upper';
+export type DefenseGrade = 'just' | 'good' | 'so-so';
+export interface Rally { speed: number; power: number }
 export interface BallAttack {
   target: PlayerId;
   shot: Shot;
@@ -29,6 +31,8 @@ export interface PlayerState {
   yaw: number;
   move: { x: number; z: number };
   action: { kind: 'windup' | 'recovery'; endsAt: number; aim?: boolean }
+    | { kind: 'catch' | 'parry'; pressedAt: number; startsAt: number; endsAt: number }
+    | { kind: 'catch-recovery' | 'catch-whiff' | 'parry-whiff'; endsAt: number }
     | { kind: 'step'; endsAt: number; moveEndsAt: number; velocity: { x: number; z: number } } | null;
 }
 
@@ -44,6 +48,7 @@ export interface SimState {
   players: PlayerState[];
   ball: BallState;
   danger: { side: Side; expiresAt: number } | null;
+  rally: Rally;
 }
 
 type InputTime = { at: number; seq: number; player: PlayerId };
@@ -51,10 +56,12 @@ export type Command = InputTime & (
   | { kind: 'move'; x: number; z: number }
   | { kind: 'yaw'; yaw: number }
   | { kind: 'primary'; aim?: boolean }
-  | { kind: 'step' | 'summon' }
+  | { kind: 'secondary' | 'step' | 'summon' }
 );
 
 export type SimEvent =
+  | { kind: 'catch' | 'parry'; at: number; player: PlayerId; grade: DefenseGrade }
+  | { kind: 'whiff'; at: number; player: PlayerId }
   | { kind: 'explosion' | 'spawn' | 'clock-start' | 'crossing'; at: number; side: Side }
   | { kind: 'pickup' | 'release' | 'summon'; at: number; player: PlayerId }
   | { kind: 'step'; at: number; player: PlayerId; direction: StepDirection }

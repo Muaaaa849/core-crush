@@ -56,7 +56,7 @@ describe('R01/R02 danger clock', () => {
   });
 
   it('release at 7.8s cannot save a ball crossing at 8.1s', () => {
-    const result = throwAt(S + 7.8 * S, 28 * 0.3);
+    const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * 0.3);
     expect(result.events.filter(e => e.kind === 'release').map(e => e.at)).toEqual([S + 7.8 * S]);
     expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiry, side: 'p1' }]);
     expect(result.events.some(e => e.kind === 'crossing')).toBe(false);
@@ -65,14 +65,14 @@ describe('R01/R02 danger clock', () => {
 
   it('crossing at 7.999s starts the receiver clock at that exact time', () => {
     const crossing = S + 7.999 * S;
-    const result = throwAt(S + 7.8 * S, 28 * (crossing - (S + 7.8 * S)) / S);
+    const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * (crossing - (S + 7.8 * S)) / S);
     expect(result.events.filter(e => e.kind === 'crossing')).toEqual([{ kind: 'crossing', at: crossing, side: 'p2' }]);
     expect(result.state.danger).toEqual({ side: 'p2', expiresAt: crossing + 8 * S });
     expect(result.state.players.map(p => p.hp)).toEqual([100, 100]);
   });
 
   it('explosion wins a crossing exactly at expiry', () => {
-    const result = throwAt(S + 7.8 * S, 28 * 0.2);
+    const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * 0.2);
     expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiry, side: 'p1' }]);
     expect(result.events.some(e => e.kind === 'crossing')).toBe(false);
   });
@@ -80,7 +80,7 @@ describe('R01/R02 danger clock', () => {
   it('interpolates the center crossing inside the tick (integer time unit, not the tick)', () => {
     const release = 2 * S;
     const result = throwAt(release, 1);
-    const crossing = Math.ceil(release + S / 28); // 中心が平面に達した最初の整数時刻（0004）
+    const crossing = Math.ceil(release + S / config.shotSpeed.straight); // 中心が平面に達した最初の整数時刻（0004）
     expect(result.events.filter(e => e.kind === 'crossing')[0]?.at).toBe(crossing);
     expect(result.state.danger).toEqual({ side: 'p2', expiresAt: crossing + 8 * S });
     expect(crossing % config.tick).not.toBe(0);
@@ -88,7 +88,7 @@ describe('R01/R02 danger clock', () => {
 
   it('explodes on the receiver side at the interpolated deadline', () => {
     const crossed = throwAt(2 * S, 1);
-    const expiresAt = Math.ceil(2 * S + S / 28) + 8 * S;
+    const expiresAt = Math.ceil(2 * S + S / config.shotSpeed.straight) + 8 * S;
     const result = advance(crossed.state, expiresAt + config.tick);
     expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiresAt, side: 'p2' }]);
     expect(result.state.players.map(p => p.hp)).toEqual([100, 70]);
@@ -169,9 +169,9 @@ describe('R01/R02 danger clock', () => {
     expect(result.state.players[0].position.x).toBeCloseTo(5 * 0.3 * 8 / 60 + 5 * 8 / 60);
     expect(result.state.ball.mode).toBe('flight');
     if (result.state.ball.mode !== 'flight') throw new Error('expected released ball');
-    expect(result.state.ball.position.x).toBeCloseTo(5 * 0.3 * 8 / 60 + 28 * 8 / 60);
-    expect(result.state.ball.position.z).toBeCloseTo(6);
-    expect(Math.hypot(result.state.ball.velocity.x, result.state.ball.velocity.z)).toBeCloseTo(28);
+    expect(result.state.ball.position.x).toBeCloseTo(5 * 0.3 * 8 / 60 + config.shotSpeed.straight * 8 / 60);
+    expect(result.state.ball.position.z).toBeCloseTo(config.supply.p1.z);
+    expect(Math.hypot(result.state.ball.velocity.x, result.state.ball.velocity.z)).toBeCloseTo(config.shotSpeed.straight);
     expect(result.state.danger).toEqual({ side: 'p1', expiresAt: expiry });
     const recovered = advance(result.state, release + 8_000 + config.tick);
     expect(recovered.state.players[0].action).toBeNull();

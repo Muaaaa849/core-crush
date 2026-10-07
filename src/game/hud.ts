@@ -8,6 +8,7 @@ const FACE = [
   { until: 8, label: '激怒' },
 ];
 const SIDE_LABEL = { p1: 'P1側', p2: 'P2側' };
+const GRADE_LABEL = { just: 'JUST', good: 'GOOD', 'so-so': 'SO-SO' };
 
 export class Hud {
   private message = '';
@@ -18,6 +19,11 @@ export class Hud {
   update(state: SimState, events: readonly SimEvent[], now: number): void {
     for (const e of events) {
       if (e.kind === 'explosion') this.flash(`爆発！ ${SIDE_LABEL[e.side]}に${this.config.explosionDamage}ダメージ`, now);
+      if (e.kind === 'catch' || e.kind === 'parry') {
+        const who = e.player === this.local ? 'あなた' : '相手';
+        this.flash(`${who}：${e.kind === 'catch' ? 'キャッチ' : '跳ね返し'} ${GRADE_LABEL[e.grade]}`, now);
+      }
+      if (e.kind === 'whiff' && e.player === this.local) this.flash('空振り', now);
       if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : '命中'}！ ${Math.round(e.damage)}ダメージ`, now);
     }
     const second = this.config.timeUnitsPerSecond;
