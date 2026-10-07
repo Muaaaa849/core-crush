@@ -181,8 +181,8 @@ describe('parry return and rally', () => {
     expect(result.events.filter(e => e.kind === 'parry')).toHaveLength(1);
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
   });
-  it.each([[0, 0, 'straight'], [-1, 0, 'left'], [1, 0, 'right'], [0, 1, 'upper']] as const)('selects move (%s,%s) -> %s at contact', (x, z, shot) => {
-    const result = run(incoming(), F + 1, [press('primary'), { kind: 'move', player: 'p1', at: F, seq: 1, x, z }]);
+  it.each([[0, 0, 'straight'], [0, -1, 'left'], [0, 1, 'right'], [-1, 0, 'upper']] as const)('selects keys (forward %s, right %s) -> %s at contact', (forward, right, shot) => {
+    const result = run(incoming(), F + 1, [press('primary'), { kind: 'keys', player: 'p1', at: F, seq: 1, forward, right }]);
     expect(flight(result.state).attack?.shot).toBe(shot);
   });
   it('caps accumulated rally and combines own attack, current danger and total caps', () => {
@@ -234,8 +234,8 @@ describe('parry return and rally', () => {
       const state = incoming(); state.players[0].position.z = distance / 2;
       state.players[1].position.z = -distance / 2;
       const ball = flight(state); ball.position.z = ball.origin.z = ball.segmentOrigin.z = distance / 2 - contactRadius - incomingSpeed * F / S;
-      const move = shot === 'upper' ? { x: 0, z: 1 } : { x: shot === 'left' ? -1 : shot === 'right' ? 1 : 0, z: 0 };
-      const result = run(state, F + 1, [press('primary'), { kind: 'move', player: 'p1', at: F, seq: 1, ...move }]);
+      const keys = { forward: shot === 'upper' ? -1 : 0, right: shot === 'left' ? -1 : shot === 'right' ? 1 : 0 };
+      const result = run(state, F + 1, [press('primary'), { kind: 'keys', player: 'p1', at: F, seq: 1, ...keys }]);
       const returned = flight(result.state);
       expect(returned.attack!.shot).toBe(shot);
       if (distance === 1) expect(returned.attack!.speed).toBe(6.5);

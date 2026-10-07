@@ -21,10 +21,11 @@ export function centerCrossingAt(ball: BallState, config: SimConfig): number {
 }
 
 export function selectShot(player: PlayerState): Shot {
-  const sign = player.side === 'p1' ? 1 : -1;
-  if (player.move.z * sign > 0) return 'upper';
-  if (player.move.x * sign < 0) return 'left';
-  if (player.move.x * sign > 0) return 'right';
+  // 移動方向ではなく押しているキーで決める。S ＞ A/D ＞ W（AとD、WとSは相殺済み）。
+  const { forward, right } = player.keys;
+  if (forward < 0) return 'upper';
+  if (right < 0) return 'left';
+  if (right > 0) return 'right';
   return 'straight';
 }
 

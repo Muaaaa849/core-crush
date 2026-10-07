@@ -17,6 +17,7 @@ export class Controls {
   private pitch = 0;
   private readonly keys = new Set<string>();
   private sentMove = { x: 0, z: 0 };
+  private sentKeys = { forward: 0, right: 0 };
   private sentYaw = NaN;
 
   constructor(
@@ -63,6 +64,12 @@ export class Controls {
           z: -Math.cos(this.yaw) * forward - Math.sin(this.yaw) * right,
         }
       : { x: 0, z: 0 };
+    // 球種はキーの意図で決まる（移動方向はカメラの向きで回転するため使えない）。
+    const keys = this.locked ? { forward, right } : { forward: 0, right: 0 };
+    if (keys.forward !== this.sentKeys.forward || keys.right !== this.sentKeys.right) {
+      this.sentKeys = keys;
+      this.send({ kind: 'keys', ...keys });
+    }
     if (move.x !== this.sentMove.x || move.z !== this.sentMove.z) {
       this.sentMove = move;
       this.send({ kind: 'move', ...move });
@@ -89,7 +96,7 @@ export class Controls {
     camera.lookAt(camera.position.clone().add(look));
   }
 
-  private send(input: { kind: 'primary' | 'secondary' | 'step' | 'summon' } | { kind: 'move'; x: number; z: number } | { kind: 'yaw'; yaw: number }): void {
+  private send(input: { kind: 'primary' | 'secondary' | 'step' | 'summon' } | { kind: 'move'; x: number; z: number } | { kind: 'yaw'; yaw: number } | { kind: 'keys'; forward: number; right: number }): void {
     this.runner.input({ ...input, player: this.player });
   }
 }

@@ -11,7 +11,7 @@ export function createInitialState(side: Side, config: SimConfig = defaultConfig
       const maxHp = config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat);
       return {
         id, side: id, hp: maxHp, maxHp, stats, cost: config.initialCost,
-        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id], y: 0 },
+        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id], y: 0 }, keys: { forward: 0, right: 0 },
         yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
       };
     }),
@@ -120,9 +120,15 @@ function advancePositions(state: SimState, at: number, config: SimConfig) {
 
 function applyCommand(state: SimState, command: Command, config: SimConfig, events: SimEvent[]): boolean {
   const player = state.players.find(p => p.id === command.player);
-  if (!player || player.hp <= 0 || !state.danger) return false;
+  if (!player || player.hp <= 0) return false;
+  // 移動・向き・キーは入力の状態なので、開始前や爆発後の停止中も記録する（実際に動くのは時計の開始後）。
+  const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys';
+  if (!state.danger && !stateInput) return false;
   switch (command.kind) {
     case 'yaw': player.yaw = command.yaw; break;
+    case 'keys':
+      player.keys = { forward: Math.sign(command.forward), right: Math.sign(command.right) };
+      break;
     case 'move': {
       const magnitude = Math.max(1, Math.hypot(command.x, command.z));
       player.move = { x: command.x / magnitude, z: command.z / magnitude };
@@ -281,7 +287,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     }
     const simultaneous: Command[] = [];
     while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
-    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw')) applyCommand(state, command, config, events);
+    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
     // 行動の優先順位は入力のseqに依存させない。
     for (const player of state.players) {
       let succeeded = false;

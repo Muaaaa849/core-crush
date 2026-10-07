@@ -38,7 +38,7 @@ const startButton = document.querySelector<HTMLButtonElement>('#start')!;
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 async function load(name: string): Promise<GLTF> {
   const started = performance.now();
-  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}assets/${name}.glb`);
+  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}assets/${name}.glb?v=${__ASSET_VERSIONS__[name]}`);
   stats.loads[name] = Math.round(performance.now() - started);
   return gltf;
 }

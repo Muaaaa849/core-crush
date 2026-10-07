@@ -22,7 +22,7 @@ describe('SimRunner', () => {
     expect(command.at).toBe(600);
     runner.advance(10);
     expect(runner.pending).toEqual([]);
-    expect(runner.state.players[0].yaw).toBe(0); // ボール起動前の入力は無視される（操作開始前）
+    expect(runner.state.players[0].yaw).toBe(1); // 向きなどの入力状態は操作開始前でも記録される
   });
 
   it('delivers inputs in order with increasing seq', () => {

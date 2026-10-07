@@ -27,6 +27,14 @@ v2.0のM0（rules.md「開発順序と受け入れID」）のうち、今回の�
 | M0-6 | 達成 | `.github/workflows/pages.yml` が成功し公開済み：https://muaaaa849.github.io/core-crush/ （リポジトリ Muaaaa849/core-crush）。公開版でステージ・試合球・仮キャラの表示を確認、ステージ読み込み1.5秒（この端末・この回線） |
 | 通信の小実証 | 達成（同一端末内） | `net.html`、`docs/benchmarks/net-m0.md`。DataChannel state/event とも p50 0.20ms。インターネット越しは未検証 |
 
+## 不具合の記録
+
+| 日付 | 症状 | 原因 | 対処と証拠 |
+|---|---|---|---|
+| 2026-10-07 | Aを押して投げたのに上カーブが出る | 球種を「カメラの向きで回転した移動方向」の成分で判定していた。カメラが少し傾くとAだけでも後ろ向き成分が出る | 押しているキーの意図（keysコマンド）で判定（S＞A/D＞W）。`tests/sim/shot-select.test.ts` で再現（Red）→修正 |
+| 2026-10-07 | 開始前・爆発後の停止中に押したキーが再開後に効かない | 停止中は移動・向き・キーの入力も捨てていた | 入力の状態は停止中も記録し、動くのは時計開始後。同テストで確認 |
+| 2026-10-07 | 時々フェンスの外へ歩ける | simは範囲外に出ない（ランダム入力24通り×40秒、`tests/sim/bounds.test.ts`）。Pagesが `stage.glb` を10分キャッシュし、更新直後は旧ステージ（狭いケージ）と新しい移動範囲が組み合わさった | 素材URLに内容ハッシュを付与（`tests/asset-versions.test.ts`）。ユーザーの再確認待ち |
+
 ## 分担の記録
 
 - GPT-6 Astra：M1のsim設計（`docs/decisions/0004-m1-sim-architecture.md`）

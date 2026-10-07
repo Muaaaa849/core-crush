@@ -11,6 +11,8 @@ const base = config.shotSpeed;
 const standardDistance = 18.2;
 const longDistance = 26;
 const minimum = { straight: 240, left: 270, right: 270, upper: 320 };
+/** 球種を選ぶキー（S＝上、A＝左、D＝右）。 */
+const keysFor = (shot: Shot) => ({ forward: shot === 'upper' ? -1 : 0, right: shot === 'left' ? -1 : shot === 'right' ? 1 : 0 });
 function setup(shot: Shot, distance = standardDistance, side: Side = 'p1', elapsed = 0, attack = 5) {
   const state = createInitialState(side);
   const sign = side === 'p1' ? 1 : -1;
@@ -18,8 +20,7 @@ function setup(shot: Shot, distance = standardDistance, side: Side = 'p1', elaps
   const player = state.players.find(p => p.id === side)!;
   state.now = elapsed * S;
   player.stats.attack = attack;
-  player.move = shot === 'left' ? { x: -sign, z: 0 } : shot === 'right' ? { x: sign, z: 0 }
-    : shot === 'upper' ? { x: 0, z: sign } : { x: 0, z: 0 };
+  player.keys = keysFor(shot);
   // 発生直前を保存して、静止ケースでは投げ始めの移動を含めない。
   player.action = { kind: 'windup', endsAt: state.now };
   state.ball = { mode: 'held', owner: side };
@@ -83,14 +84,13 @@ describe('homing flight', () => {
     expect(lastVy).toBeLessThan(0);
     for (const shot of shots) for (const distance of [config.curveEndFraction * longDistance, longDistance, 100]) expect(curveOffset(shot, longDistance, distance, 'p1')).toEqual({ x: 0, y: 0, z: 0 });
   });
-  it.each(['p1', 'p2'] as const)('selects shot at release in own court basis (%s)', side => {
-    const sign = side === 'p1' ? 1 : -1;
-    for (const [x, z, shot] of [[0, 0, 'straight'], [0, -sign, 'straight'], [-sign, -sign, 'left'], [sign, -sign, 'right'], [sign, sign, 'upper']] as const) {
+  it.each(['p1', 'p2'] as const)('selects shot at release from the held keys (%s)', side => {
+    for (const [forward, right, shot] of [[0, 0, 'straight'], [1, 0, 'straight'], [1, -1, 'left'], [1, 1, 'right'], [-1, 1, 'upper']] as const) {
       const state = setup('straight', standardDistance, side);
       state.now = 0;
       state.ball = { mode: 'held', owner: side };
       state.players.find(p => p.id === side)!.action = { kind: 'windup', endsAt: 200 };
-      const result = step(state, [{ kind: 'move', player: side, at: 200, seq: 0, x, z }]);
+      const result = step(state, [{ kind: 'keys', player: side, at: 200, seq: 0, forward, right }]);
       expect(result.state.ball.mode === 'flight' && result.state.ball.attack?.shot).toBe(shot);
     }
   });
@@ -128,8 +128,7 @@ describe('homing flight', () => {
         if (pattern === 'corner') state.players[1].position.z = -config.playerMaxDepth;
         state.now = 0; state.ball = { mode: 'held', owner: 'p1' };
         state.players[0].action = { kind: 'windup', endsAt: 0 };
-        const sign = shot === 'left' ? -1 : shot === 'right' ? 1 : 0;
-        state.players[0].move = { x: sign, z: shot === 'upper' ? 1 : 0 };
+        state.players[0].keys = keysFor(shot);
       }
       const commands: Command[] = [];
       for (let i = 0; i < 480; i++) {
