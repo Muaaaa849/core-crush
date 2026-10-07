@@ -6,6 +6,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { Avatar } from './game/avatar';
 import { Bot } from './game/bot';
+import { CameraBlend } from './game/camera';
 import { Controls } from './game/controls';
 import { Hud } from './game/hud';
 import { SimRunner } from './game/runner';
@@ -77,6 +78,7 @@ const runner = new SimRunner(createInitialState(Math.random() < 0.5 ? 'p1' : 'p2
 const controls = new Controls(renderer.domElement, runner, 'p1');
 const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
 const occlusion = new CameraOcclusion(stage.scene);
+const cameraBlend = new CameraBlend();
 const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
@@ -87,15 +89,24 @@ function playerPosition(id: 'p1' | 'p2', out: THREE.Vector3): THREE.Vector3 {
   return out.set(a.x, 0, a.z).lerp(new THREE.Vector3(b.x, 0, b.z), runner.alpha);
 }
 
-const HELD_FORWARD = 0.45;
-const HELD_HEIGHT = 1.2;
+// 保持中の球の表示位置（キャラの向き基準）。FPSでは画面右下へ寄せ、正面の視界を空ける（feel.md）。
+const HELD = { forward: 0.45, right: 0, height: 1.2 };
+const HELD_FPS = { forward: 1.1, right: 0.6, height: 0.95 };
 function placeBall(state: SimState): void {
   const b = state.ball;
   ball.scene.visible = b.mode !== 'absent';
   if (b.mode === 'held') {
     const holder = state.players.find((p) => p.id === b.owner)!;
     const at = playerPosition(holder.id, new THREE.Vector3());
-    ball.scene.position.set(at.x - Math.sin(holder.yaw) * HELD_FORWARD, HELD_HEIGHT, at.z - Math.cos(holder.yaw) * HELD_FORWARD);
+    const yaw = holder.id === 'p1' ? controls.yaw : holder.yaw;
+    const t = holder.id === 'p1' ? cameraBlend.fps : 0;
+    const forward = THREE.MathUtils.lerp(HELD.forward, HELD_FPS.forward, t);
+    const right = THREE.MathUtils.lerp(HELD.right, HELD_FPS.right, t);
+    ball.scene.position.set(
+      at.x - Math.sin(yaw) * forward + Math.cos(yaw) * right,
+      THREE.MathUtils.lerp(HELD.height, HELD_FPS.height, t),
+      at.z - Math.cos(yaw) * forward - Math.sin(yaw) * right,
+    );
   } else if (b.mode === 'loose' || b.mode === 'flight') {
     ball.scene.position.set(b.position.x, b.position.y, b.position.z);
   }
@@ -132,15 +143,17 @@ function step(dt: number): void {
   controls.update();
   runner.advance(dt * 1000);
   const state = runner.state;
+  cameraBlend.update(state, 'p1', dt * 1000);
   for (const id of ['p1', 'p2'] as const) {
     const yaw = id === 'p1' ? controls.yaw : state.players[1].yaw;
     avatars[id].update(playerPosition(id, tmp), yaw, dt);
   }
   placeBall(state);
+  avatars.p1.root.visible = cameraBlend.fps < 0.5; // FPS中は自分の体で視界を塞がない
   ball.scene.rotation.y += dt * 0.6;
   hud.update(state, runner.drainEvents(), performance.now());
   stageMixer.update(dt);
-  controls.placeCamera(camera, avatars.p1.root.position);
+  controls.placeCamera(camera, avatars.p1.root.position, cameraBlend.fps);
   lookTargets[0].copy(avatars.p1.root.position).setY(1.6);
   lookTargets[1].copy(avatars.p1.root.position).setY(1.0);
   occlusion.update(camera, lookTargets, dt);

@@ -1,4 +1,4 @@
-// ローカルプレイヤーの入力をsimコマンドへ変換し、TPSカメラを動かす（feel.md「入力設定」「カメラ」）。
+// ローカルプレイヤーの入力をsimコマンドへ変換し、カメラを動かす（feel.md「入力設定」「カメラ」）。
 // 視点の回転は即座に画面へ反映し、simへは向き（yaw）として渡す。
 import * as THREE from 'three/webgpu';
 import type { PlayerId } from '../sim/types';
@@ -80,8 +80,8 @@ export class Controls {
     }
   }
 
-  /** 表示上のキャラ位置に合わせてTPSカメラを置く。 */
-  placeCamera(camera: THREE.PerspectiveCamera, body: THREE.Vector3): void {
+  /** 表示上のキャラ位置に合わせてカメラを置く。fps は0（TPSの肩越し）〜1（目の位置）。向きは変えない。 */
+  placeCamera(camera: THREE.PerspectiveCamera, body: THREE.Vector3, fps: number): void {
     const look = new THREE.Vector3(
       -Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
@@ -91,8 +91,9 @@ export class Controls {
     camera.position
       .copy(body)
       .add(new THREE.Vector3(0, EYE_HEIGHT + CAMERA_UP, 0))
-      .addScaledVector(right, CAMERA_RIGHT)
-      .addScaledVector(look, -CAMERA_BACK);
+      .addScaledVector(right, CAMERA_RIGHT * (1 - fps))
+      .addScaledVector(look, -CAMERA_BACK * (1 - fps));
+    camera.position.y -= CAMERA_UP * fps;
     camera.lookAt(camera.position.clone().add(look));
   }
 
