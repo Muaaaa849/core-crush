@@ -22,8 +22,8 @@ export class Avatar {
     this.idle.play();
   }
 
-  /** position：補間済みのsim位置（足元）。yaw：simの規約（0で-z）。 */
-  update(position: THREE.Vector3, yaw: number, dt: number): void {
+  /** position：補間済みのsim位置（足元）。yaw：simの規約（0で-z）。animationDt：ヒットストップ中は0。 */
+  update(position: THREE.Vector3, yaw: number, dt: number, animationDt = dt): void {
     const speed = dt > 0 ? position.distanceTo(this.last) / dt : 0;
     this.last.copy(position);
     const running = speed > RUN_SPEED_THRESHOLD;
@@ -35,6 +35,6 @@ export class Avatar {
     }
     this.root.position.copy(position);
     this.root.rotation.y = yaw + Math.PI; // モデルは+zを向いている
-    this.mixer.update(dt);
+    this.mixer.update(animationDt);
   }
 }

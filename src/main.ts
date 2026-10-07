@@ -8,6 +8,7 @@ import { Avatar } from './game/avatar';
 import { Bot } from './game/bot';
 import { CameraBlend } from './game/camera';
 import { Controls } from './game/controls';
+import { HitStop } from './game/hitstop';
 import { Hud, REMATCH_SECONDS } from './game/hud';
 import { SimRunner } from './game/runner';
 import { CameraOcclusion } from './occlusion';
@@ -81,6 +82,7 @@ const controls = new Controls(renderer.domElement, runner, 'p1');
 const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
+const hitStop = new HitStop();
 const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
@@ -145,16 +147,18 @@ function step(dt: number): void {
   controls.update();
   runner.advance(dt * 1000);
   const state = runner.state;
+  const events = runner.drainEvents();
+  const now = performance.now();
+  hitStop.trigger(events, now);
+  const shown = dt * hitStop.timeScale(now); // ヒットストップ中は見た目の動きだけ止める
   cameraBlend.update(state, 'p1', dt * 1000);
   for (const id of ['p1', 'p2'] as const) {
     const yaw = id === 'p1' ? controls.yaw : state.players[1].yaw;
-    avatars[id].update(playerPosition(id, tmp), yaw, dt);
+    avatars[id].update(playerPosition(id, tmp), yaw, dt, shown);
   }
   placeBall(state);
   avatars.p1.root.visible = cameraBlend.fps < 0.5; // FPS中は自分の体で視界を塞がない
-  ball.scene.rotation.y += dt * 0.6;
-  const events = runner.drainEvents();
-  const now = performance.now();
+  ball.scene.rotation.y += shown * 0.6;
   if (events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
   if (rematchAt !== null && now >= rematchAt) {
     rematchAt = null;
@@ -163,6 +167,8 @@ function step(dt: number): void {
   hud.update(runner.state, events, now);
   stageMixer.update(dt);
   controls.placeCamera(camera, avatars.p1.root.position, cameraBlend.fps);
+  const shake = hitStop.shake(now);
+  camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
   lookTargets[0].copy(avatars.p1.root.position).setY(1.6);
   lookTargets[1].copy(avatars.p1.root.position).setY(1.0);
   occlusion.update(camera, lookTargets, dt);
