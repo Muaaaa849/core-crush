@@ -24,7 +24,7 @@ v2.0のM0（rules.md「開発順序と受け入れID」）のうち、今回の�
 | M0-3 | 達成 | `npm run check`、`npm test`（18件）、`npm run build` 成功 |
 | M0-4 | 一部 | 表示（ステージ・試合球・仮キャラの待機アニメーション）はプレビューの画像で確認。**マウス捕捉・WASD移動・視点操作は未確認**（プレビュー内の自動クリックでは捕捉が拒否される）。失敗時の再試行案内は表示を確認 |
 | M0-5 | 達成（自動計測のみ） | `docs/benchmarks/m0.md`。1080pでWebGPU p95 7.1ms／WebGL2 p95 5.7ms（GPU完了待ちの逐次描画）。実表示のフレーム時間は未計測 |
-| M0-6 | 実装済・未実行 | `.github/workflows/pages.yml`。GitHub上での実行・公開は未実施 |
+| M0-6 | 達成 | `.github/workflows/pages.yml` が成功し公開済み：https://muaaaa849.github.io/core-crush/ （リポジトリ Muaaaa849/core-crush）。公開版でステージ・試合球・仮キャラの表示を確認、ステージ読み込み1.5秒（この端末・この回線） |
 | 通信の小実証 | 達成（同一端末内） | `net.html`、`docs/benchmarks/net-m0.md`。DataChannel state/event とも p50 0.20ms。インターネット越しは未検証 |
 
 ## 分担の記録
@@ -36,10 +36,7 @@ v2.0のM0（rules.md「開発順序と受け入れID」）のうち、今回の�
 ## 未検証・残作業
 
 - ユーザーの実ブラウザでのマウス捕捉・移動・視点、実表示のフレーム時間
-- GitHubリポジトリ作成・push・PagesのSource設定（GitHub Actions）・公開後の動作
-- 0004の「未確定の論点」の企画判断（特に試合球の見せ方、爆発後の新球までの時間）
 
 ## 次の一手
 
-1. 0004の未確定論点を決め、rules.md・feel.mdへ反映する。
-2. M1：`tests/sim/danger.test.ts`（R01/R02）からRed-firstで始める。
+1. M1：`tests/sim/danger.test.ts`（R01/R02）からRed-firstで始める（rules.md「M1細則」と0004に従う）。

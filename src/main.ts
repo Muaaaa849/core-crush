@@ -94,12 +94,13 @@ function step(dt: number): void {
 if (params.has('bench')) {
   await bench();
 } else {
-  let last = performance.now();
+  // rAFの時刻は呼び出し前のperformance.now()より古いことがあるため、最初のフレームから測る。
+  let last: number | null = null;
   renderer.setAnimationLoop((now) => {
-    const deltaMs = now - last;
-    last = now;
+    const deltaMs = now - (last ?? now);
     step(Math.min(deltaMs / 1000, 0.1));
-    stats.frame(deltaMs, now);
+    if (last !== null) stats.frame(deltaMs, now);
+    last = now;
   });
 }
 
