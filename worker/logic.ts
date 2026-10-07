@@ -42,6 +42,10 @@ export class RoomLogic {
     const slot = this.data.slots.find(s => s.token === token);
     require(slot, 'invalid token', 401); return slot;
   }
+  rejoin(build: string, token: string, now: number): Slot {
+    require(this.data.view.build === build, 'different build', 409);
+    return { ...this.authenticate(token, now) };
+  }
   begin(id: PlayerId, now: number, connected: PlayerId[]): void {
     this.live(now); const v = this.data.view;
     require(id === 'p1', 'host only', 403);
@@ -64,13 +68,14 @@ export class RoomLogic {
   relay(id: PlayerId, signal: Signal, now: number): Signal {
     this.live(now); const v = this.data.view;
     require(v.phase !== 'lobby' && signal.matchId === v.matchId, 'invalid match', 409);
+    require(Number.isSafeInteger(signal.generation) && signal.generation >= 1, 'invalid generation');
     require(signal.to !== id && (id === 'p1' || signal.to === 'p1') && v.players.some(p => p.id === signal.to), 'star links only', 403);
     require((!!signal.description !== !!signal.candidate), 'invalid signal');
     if (signal.description) require(['offer', 'answer'].includes(signal.description.type) && typeof signal.description.sdp === 'string'
       && signal.description.sdp.length <= 32_000 && (signal.description.type === 'offer' ? id === 'p1' : signal.to === 'p1'), 'invalid SDP');
     if (signal.candidate) require(typeof signal.candidate.candidate === 'string' && signal.candidate.candidate.length <= 2048, 'invalid ICE');
     // 送信者はクライアント申告から取らず、認証済み接続から割り当てる。
-    return { kind: 'signal', to: signal.to, matchId: v.matchId, description: signal.description, candidate: signal.candidate };
+    return { kind: 'signal', to: signal.to, matchId: v.matchId, generation: signal.generation, description: signal.description, candidate: signal.candidate };
   }
   grant(token: string, now: number): void {
     const slot = this.authenticate(token, now);

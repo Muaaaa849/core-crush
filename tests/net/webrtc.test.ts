@@ -75,3 +75,43 @@ it('T10-31 sends SDP before early ICE candidates on initial offers and credentia
     links.close();
   } finally { vi.unstubAllGlobals(); }
 });
+
+it('T10-33 discards messages from replaced DataChannels even before the new epoch starts', () => {
+  const delivery = new DataChannelDelivery('host', () => 0), old = new Channel('event'), next = new Channel('event');
+  const receive = vi.fn(); delivery.bind('host', receive);
+  delivery.attach('p3', old as unknown as RTCDataChannel);
+  delivery.detach('p3'); delivery.attach('p3', next as unknown as RTCDataChannel);
+  const packet = JSON.stringify({ kind: 'ping', matchId: 'm', epoch: 1, sent: 0 });
+  old.dispatchEvent(new MessageEvent('message', { data: packet }));
+  next.dispatchEvent(new MessageEvent('message', { data: packet }));
+  expect(receive).toHaveBeenCalledTimes(1); expect(old.readyState).toBe('closed');
+});
+
+it('T10-33 recreates only the failed star link and rejects obsolete signaling generations', async () => {
+  const peers: Peer[] = [];
+  class Peer {
+    localDescription?: { toJSON(): RTCSessionDescriptionInit };
+    remoteDescription?: RTCSessionDescriptionInit;
+    candidates: RTCIceCandidateInit[] = [];
+    closed = false;
+    constructor() { peers.push(this); }
+    createDataChannel(label: string) { return new Channel(label); }
+    async createOffer() { return { type: 'offer', sdp: 'offer' }; }
+    async setLocalDescription(d: RTCSessionDescriptionInit) { this.localDescription = { toJSON: () => d }; }
+    async setRemoteDescription(d: RTCSessionDescriptionInit) { this.remoteDescription = d; }
+    async addIceCandidate(c: RTCIceCandidateInit) { this.candidates.push(c); }
+    close() { this.closed = true; }
+  }
+  vi.stubGlobal('RTCPeerConnection', Peer);
+  try {
+    const sent: Signal[] = [], delivery = new DataChannelDelivery('host', () => 0);
+    const links = new StarLinks('p1', 'match', delivery, s => sent.push(s), vi.fn(), {}, ['p1', 'p3', 'p4']);
+    await links.offer(); await links.reconnect('p3');
+    expect(peers[0].closed).toBe(true); expect(peers[1].closed).toBe(false);
+    expect(sent.at(-1)?.generation).toBe(2);
+    await links.receive('p3', 1, { type: 'answer', sdp: 'old' }, { candidate: 'old' });
+    expect(peers[2].remoteDescription).toBeUndefined(); expect(peers[2].candidates).toEqual([]);
+    await links.receive('p3', 2, { type: 'answer', sdp: 'new' });
+    expect(peers[2].remoteDescription?.sdp).toBe('new'); links.close();
+  } finally { vi.unstubAllGlobals(); }
+});

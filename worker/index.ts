@@ -120,8 +120,9 @@ export class Room {
       if (!this.logic) reject('room missing', 404);
       const room = this.logic;
       if (action === '/init' || action === '/join') {
-        const build = action === '/init' ? room.public().build : (await body(request)).build;
-        const slot = room.join(build, now); await this.save(); this.broadcast();
+        const input = action === '/init' ? { build: room.public().build } : await body(request);
+        const token = request.headers.get('Authorization')?.replace(/^Bearer /, '');
+        const slot = token ? room.rejoin(input.build, token, now) : room.join(input.build, now); await this.save(); this.broadcast();
         return json({ code: this.code, token: slot.token, player: slot.id, room: room.public() });
       }
       if (action === '/ice') {
@@ -135,7 +136,7 @@ export class Room {
         const [protocol, token] = (request.headers.get('Sec-WebSocket-Protocol') ?? '').split(',').map(s => s.trim());
         if (protocol !== 'corecrush') reject('invalid protocol');
         const slot = room.authenticate(token, now);
-        if (this.sockets().some(s => s.deserializeAttachment<SocketInfo>().id === slot.id)) reject('already connected', 409);
+        for (const old of this.sockets().filter(s => s.deserializeAttachment<SocketInfo>().id === slot.id)) old.close(1000, 'replaced');
         const pair = new WebSocketPair(), client = pair[0], server = pair[1];
         server.serializeAttachment({ id: slot.id, minute: 0, count: 0, total: 0 });
         this.ctx.acceptWebSocket(server); this.broadcast();
@@ -145,6 +146,7 @@ export class Room {
     } catch (error) { return failure(error); }
   }
   async webSocketMessage(socket: WorkerWebSocket, text: string | ArrayBuffer): Promise<void> {
+    if (!this.sockets().includes(socket)) return;
     try {
       const now = Date.now(), info = socket.deserializeAttachment<SocketInfo>();
       const minute = Math.floor(now / 60_000); if (info.minute !== minute) { info.minute = minute; info.count = 0; }
@@ -163,6 +165,15 @@ export class Room {
         target.send(JSON.stringify({ ...signal, from: info.id })); return;
       } else {
         if (msg.matchId !== room.public().matchId) reject('invalid match', 409);
+        if (msg.kind === 'repair') {
+          if (info.id === 'p1' || room.public().phase !== 'countdown') reject('invalid repair', 409);
+          this.sockets().find(s => s.deserializeAttachment<SocketInfo>().id === 'p1')?.send(JSON.stringify({ kind: 'repair', from: info.id, matchId: msg.matchId }));
+          return;
+        }
+        if (msg.kind === 'leave' && info.id === 'p1') {
+          for (const s of this.sockets()) s.send(JSON.stringify({ kind: 'host-left', matchId: msg.matchId }));
+          return;
+        }
         if (msg.kind === 'loaded') {
           if (room.loaded(info.id, msg.signature, now)) await this.ctx.storage.setAlarm(room.public().expiresAt);
         } else if (msg.kind === 'confirm') room.confirm(info.id);
@@ -178,7 +189,8 @@ export class Room {
   async webSocketClose(socket: WorkerWebSocket): Promise<void> {
     socket.close();
     if (!this.logic) return;
-    if (this.logic.public().phase !== 'lobby') await this.abort('参加者が部屋から切断しました');
+    if (this.sockets().some(s => s.deserializeAttachment<SocketInfo>().id === socket.deserializeAttachment<SocketInfo>().id)) return;
+    if (this.logic.public().phase === 'connecting') await this.abort('参加者が部屋から切断しました');
     else this.broadcast();
   }
   async webSocketError(socket: WorkerWebSocket): Promise<void> { await this.webSocketClose(socket); }

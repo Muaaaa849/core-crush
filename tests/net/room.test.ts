@@ -24,8 +24,8 @@ describe('room signaling', () => {
     expect(() => room.begin(guest.id, now, [host.id, guest.id])).toThrow('host');
     expect(() => room.begin(host.id, now, [host.id])).toThrow('connected');
     room.begin(host.id, now, [host.id, guest.id]);
-    expect(room.relay(guest.id, { kind: 'signal', to: host.id, matchId: room.public().matchId, description: { type: 'answer', sdp: 'sdp' } }, now).to).toBe(host.id);
-    expect(() => room.relay(guest.id, { kind: 'signal', to: guest.id, matchId: room.public().matchId }, now)).toThrow();
+    expect(room.relay(guest.id, { kind: 'signal', generation: 1, to: host.id, matchId: room.public().matchId, description: { type: 'answer', sdp: 'sdp' } }, now).to).toBe(host.id);
+    expect(() => room.relay(guest.id, { kind: 'signal', generation: 1, to: guest.id, matchId: room.public().matchId }, now)).toThrow();
     expect(room.loaded(host.id, 'signature', now)).toBe(false);
     expect(() => room.loaded(guest.id, 'other', now)).toThrow('signature');
     expect(room.loaded(guest.id, 'signature', now + 10)).toBe(true);

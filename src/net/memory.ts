@@ -9,6 +9,7 @@ export class MemoryDelivery {
   readonly stats = { bytes: 0, packets: 0, dropped: 0, duplicates: 0, delivered: 0, maxQueued: 0 };
   private randomState: number;
   private receivers = new Map<string, Receiver>();
+  private disconnected = new Set<string>();
   private queue: Delivery[] = [];
   private eventEnds = new Map<string, number>();
   private order = 0;
@@ -24,9 +25,16 @@ export class MemoryDelivery {
     return this.randomState / 4294967296;
   }
   bind(peer: string, receiver: Receiver): void { this.receivers.set(peer, receiver); }
+  disconnect(peer: string): void {
+    this.disconnected.add(peer);
+    this.queue = this.queue.filter(d => d.from !== peer && d.to !== peer);
+    for (const key of this.eventEnds.keys()) if (key.split(':').includes(peer)) this.eventEnds.delete(key);
+  }
+  reconnect(peer: string): void { this.disconnected.delete(peer); }
   get pendingCount(): number { return this.queue.length; }
   send(from: string, to: string, channel: Channel, message: Message, at: number): void {
     if (!Number.isSafeInteger(at) || at < this.now) throw Error('Send time must be monotonic');
+    if (this.disconnected.has(from) || this.disconnected.has(to)) return;
     const text = JSON.stringify(message), bytes = new TextEncoder().encode(text).byteLength;
     let sent = at;
     for (;;) {

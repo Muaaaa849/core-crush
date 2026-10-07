@@ -28,6 +28,7 @@ export class MemoryHost {
   private readonly start: number;
   private readonly window: number;
   private readonly signature: string;
+  private frozen = false;
   readonly session: Session;
   readonly slots: Readonly<Record<string, PlayerId>>;
 
@@ -45,11 +46,19 @@ export class MemoryHost {
   get state(): SimState { this.settle(); return this.frames.get(this.horizon)!.state; }
   get H(): number { return this.horizon; }
   get C(): number { return this.confirmedAt; }
+  freeze(): SimState {
+    this.settle(); this.frozen = true;
+    const frame = this.frames.get(this.C)!;
+    this.bots.forEach((b, i) => b.restore(frame.bots[i]));
+    this.horizon = this.C; this.activeInputs.clear(); this.outbox = [];
+    return structuredClone(frame.state);
+  }
   connect(peer: string, s: Session): boolean {
     if (!Object.hasOwn(this.slots, peer) || canonical(s) !== this.signature) return false;
     this.connected.add(peer); return true;
   }
   receive(peer: string, msg: Message, receivedAt: number): InputAck[] {
+    if (this.frozen) return [];
     if (!this.connected.has(peer) || !belongs(this.session, msg) || !Number.isSafeInteger(receivedAt) || receivedAt < this.start) return [];
     if (msg.kind === 'event-ack') {
       if (Number.isSafeInteger(msg.through) && msg.through >= 0 && msg.through <= this.events.length) {
@@ -108,6 +117,7 @@ export class MemoryHost {
     while (this.H < end) { this.simulate(); this.stats.replayedTicks++; }
   }
   advance(until: number): void {
+    if (this.frozen) return;
     if (this.connected.size !== Object.keys(this.slots).length) throw Error('Initialization incomplete');
     if (!Number.isSafeInteger(until) || until < this.H) throw Error('Clock must advance monotonically');
     this.settle();

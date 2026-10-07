@@ -21,6 +21,16 @@ export class MemoryClient {
     this.session = structuredClone(s); this.state = structuredClone(s.initial); this.confirmed = structuredClone(s.initial);
   }
   get pendingCount(): number { return this.pending.size; }
+  reserveSequences(count: number): void { this.seq = Math.max(this.seq, count); }
+  // 中断で予測・旧入力を捨てる。確定イベントの受領位置も完全状態と一緒に同期する。
+  restore(state: SimState, events: ConfirmedEvent[], epoch: number, localAt: number): void {
+    this.session.epoch = epoch; this.session.initial = structuredClone(state);
+    this.state = structuredClone(state); this.confirmed = structuredClone(state);
+    this.events.splice(0, this.events.length, ...structuredClone(events));
+    this.pending.clear(); this.eventBuffer.clear(); this.known = []; this.latest = undefined;
+    this.snapshotNumber = 0; this.eventTail = events.length; this.seq = 0;
+    this.clock.reset(state.now - localAt);
+  }
   input(input: PlayerInput, localAt: number): Command {
     const command = { ...input, player: this.player, at: this.clock.hostTime(localAt), seq: this.seq++ } as Command;
     if (!validCommand(command)) throw Error('Invalid input');

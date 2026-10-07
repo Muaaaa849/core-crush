@@ -20,3 +20,4 @@ canvas { display: block; }
 #online input { width: min(320px, 70vw); }
 #room-roster { white-space: pre-line; }
 body:has(#overlay:not([hidden])) #hud { display: none; }
+#network-status { position: fixed; left: 50%; top: 20%; transform: translateX(-50%); padding: 12px; background: #101522; border: 1px solid #19e6ff; text-align: center; pointer-events: none; }

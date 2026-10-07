@@ -161,6 +161,7 @@ const pipeline = new THREE.RenderPipeline(renderer, color.add(bloom(color, 0.6, 
 const onlineEntry = document.querySelector<HTMLElement>('#online-entry')!;
 const onlineLobby = document.querySelector<HTMLElement>('#online-lobby')!;
 const onlineStatus = document.querySelector<HTMLElement>('#online-status')!;
+const networkStatus = document.querySelector<HTMLElement>('#network-status')!;
 const roster = document.querySelector<HTMLElement>('#room-roster')!;
 const roomProgress = document.querySelector<HTMLElement>('#room-progress')!;
 const beginButton = document.querySelector<HTMLButtonElement>('#room-begin')!;
@@ -174,6 +175,7 @@ if (roomOrigin) { onlineEntry.hidden = started; onlineStatus.textContent = '身�
 else if (!import.meta.env.VITE_ROOM_URL) onlineStatus.textContent = 'オンラインは未設定';
 
 function returnToLobby(): void {
+  networkStatus.hidden = true;
   started = false; onlineMatch = undefined; rematchAt = null; controls.enabled = false;
   document.exitPointerLock(); overlay.hidden = false;
   localPlayer = 'p1'; controls.player = localPlayer;
@@ -225,7 +227,11 @@ confirmButton.addEventListener('click', () => {
   catch (error) { onlineStatus.textContent = (error as Error).message; }
 });
 document.querySelector('#room-leave')!.addEventListener('click', leaveRoom);
-addEventListener('pagehide', () => connection?.close());
+addEventListener('pagehide', () => connection?.close(false));
+if (roomOrigin) {
+  const saved = RoomConnection.savedCode(roomOrigin, __BUILD_ID__);
+  if (saved) void enterRoom(undefined, saved);
+}
 
 startButton.textContent = 'プレイ開始';
 startButton.disabled = false;
@@ -268,6 +274,7 @@ function hitstun(state: SimState, id: PlayerId): number {
 function step(dt: number): void {
   const now = performance.now();
   if (onlineMatch && connection) {
+    connection.poll();
     const countdown = connection.countdown;
     if (countdown !== undefined && !started) roomProgress.textContent = countdown ? `開始まで ${countdown} 秒` : '「操作する」をクリックしてマウスを捕捉';
     if (connection.playing && !started) {
@@ -276,12 +283,18 @@ function step(dt: number): void {
   }
   if (started) {
     controls.update();
-    if (onlineMatch) {
-      try { onlineMatch.advance(); }
-      catch (error) { onlineStatus.textContent = (error as Error).message; leaveRoom(); }
-    } else runner.advance(dt * 1000);
+    if (!onlineMatch) runner.advance(dt * 1000);
   }
   const events = onlineMatch?.drainEvents() ?? runner.drainEvents();
+  if (onlineMatch) {
+    networkStatus.hidden = onlineMatch.status === 'running';
+    networkStatus.textContent = onlineMatch.status === 'invalid' ? '無効試合'
+      : `通信が途切れました…再接続を待っています（残り${onlineMatch.remainingSeconds}秒）`;
+    if (onlineMatch.status === 'invalid') {
+      controls.enabled = false; document.exitPointerLock(); overlay.hidden = false;
+      startButton.hidden = true; roomProgress.textContent = '無効試合。部屋を退出してください';
+    }
+  }
   if (onlineMatch?.finished && confirmButton.hidden) {
     controls.enabled = false; document.exitPointerLock(); overlay.hidden = false;
     confirmButton.hidden = false; confirmButton.disabled = false; startButton.hidden = true;
