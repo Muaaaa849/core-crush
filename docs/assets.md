@@ -23,7 +23,7 @@
 
 | 派生物 | 元 | 処理 |
 |---|---|---|
-| `stage.glb` | `arena/export/arena_stage.glb` | 競技エリア内の展示用コアを除去 → 重複除去・未使用削除 → テクスチャをWebP化 → meshopt圧縮 |
+| `stage.glb` | 原本の部材GLB＋複製した生成スクリプト（`scripts/assets/arena/`）で床・中央フェンス・トラスを拡大寸法で再生成し、Blenderで再組立（`.cache/arena/`、決定0006） | 競技エリア内の展示用コアを除去 → 重複除去・未使用削除 → テクスチャをWebP化 → meshopt圧縮 |
 | `core_ball.glb` | `core_ball/output/core_ball.glb` | テクスチャをWebP化 → meshopt圧縮 |
 | `character.glb` | `art/kenney-protagonists`（characterMedium.fbx + cyborgFemaleA.png + idle/run/jump） | Blender 5.2でGLB化（アニメーション名 idle / run / jump） |
 
