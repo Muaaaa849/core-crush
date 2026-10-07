@@ -1,8 +1,8 @@
 // ローカルプレイヤーの入力をsimコマンドへ変換し、カメラを動かす（feel.md「入力設定」「カメラ」）。
 // 視点の回転は即座に画面へ反映し、simへは向き（yaw）として渡す。
 import * as THREE from 'three/webgpu';
-import type { PlayerId } from '../sim/types';
-import type { DistributiveOmit, Input, SimRunner } from './runner';
+import type { PlayerId, SimState } from '../sim/types';
+import type { DistributiveOmit, Input } from './runner';
 
 const MOUSE_RAD_PER_COUNT = THREE.MathUtils.degToRad(0.022 * 2);
 const PITCH_LIMIT = 1.2;
@@ -23,8 +23,8 @@ export class Controls {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly runner: SimRunner,
-    private readonly player: PlayerId,
+    private readonly runner: { state: SimState; input(input: Input): void },
+    public player: PlayerId,
   ) {
     this.roundStartsAt = runner.state.match.roundStartsAt;
     document.addEventListener('mousemove', (e) => {
@@ -53,12 +53,14 @@ export class Controls {
     window.addEventListener('blur', () => this.keys.clear());
   }
 
+  enabled = true;
+
   get locked(): boolean {
     return document.pointerLockElement === this.canvas;
   }
 
   private get alive(): boolean {
-    return this.runner.state.players.find(p => p.id === this.player)!.hp > 0;
+    return this.enabled && (this.runner.state.players.find(p => p.id === this.player)?.hp ?? 0) > 0;
   }
 
   /** 次ラウンド・再戦ではsimの初期yawへ戻し、押下状態を新たに送る（0010）。 */
@@ -87,6 +89,8 @@ export class Controls {
           z: -Math.cos(this.yaw) * forward - Math.sin(this.yaw) * right,
         }
       : { x: 0, z: 0 };
+    const magnitude = Math.max(1, Math.hypot(move.x, move.z));
+    move.x /= magnitude; move.z /= magnitude;
     // 球種はキーの意図で決まる（移動方向はカメラの向きで回転するため使えない）。
     const keys = this.locked ? { forward, right } : { forward: 0, right: 0 };
     if (keys.forward !== this.sentKeys.forward || keys.right !== this.sentKeys.right) {

@@ -25,6 +25,8 @@ jobs:
       - run: npm test
       # public/assets/ はコミット済みの派生物を使い、CIでは再生成しない。
       - run: npm run build
+        env:
+          VITE_ROOM_URL: ${{ vars.VITE_ROOM_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/

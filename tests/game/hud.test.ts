@@ -14,6 +14,13 @@ function render(events: Parameters<Hud['update']>[1], edit?: (s: ReturnType<type
 }
 
 describe('Hud rounds', () => {
+  it('T10-29 shows online confirmation instead of a five second rematch', () => {
+    const el = { textContent: '' } as HTMLElement;
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
+    new Hud(el, config, 'p1', true).update(state, [{ kind: 'match-end', at: 0, winner: 'a' }], 0);
+    expect(el.textContent).toContain('結果を確認');
+    expect(el.textContent).not.toContain('秒後に再戦');
+  });
   it('T10-11: shows at most one decimal, rounding up so a living player never shows 0', () => {
     const text = render([], (s) => { s.players[0].hp = 49.48953125; s.players[1].hp = 0.2; });
     expect(text).toContain('あなた HP 49.5/100');

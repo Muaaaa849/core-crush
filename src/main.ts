@@ -20,6 +20,9 @@ import { createInitialState } from './sim/sim';
 import type { MatchMode, PlayerId, SimState, Vec3 } from './sim/types';
 import { beginFrame, gpuDone, gpuName } from './gpu';
 import { StatsOverlay } from './stats';
+import { RoomConnection, roomUrl } from './net/room';
+import type { OnlineMatch } from './net/online';
+import type { Input } from './game/runner';
 import './style.css';
 
 const CHARACTER_HEIGHT = 1.8; // m。モデルの寸法ではなくゲーム側の基準で決める
@@ -74,11 +77,20 @@ let mode: MatchMode = '1v1';
 const bots: Bot[] = [];
 const newMatch = () => createInitialState(localMatch(mode, Math.random() < 0.5 ? 'a' : 'b'), config);
 const runner = new SimRunner(newMatch(), config, bots);
+let onlineMatch: OnlineMatch | undefined;
+let connection: RoomConnection | undefined;
+let localPlayer: PlayerId = 'p1';
+const game = {
+  get state() { return onlineMatch?.state ?? runner.state; },
+  get previous() { return onlineMatch?.previous ?? runner.previous; },
+  get alpha() { return onlineMatch?.alpha ?? runner.alpha; },
+  input(input: Input) { if (onlineMatch) onlineMatch.input(input); else runner.input(input); },
+};
 const avatars = new Map<PlayerId, Avatar>();
 function createAvatars(): void {
   for (const avatar of avatars.values()) scene.remove(avatar.root);
   avatars.clear();
-  for (const player of runner.state.players) {
+  for (const player of game.state.players) {
     const model = cloneSkinned(character.scene);
     scene.add(model); avatars.set(player.id, new Avatar(model, character.animations));
   }
@@ -89,8 +101,9 @@ bots.push(...runner.state.players.filter(p => p.id !== 'p1').map(p => new Bot(p.
 let started = params.has('bench');
 const modeSelector = document.querySelector<HTMLFieldSetElement>('#match-mode')!;
 let rematchAt: number | null = null; // 試合終了後、表示時刻でこの時刻に再戦（0008）
-const controls = new Controls(renderer.domElement, runner, 'p1');
-const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
+const controls = new Controls(renderer.domElement, game, localPlayer);
+const hudElement = document.querySelector<HTMLElement>('#hud')!;
+let hud = new Hud(hudElement, config, localPlayer);
 const targets = new TargetView(scene);
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
@@ -99,10 +112,10 @@ const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの�
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
 function playerPosition(id: PlayerId, out: THREE.Vector3): THREE.Vector3 {
-  const a = runner.previous.players.find(p => p.id === id)!.position;
-  const b = runner.state.players.find(p => p.id === id)!.position;
-  if (runner.previous.match.roundStartsAt !== runner.state.match.roundStartsAt) return out.set(b.x, 0, b.z);
-  return out.set(a.x, 0, a.z).lerp(new THREE.Vector3(b.x, 0, b.z), runner.alpha);
+  const a = game.previous.players.find(p => p.id === id)!.position;
+  const b = game.state.players.find(p => p.id === id)!.position;
+  if (game.previous.match.roundStartsAt !== game.state.match.roundStartsAt) return out.set(b.x, 0, b.z);
+  return out.set(a.x, 0, a.z).lerp(new THREE.Vector3(b.x, 0, b.z), game.alpha);
 }
 
 // 保持中の球の表示位置（キャラの向き基準）。FPSでは画面右下へ寄せ、正面の視界を空ける（feel.md）。
@@ -116,8 +129,8 @@ function placeBall(state: SimState): void {
   if (b.mode === 'held') {
     const holder = state.players.find((p) => p.id === b.owner)!;
     const at = playerPosition(holder.id, new THREE.Vector3());
-    const yaw = holder.id === 'p1' ? controls.yaw : holder.yaw;
-    const t = holder.id === 'p1' ? cameraBlend.fps : 0;
+    const yaw = holder.id === localPlayer ? controls.yaw : holder.yaw;
+    const t = holder.id === localPlayer ? cameraBlend.fps : 0;
     const forward = THREE.MathUtils.lerp(HELD.forward, HELD_FPS.forward, t);
     const right = THREE.MathUtils.lerp(HELD.right, HELD_FPS.right, t);
     ball.scene.position.set(
@@ -127,10 +140,10 @@ function placeBall(state: SimState): void {
     );
   } else if (b.mode === 'loose' || b.mode === 'flight') {
     // simの確定位置（落球は1Fごと）の間を補間する。状態が切り替わった直後は最新位置へ。
-    const a = runner.previous.ball;
-    const from = a.mode === b.mode && runner.previous.match.roundStartsAt === state.match.roundStartsAt ? a.position : b.position;
-    const shown = { x: THREE.MathUtils.lerp(from.x, b.position.x, runner.alpha),
-      y: THREE.MathUtils.lerp(from.y, b.position.y, runner.alpha), z: THREE.MathUtils.lerp(from.z, b.position.z, runner.alpha) };
+    const a = game.previous.ball;
+    const from = a.mode === b.mode && game.previous.match.roundStartsAt === state.match.roundStartsAt ? a.position : b.position;
+    const shown = { x: THREE.MathUtils.lerp(from.x, b.position.x, game.alpha),
+      y: THREE.MathUtils.lerp(from.y, b.position.y, game.alpha), z: THREE.MathUtils.lerp(from.z, b.position.z, game.alpha) };
     // 床を転がる分だけ球を回す（0009）。保持・飛行から切り替わった瞬間の移動は数えない。
     const roll = b.mode === 'loose' && lastBall.mode === 'loose' ? rollRotation(lastBall.position, shown, config.ballDiameter / 2) : null;
     if (roll) ball.scene.quaternion.premultiply(rollQuaternion.setFromAxisAngle(tmp.set(roll.axis.x, roll.axis.y, roll.axis.z), roll.angle));
@@ -145,9 +158,79 @@ const scenePass = pass(scene, camera);
 const color = scenePass.getTextureNode('output');
 const pipeline = new THREE.RenderPipeline(renderer, color.add(bloom(color, 0.6, 0.2, 0.9)));
 
+const onlineEntry = document.querySelector<HTMLElement>('#online-entry')!;
+const onlineLobby = document.querySelector<HTMLElement>('#online-lobby')!;
+const onlineStatus = document.querySelector<HTMLElement>('#online-status')!;
+const roster = document.querySelector<HTMLElement>('#room-roster')!;
+const roomProgress = document.querySelector<HTMLElement>('#room-progress')!;
+const beginButton = document.querySelector<HTMLButtonElement>('#room-begin')!;
+const confirmButton = document.querySelector<HTMLButtonElement>('#room-confirm')!;
+const createButton = document.querySelector<HTMLButtonElement>('#room-create')!;
+const joinForm = document.querySelector<HTMLFormElement>('#room-join')!;
+let roomOrigin: string | undefined;
+try { roomOrigin = roomUrl(import.meta.env.VITE_ROOM_URL); }
+catch (error) { onlineStatus.textContent = (error as Error).message; }
+if (roomOrigin) { onlineEntry.hidden = started; onlineStatus.textContent = '身内の招待制。直接接続では相手にIPが伝わります'; }
+else if (!import.meta.env.VITE_ROOM_URL) onlineStatus.textContent = 'オンラインは未設定';
+
+function returnToLobby(): void {
+  started = false; onlineMatch = undefined; rematchAt = null; controls.enabled = false;
+  document.exitPointerLock(); overlay.hidden = false;
+  localPlayer = 'p1'; controls.player = localPlayer;
+  runner.restart(createInitialState(localMatch(connection?.view?.mode ?? mode, 'a'), config));
+  createAvatars(); controls.sync(); hud = new Hud(hudElement, config, localPlayer);
+  confirmButton.hidden = true; startButton.hidden = true;
+  cameraBlend.mode = 'tps'; cameraBlend.fps = 0; lastBall.mode = 'absent';
+}
+function leaveRoom(): void {
+  connection?.close(); connection = undefined; returnToLobby();
+  onlineLobby.hidden = true; onlineEntry.hidden = !roomOrigin;
+  modeSelector.disabled = false; startButton.hidden = false; controls.enabled = true;
+  startButton.textContent = 'ローカル試遊を開始';
+}
+async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
+  if (!roomOrigin || connection || started) return;
+  createButton.disabled = true;
+  const joinButton = joinForm.querySelector<HTMLButtonElement>('button')!; joinButton.disabled = true;
+  const next = new RoomConnection(roomOrigin, __BUILD_ID__, {
+    status: text => { onlineStatus.textContent = text; },
+    view: (room, invite, player) => {
+      onlineEntry.hidden = true; onlineLobby.hidden = false; modeSelector.disabled = true;
+      document.querySelector<HTMLInputElement>('#room-code')!.value = invite;
+      roster.textContent = `${room.mode}・あなたは${player.toUpperCase()}\n` + room.players.map(p => `${p.id === 'p1' ? 'ホスト ' : ''}${p.id.toUpperCase()} / ${p.side.toUpperCase()}陣${p.loaded ? ' / ロード済み' : ''}${p.confirmed ? ' / 結果確認済み' : ''}`).join('\n');
+      beginButton.hidden = player !== 'p1' || room.phase !== 'lobby';
+      beginButton.disabled = room.players.length !== (room.mode === '2v2' ? 4 : room.mode === '1v2' ? 3 : 2);
+      roomProgress.textContent = room.phase === 'lobby' ? '参加者がそろったらホストが開始します' : room.phase === 'connecting' ? '接続とロードを確認中（20秒以内）' : '全員ロード完了';
+    },
+    preparing: match => {
+      onlineMatch = match; localPlayer = match.player; controls.player = localPlayer;
+      controls.enabled = false; controls.sync(); started = false; rematchAt = null;
+      bots.length = 0; createAvatars(); hud = new Hud(hudElement, config, localPlayer, true);
+      startButton.hidden = true; document.exitPointerLock(); overlay.hidden = false;
+    },
+    lobby: returnToLobby,
+    disconnected: leaveRoom,
+  }, params.get('relay') === '1');
+  connection = next; controls.enabled = false; startButton.hidden = true;
+  onlineStatus.textContent = '部屋に接続中…';
+  try { await next.enter(selected, code); }
+  catch (error) { leaveRoom(); onlineStatus.textContent = `参加できません：${(error as Error).message}`; }
+  finally { createButton.disabled = false; joinButton.disabled = false; }
+}
+createButton.addEventListener('click', () => { void enterRoom(document.querySelector<HTMLSelectElement>('#online-mode')!.value as MatchMode); });
+joinForm.addEventListener('submit', e => { e.preventDefault(); void enterRoom(undefined, document.querySelector<HTMLInputElement>('#invite-code')!.value.trim().toLowerCase()); });
+beginButton.addEventListener('click', () => { try { connection?.begin(); } catch (error) { onlineStatus.textContent = (error as Error).message; } });
+confirmButton.addEventListener('click', () => {
+  try { connection?.confirm(); confirmButton.disabled = true; roomProgress.textContent = '全員の結果確認を待っています'; }
+  catch (error) { onlineStatus.textContent = (error as Error).message; }
+});
+document.querySelector('#room-leave')!.addEventListener('click', leaveRoom);
+addEventListener('pagehide', () => connection?.close());
+
 startButton.textContent = 'プレイ開始';
 startButton.disabled = false;
 startButton.addEventListener('click', () => {
+  if (connection && !connection.playing) return;
   if (!started) {
     mode = document.querySelector<HTMLInputElement>('input[name="mode"]:checked')!.value as MatchMode;
     runner.restart(newMatch());
@@ -155,13 +238,14 @@ startButton.addEventListener('click', () => {
     bots.push(...runner.state.players.filter(p => p.id !== 'p1').map(p => new Bot(p.id)));
     createAvatars(); controls.sync();
     started = true; modeSelector.disabled = true;
+    onlineEntry.hidden = true;
   }
   const canvas = renderer.domElement;
   // 生入力（OSのマウス加速なし）に非対応の環境では通常の捕捉にする。失敗はpointerlockerrorで案内する。
   canvas.requestPointerLock({ unadjustedMovement: true }).catch(() => canvas.requestPointerLock().catch(() => {}));
 });
 document.addEventListener('pointerlockchange', () => {
-  overlay.hidden = controls.locked;
+  overlay.hidden = controls.locked && started;
 });
 document.addEventListener('pointerlockerror', () => {
   startButton.textContent = 'マウスを捕捉できませんでした。もう一度クリック';
@@ -173,7 +257,7 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, runner, camera, step, gpuDone } });
+if (import.meta.env.DEV) Object.assign(window, { __debug: { scene, renderer, runner, camera, step, gpuDone, get onlineMatch() { return onlineMatch; } } });
 
 const tmp = new THREE.Vector3();
 /** 被弾硬直の残り（1→0）。被弾クリップができるまでの仮の姿勢に使う（0009）。 */
@@ -183,11 +267,29 @@ function hitstun(state: SimState, id: PlayerId): number {
 }
 function step(dt: number): void {
   const now = performance.now();
-  if (started) {
-    controls.update(); runner.advance(dt * 1000);
+  if (onlineMatch && connection) {
+    const countdown = connection.countdown;
+    if (countdown !== undefined && !started) roomProgress.textContent = countdown ? `開始まで ${countdown} 秒` : '「操作する」をクリックしてマウスを捕捉';
+    if (connection.playing && !started) {
+      started = true; controls.enabled = true; controls.sync(); startButton.hidden = false; startButton.textContent = '操作する';
+    }
   }
-  const events = runner.drainEvents();
-  if (events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
+  if (started) {
+    controls.update();
+    if (onlineMatch) {
+      try { onlineMatch.advance(); }
+      catch (error) { onlineStatus.textContent = (error as Error).message; leaveRoom(); }
+    } else runner.advance(dt * 1000);
+  }
+  const events = onlineMatch?.drainEvents() ?? runner.drainEvents();
+  if (onlineMatch?.finished && confirmButton.hidden) {
+    controls.enabled = false; document.exitPointerLock(); overlay.hidden = false;
+    confirmButton.hidden = false; confirmButton.disabled = false; startButton.hidden = true;
+    const local = onlineMatch.confirmed.players.find(p => p.id === localPlayer)!;
+    const result = onlineMatch.client.events.find(e => e.event.kind === 'match-end')!.event;
+    roomProgress.textContent = `試合終了：${result.kind === 'match-end' && result.winner === local.side ? 'あなたの勝ち' : 'あなたの負け'}。結果を確認してください`;
+  }
+  if (!connection && events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
   if (rematchAt !== null && now >= rematchAt) {
     rematchAt = null;
     runner.restart(newMatch()); controls.sync();
@@ -195,26 +297,26 @@ function step(dt: number): void {
     lastBall.mode = 'absent';
   }
   controls.syncRound();
-  const state = runner.state;
+  const state = game.state;
   if (events.some(e => e.kind === 'spawn')) lastBall.mode = 'absent';
   hitStop.trigger(events, now);
   const shown = dt * hitStop.timeScale(now); // ヒットストップ中は見た目の動きだけ止める
-  cameraBlend.update(state, 'p1', dt * 1000);
+  cameraBlend.update(state, localPlayer, dt * 1000);
   for (const player of state.players) {
-    const yaw = player.id === 'p1' && player.hp > 0 ? controls.yaw : player.yaw;
+    const yaw = player.id === localPlayer && player.hp > 0 ? controls.yaw : player.yaw;
     const avatar = avatars.get(player.id)!;
     avatar.update(playerPosition(player.id, tmp), yaw, dt, shown, hitstun(state, player.id));
-    avatar.root.visible = player.hp > 0 && (player.id !== 'p1' || cameraBlend.fps < 0.5);
+    avatar.root.visible = player.hp > 0 && (player.id !== localPlayer || cameraBlend.fps < 0.5);
   }
   placeBall(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
-  hud.update(runner.state, events, now);
-  targets.update(state, 'p1', id => playerPosition(id, new THREE.Vector3()));
+  hud.update(onlineMatch?.finished ? onlineMatch.confirmed : state, events, now);
+  targets.update(state, localPlayer, id => playerPosition(id, new THREE.Vector3()));
   stageMixer.update(dt);
-  const viewing = cameraPlayerFor(runner.state, 'p1');
+  const viewing = cameraPlayerFor(state, localPlayer);
   const body = playerPosition(viewing, new THREE.Vector3());
-  if (viewing === 'p1') controls.placeCamera(camera, body, cameraBlend.fps);
-  else controls.placeCamera(camera, body, 0, runner.state.players.find(p => p.id === viewing)!.yaw, 0);
+  if (viewing === localPlayer) controls.placeCamera(camera, body, cameraBlend.fps);
+  else controls.placeCamera(camera, body, 0, state.players.find(p => p.id === viewing)!.yaw, 0);
   const shake = hitStop.shake(now);
   camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
   lookTargets[0].copy(body).setY(1.6);

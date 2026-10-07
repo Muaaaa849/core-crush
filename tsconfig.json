@@ -12,5 +12,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["src", "tests", "scripts/**/*.ts", "vite.config.ts"]
+  "include": ["src", "worker", "tests", "scripts/**/*.ts", "vite.config.ts"]
 }

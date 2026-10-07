@@ -36,6 +36,11 @@ export interface PingPacket extends Envelope { kind: 'ping'; sent: number }
 export interface PongPacket extends Envelope { kind: 'pong'; sent: number; hostAt: number }
 export type Message = InputPacket | StatePacket | EventPacket | EventAckPacket | PingPacket | PongPacket;
 export type Channel = 'input' | 'state' | 'event';
+export type Receiver = (from: string, message: Message, receivedAt: number) => void;
+export interface Delivery {
+  bind(peer: string, receiver: Receiver): void;
+  send(from: string, to: string, channel: Channel, message: Message, at: number): void;
+}
 export interface Outgoing { to: string; channel: Channel; message: Message }
 type OmitCommand<T> = T extends unknown ? Omit<T, 'player' | 'at' | 'seq'> : never;
 export type PlayerInput = OmitCommand<Command>;

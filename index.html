@@ -16,6 +16,23 @@
         <label><input type="radio" name="mode" value="2v2" /> 2v2（味方ボット1人）</label>
       </fieldset>
       <button id="start" disabled>読み込み中…</button>
+      <section id="online">
+        <h2>オンライン対戦</h2>
+        <p id="online-status" role="status">読み込み中…</p>
+        <div id="online-entry" hidden>
+          <label>対戦形式 <select id="online-mode"><option>1v1</option><option>1v2</option><option>2v2</option></select></label>
+          <button id="room-create">部屋を作る</button>
+          <form id="room-join"><label>招待コード <input id="invite-code" autocomplete="off" spellcheck="false" maxlength="32" pattern="[a-fA-F0-9]{32}" required /></label><button>参加</button></form>
+        </div>
+        <div id="online-lobby" hidden>
+          <label>招待コード（身内だけに共有） <input id="room-code" readonly aria-label="共有する招待コード" /></label>
+          <p id="room-roster"></p>
+          <p id="room-progress" role="status"></p>
+          <button id="room-begin" hidden>全員で開始</button>
+          <button id="room-confirm" hidden>結果を確認して部屋へ戻る</button>
+          <button id="room-leave">部屋を退出</button>
+        </div>
+      </section>
     </div>
     <div id="reticle"></div>
     <pre id="hud"></pre>

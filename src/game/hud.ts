@@ -16,7 +16,7 @@ export class Hud {
   private message = '';
   private messageUntil = 0;
 
-  constructor(private readonly el: HTMLElement, private readonly config: SimConfig, private readonly local: PlayerId) {}
+  constructor(private readonly el: HTMLElement, private readonly config: SimConfig, private readonly local: PlayerId, private readonly online = false) {}
 
   update(state: SimState, events: readonly SimEvent[], now: number): void {
     const local = state.players.find(p => p.id === this.local)!;
@@ -28,7 +28,7 @@ export class Hud {
         this.flash(`${result}（${REASON_LABEL[e.reason]}）${e.winner === null ? '　同じラウンドをやり直し' : ''}`, now, 3000);
       }
       if (e.kind === 'match-end') {
-        this.flash(`試合終了：${e.winner === local.side ? 'あなたの勝ち！' : 'あなたの負け'}　${REMATCH_SECONDS}秒後に再戦`, now, REMATCH_SECONDS * 1000);
+        this.flash(`試合終了：${e.winner === local.side ? 'あなたの勝ち！' : 'あなたの負け'}　${this.online ? '結果を確認して部屋へ戻ってください' : `${REMATCH_SECONDS}秒後に再戦`}`, now, this.online ? Infinity : REMATCH_SECONDS * 1000);
       }
       if (e.kind === 'explosion') this.flash(`爆発！ ${sideName(e.side)}に${this.config.explosionDamage}ダメージ`, now);
       if (e.kind === 'catch' || e.kind === 'parry') {

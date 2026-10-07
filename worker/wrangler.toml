@@ -1,0 +1,25 @@
+name = "corecrush-rooms"
+main = "index.ts"
+compatibility_date = "2026-10-07"
+workers_dev = true
+
+[vars]
+# ゲームの配信元（Pages）と、ローカル確認用のVite。Originの検査は他サイトからの悪用を防ぐためで、認証ではない
+ALLOWED_ORIGINS = "https://muaaaa849.github.io,http://localhost:5173,http://127.0.0.1:5173"
+ROOMS_ENABLED = "true"
+TURN_ENABLED = "false"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "REGISTRY"
+class_name = "Registry"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "Registry"]
+
+[observability]
+enabled = false
