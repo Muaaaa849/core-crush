@@ -18,6 +18,7 @@ export class Hud {
   update(state: SimState, events: readonly SimEvent[], now: number): void {
     for (const e of events) {
       if (e.kind === 'explosion') this.flash(`爆発！ ${SIDE_LABEL[e.side]}に${this.config.explosionDamage}ダメージ`, now);
+      if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : '命中'}！ ${Math.round(e.damage)}ダメージ`, now);
     }
     const second = this.config.timeUnitsPerSecond;
     let clock = '危険時計：待機中';

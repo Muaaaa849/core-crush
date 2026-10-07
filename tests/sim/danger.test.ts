@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { defaultConfig as config } from '../../src/sim/config';
+import { defaultConfig } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, SimEvent, SimState } from '../../src/sim/types';
 
+const config = { ...defaultConfig, dangerSpeedCoefficient: 0 };
 const S = 60_000;
 const expiry = 9 * S;
 
@@ -19,10 +20,11 @@ function advance(state: SimState, until: number, commands: Command[] = []) {
 function throwAt(release: number, distance: number) {
   let state = advance(createInitialState('p1', config), S + config.tick).state;
   state.players[0].position.z = distance;
+  state.players[1].position.x = 4;
   // 回収済みの球を保持したまま、リリース直前まで待つ。
   state = advance(state, release - config.throwWindup).state;
   return advance(state, expiry + config.tick, [
-    { kind: 'primary', player: 'p1', at: release - config.throwWindup, seq: 0 },
+    { kind: 'primary', aim: true, player: 'p1', at: release - config.throwWindup, seq: 0 },
   ]);
 }
 
@@ -114,7 +116,7 @@ describe('R01/R02 danger clock', () => {
       { kind: 'move', player: 'p1', at: 73_456, seq: 1, x: 0, z: 0 },
       { kind: 'yaw', player: 'p1', at: 120_123, seq: 3, yaw: 0 },
       { kind: 'yaw', player: 'p1', at: 120_123, seq: 2, yaw: Math.PI },
-      { kind: 'primary', player: 'p1', at: 120_123, seq: 4 },
+      { kind: 'primary', aim: true, player: 'p1', at: 120_123, seq: 4 },
     ];
     function replay(fps: number) {
       let state = createInitialState('p1', config);
@@ -136,7 +138,7 @@ describe('R01/R02 danger clock', () => {
   it('does not mutate inputs and replays from a plain cloned snapshot', () => {
     const state = advance(createInitialState('p1', config), S).state;
     const snapshot = structuredClone(state);
-    const commands: Command[] = [{ kind: 'primary', player: 'p1', at: S + 123, seq: 0 }];
+    const commands: Command[] = [{ kind: 'primary', aim: true, player: 'p1', at: S + 123, seq: 0 }];
     const before = structuredClone(commands);
     const result = advance(state, 3 * S, commands);
     expect(state).toEqual(snapshot);
@@ -146,7 +148,7 @@ describe('R01/R02 danger clock', () => {
 
   it('accepts tick-end inputs in the next tick and releases exactly 8F later', () => {
     const state = advance(createInitialState('p1', config), S + config.tick).state;
-    const command: Command = { kind: 'primary', player: 'p1', at: state.now + config.tick, seq: 0 };
+    const command: Command = { kind: 'primary', aim: true, player: 'p1', at: state.now + config.tick, seq: 0 };
     const first = step(state, [command], config);
     expect(first.events).toEqual([]);
     const before = advance(first.state, command.at + config.throwWindup - config.tick, [command]);
@@ -159,7 +161,7 @@ describe('R01/R02 danger clock', () => {
     const state = advance(createInitialState('p1', config), S + config.tick).state;
     const release = state.now + 8_000;
     const commands: Command[] = [
-      { kind: 'primary', player: 'p1', at: state.now, seq: 0 },
+      { kind: 'primary', aim: true, player: 'p1', at: state.now, seq: 0 },
       { kind: 'move', player: 'p1', at: state.now, seq: 1, x: 1, z: 0 },
       { kind: 'yaw', player: 'p1', at: release, seq: 2, yaw: -Math.PI / 2 },
     ];
@@ -191,7 +193,7 @@ describe('R01/R02 danger clock', () => {
   it('expires before a primary press at the same timestamp', () => {
     const state = advance(createInitialState('p1', config), expiry - config.tick).state;
     const result = advance(state, expiry + config.tick, [
-      { kind: 'primary', player: 'p1', at: expiry, seq: 0 },
+      { kind: 'primary', aim: true, player: 'p1', at: expiry, seq: 0 },
     ]);
     expect(result.state.ball.mode).toBe('absent');
     expect(result.events).toEqual([{ kind: 'explosion', at: expiry, side: 'p1' }]);

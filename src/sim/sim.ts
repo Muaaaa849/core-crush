@@ -1,5 +1,6 @@
 import { defaultConfig, type SimConfig } from './config';
-import { centerCrossingAt, flightPosition, opposite } from './ball';
+import { attackLossAt, centerCrossingAt, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance } from './ball';
+import { ballContactPoint, sweptCapsuleContact } from './contact';
 import type { Command, PlayerState, Side, SimEvent, SimState, Stats } from './types';
 
 export function createInitialState(side: Side, config: SimConfig = defaultConfig, playerStats: Partial<Record<Side, Stats>> = {}): SimState {
@@ -10,7 +11,7 @@ export function createInitialState(side: Side, config: SimConfig = defaultConfig
       const maxHp = config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat);
       return {
         id, side: id, hp: maxHp, maxHp, stats, cost: config.initialCost,
-        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id] },
+        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id], y: 0 },
         yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
       };
     }),
@@ -76,6 +77,17 @@ function pickupAt(state: SimState, config: SimConfig): { at: number; player: Pla
   return result;
 }
 
+function hitAt(state: SimState, config: SimConfig): number {
+  if (state.ball.mode !== 'flight' || !state.ball.attack) return Infinity;
+  const ball = state.ball;
+  const receiver = state.players.find(p => p.id === ball.attack!.target)!;
+  if (receiver.hp <= 0) return Infinity;
+  const v = movementVelocity(receiver, state, config);
+  const seconds = sweptCapsuleContact(state.ball.position, state.ball.velocity, receiver.position, { ...v, y: 0 },
+    config.ballDiameter / 2 + config.capsuleRadius, config.capsuleBottom, config.capsuleTop);
+  return Math.ceil(state.now + seconds * config.timeUnitsPerSecond);
+}
+
 function advancePositions(state: SimState, at: number, config: SimConfig) {
   const duration = at - state.now;
   const seconds = (at - state.now) / config.timeUnitsPerSecond;
@@ -117,7 +129,7 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
     }
     case 'primary':
       if (!player.action && state.ball.mode === 'held' && state.ball.owner === player.id) {
-        player.action = { kind: 'windup', endsAt: state.now + config.throwWindup };
+        player.action = { kind: 'windup', endsAt: state.now + config.throwWindup, ...(command.aim ? { aim: true } : {}) };
         return true;
       }
       break;
@@ -137,6 +149,12 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
       player.action = { kind: 'step', endsAt: state.now + config.stepActionDuration, moveEndsAt: state.now + config.stepMoveDuration,
         velocity: { x: axis.x * speed, z: axis.z * speed } };
       player.stepPoints--;
+      const ball = state.ball;
+      if (ball.mode === 'flight' && ball.attack?.homing && ball.attack.target === player.id && state.now > ball.releasedAt) {
+        const valid = ball.attack.shot === 'straight' || (ball.attack.shot === 'upper'
+          ? direction === 'left' || direction === 'right' : direction === 'forward' || direction === 'back');
+        if (valid) ball.attack.homing = false;
+      }
       events.push({ kind: 'step', at: state.now, player: player.id, direction });
       return true;
     }
@@ -162,13 +180,16 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
   let index = 0;
   for (;;) {
     const crossing = centerCrossingAt(state.ball, config);
+    const guidance = guidanceAt(state.ball, config);
+    const hit = hitAt(state, config);
+    const loss = attackLossAt(state.ball, state.now, config);
     const pickup = pickupAt(state, config);
     const appearsAt = state.ball.mode === 'absent' ? state.ball.appearsAt : Infinity;
     const startsAt = state.ball.mode === 'loose' && !state.danger ? state.ball.startsAt : Infinity;
     const actionAt = Math.min(...state.players.map(p => p.action?.kind === 'step' && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
     const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
-      appearsAt, startsAt, actionAt, crossing, pickup.at, movementBoundaryAt(state, config));
+      appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, pickup.at, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
 
     // 同時刻の中央通過より爆発を先に確定する。
@@ -223,9 +244,10 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       // 行動境界は同時刻の入力が必要なので、終了境界なら次のtickで解決する。
       if (at === end || player.action?.endsAt !== at) continue;
       if (player.action.kind === 'windup' && state.ball.mode === 'held' && state.ball.owner === player.id) {
-        const origin = { ...player.position };
-        state.ball = { mode: 'flight', position: { ...origin }, origin, releasedAt: at, side: player.side,
-          velocity: { x: -Math.sin(player.yaw) * config.aimedThrowSpeed, y: 0, z: -Math.cos(player.yaw) * config.aimedThrowSpeed } };
+        const receiver = state.players.find(p => p.side !== player.side)!;
+        const elapsed = state.danger?.side === player.side
+          ? (config.dangerDuration - (state.danger.expiresAt - at)) / config.timeUnitsPerSecond : 0;
+        state.ball = launchBall(player, receiver, at, elapsed, player.action.aim === true, config);
         player.action = { kind: 'recovery', endsAt: at + config.throwRecovery };
         events.push({ kind: 'release', at, player: player.id });
       } else player.action = null;
@@ -234,6 +256,21 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       state.ball.side = opposite(state.ball.side);
       state.danger = { side: state.ball.side, expiresAt: at + config.dangerDuration };
       events.push({ kind: 'crossing', at, side: state.ball.side });
+    }
+    if (state.ball.mode === 'flight' && state.ball.attack && hit === at) {
+      const ball = state.ball;
+      const receiver = state.players.find(p => p.id === ball.attack!.target)!;
+      const damage = ball.attack!.damage;
+      receiver.hp = Math.max(0, receiver.hp - damage);
+      events.push({ kind: 'hit', at, player: receiver.id, damage,
+        position: ballContactPoint(ball.position, receiver.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop) });
+      state.ball = dropBall(ball, at, config);
+    }
+    if (state.ball.mode === 'flight' && loss === at) state.ball = dropBall(state.ball, at, config);
+    if (state.ball.mode === 'flight' && state.ball.attack?.homing && guidance === at) {
+      const ball = state.ball;
+      ball.attack!.guidanceIndex++;
+      updateGuidance(ball, state.players.find(p => p.id === ball.attack!.target)!, at, config);
     }
     if (state.ball.mode === 'loose' && state.danger) {
       // 起動時も、その場の球は自動回収する。

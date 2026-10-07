@@ -137,7 +137,7 @@ describe('R08 recovery', () => {
     state.players[0].stepPoints = 0;
     if (mode === 'held') state.ball = { mode: 'held', owner: 'p2' };
     if (mode === 'loose') loose(state, 'p2');
-    if (mode === 'flight') state.ball = { mode: 'flight', side: 'p2', position: { x: 0, y: 1, z: -3 }, origin: { x: 0, y: 1, z: -3 }, releasedAt: 0, velocity: { x: 0, y: 0, z: -1 } };
+    if (mode === 'flight') state.ball = { mode: 'flight', side: 'p2', position: { x: 0, y: 1, z: -3 }, origin: { x: 0, y: 1, z: -3 }, segmentOrigin: { x: 0, y: 1, z: -3 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
     state = advance(state, S).state;
     expect(state.players[0].stepRecoveryProgress).toBe(S);
     state.ball = { mode: 'held', owner: 'p1' };
@@ -183,7 +183,7 @@ describe('R08 recovery', () => {
   it('switches both players at the exact integer center crossing inside a tick', () => {
     const state = active();
     state.players.forEach(p => { p.stepPoints = 0; });
-    state.ball = { mode: 'flight', side: 'p1', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, velocity: { x: 0, y: 0, z: -28 } };
+    state.ball = { mode: 'flight', side: 'p1', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -28 } };
     const result = step(state, []);
     const crossing = Math.ceil(0.1 / 28 * S);
     expect(result.events).toContainEqual({ kind: 'crossing', at: crossing, side: 'p2' });
@@ -208,7 +208,7 @@ describe('common summon and simultaneous action priority', () => {
     let state = active();
     loose(state);
     if (reason === 'held') state.ball = { mode: 'held', owner: 'p2' };
-    if (reason === 'flight') state.ball = { mode: 'flight', side: 'p1', position: { x: 4, y: 1, z: 10 }, origin: { x: 4, y: 1, z: 10 }, releasedAt: 0, velocity: { x: 0, y: 0, z: -1 } };
+    if (reason === 'flight') state.ball = { mode: 'flight', side: 'p1', position: { x: 4, y: 1, z: 10 }, origin: { x: 4, y: 1, z: 10 }, segmentOrigin: { x: 4, y: 1, z: 10 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
     if (reason === 'other-side') loose(state, 'p2');
     if (reason === 'cost') state.players[0].cost = 3;
     if (reason === 'windup' || reason === 'recovery') state.players[0].action = { kind: reason, endsAt: 8_000 };
