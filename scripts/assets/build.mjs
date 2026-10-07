@@ -57,6 +57,9 @@ const jobs = [
     await optimize(root('.cache/arena/export/arena_stage.glb'), `${OUT}/stage.glb`, removeDisplayCores);
   }],
   ['core_ball.glb', () => optimize(`${SRC}/core_ball/output/core_ball.glb`, `${OUT}/core_ball.glb`)],
+  ...['lcd_0_calm_mask', 'lcd_1_panic_mask', 'lcd_2_rage_mask'].map((name) => [
+    `${name}.webp`, () => sharp(`${SRC}/core_ball/output/faces/${name}.png`).webp({ lossless: true }).toFile(`${OUT}/${name}.webp`),
+  ]),
   ['character.glb', async () => {
     const raw = root('.cache/character.glb');
     execFileSync(BLENDER, ['-b', '--factory-startup', '--python-exit-code', '1', '--python', root('scripts/assets/build_character.py'),

@@ -1,9 +1,33 @@
 // M0-1 / M0-2：配信用の派生素材（docs/assets.md）が契約どおりに生成されているか。
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
+import { assetVersions } from '../scripts/asset-versions';
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const dir = new URL('../public/assets/', import.meta.url);
+
+describe.each(['lcd_0_calm_mask', 'lcd_1_panic_mask', 'lcd_2_rage_mask'])('%s', (name) => {
+  const file = new URL(`${name}.webp`, dir);
+
+  it('is a versioned WebP face mask with separate face and crack channels', async () => {
+    expect(existsSync(file)).toBe(true);
+    expect(statSync(file).size).toBeLessThanOrEqual(MAX_BYTES);
+    expect(assetVersions(fileURLToPath(dir))[name]).toMatch(/^[0-9a-f]{12}$/);
+    const metadata = await sharp(readFileSync(file)).metadata();
+    expect(metadata.format).toBe('webp');
+    expect([metadata.width, metadata.height]).toEqual([48, 30]);
+    const { data, info } = await sharp(readFileSync(file)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const red = [], green = [], blue = [];
+    for (let i = 0; i < data.length; i += info.channels) {
+      red.push(data[i]); green.push(data[i + 1]); blue.push(data[i + 2]);
+    }
+    expect([...new Set(red)].sort((a, b) => a - b)).toEqual([0, 255]);
+    expect([...new Set(green)].sort((a, b) => a - b)).toEqual(name.includes('rage') ? [0, 255] : [0]);
+    expect([...new Set(blue)]).toEqual([0]);
+  });
+});
 
 interface GltfJson {
   nodes?: { name?: string; translation?: number[] }[];

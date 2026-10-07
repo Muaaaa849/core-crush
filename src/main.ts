@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { pass } from 'three/tsl';
+import { mix, pass, texture, uniform, vec3 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -9,6 +9,7 @@ import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
 import { CameraBlend, cameraPlayerFor } from './game/camera';
 import { Controls } from './game/controls';
+import { coreFace, type CoreFace } from './game/coreface';
 import { HitStop } from './game/hitstop';
 import { Hud, REMATCH_SECONDS } from './game/hud';
 import { localMatch } from './game/match';
@@ -70,6 +71,51 @@ for (const clip of stage.animations) {
 const BALL_MODEL_DIAMETER = 0.22;
 ball.scene.scale.setScalar(config.ballDiameter / BALL_MODEL_DIAMETER);
 scene.add(ball.scene);
+
+const faceLoader = new THREE.TextureLoader();
+const faceNames = { calm: 'lcd_0_calm_mask', panic: 'lcd_1_panic_mask', rage: 'lcd_2_rage_mask' };
+const faceMasks = Object.fromEntries(await Promise.all(Object.entries(faceNames).map(async ([expression, name]) => {
+  const mask = await faceLoader.loadAsync(`${import.meta.env.BASE_URL}assets/${name}.webp?v=${__ASSET_VERSIONS__[name]}`);
+  mask.flipY = false;
+  mask.minFilter = mask.magFilter = THREE.NearestFilter;
+  mask.generateMipmaps = false;
+  return [expression, mask];
+}))) as Record<CoreFace['expression'], THREE.Texture>;
+const faceColors = {
+  calm: new THREE.Color().setRGB(0, 0.78, 1),
+  panic: new THREE.Color().setRGB(1, 0.5, 0),
+  rage: new THREE.Color().setRGB(1, 0.05, 0.03),
+};
+const faceMask = texture(faceMasks.calm);
+const faceColor = uniform(faceColors.calm.clone());
+const faceCracked = uniform(0);
+// 原本マスクのRは顔、Gは亀裂。色付き背景と白い亀裂を液晶の発光へ合成する。
+ball.scene.traverse((o) => {
+  if (!(o instanceof THREE.Mesh)) return;
+  const material = o.material as THREE.MeshStandardMaterial;
+  if (material.name !== 'M_LCD') return;
+  const lcd = new THREE.MeshStandardNodeMaterial({
+    name: material.name, color: material.color, roughness: material.roughness,
+    metalness: material.metalness, side: material.side,
+  });
+  lcd.emissiveNode = mix(faceColor.mul(faceMask.r.mul(0.92).add(0.08)), vec3(1), faceMask.g.mul(faceCracked))
+    .mul(material.emissiveIntensity);
+  o.material = lcd;
+  material.dispose();
+});
+let shownFace: CoreFace = { expression: 'calm', cracked: false };
+function updateCoreFace(state: SimState): void {
+  const elapsed = started && state.match.phase === 'play' && state.now >= state.match.roundStartsAt
+    && state.ball.mode !== 'absent' && state.danger
+    ? config.dangerDuration - (state.danger.expiresAt - state.now) : null;
+  const face = coreFace(elapsed, config.timeUnitsPerSecond);
+  if (face.expression !== shownFace.expression) {
+    faceMask.value = faceMasks[face.expression];
+    faceColor.value.copy(faceColors[face.expression]);
+  }
+  if (face.cracked !== shownFace.cracked) faceCracked.value = face.cracked ? 1 : 0;
+  shownFace = face;
+}
 
 const height = new THREE.Box3().setFromObject(character.scene).getSize(new THREE.Vector3()).y;
 character.scene.scale.setScalar(CHARACTER_HEIGHT / height);
@@ -322,6 +368,7 @@ function step(dt: number): void {
     avatar.root.visible = player.hp > 0 && (player.id !== localPlayer || cameraBlend.fps < 0.5);
   }
   placeBall(state);
+  updateCoreFace(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
   hud.update(onlineMatch?.finished ? onlineMatch.confirmed : state, events, now);
   targets.update(state, localPlayer, id => playerPosition(id, new THREE.Vector3()));

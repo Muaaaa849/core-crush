@@ -25,16 +25,20 @@
 |---|---|---|
 | `stage.glb` | 原本の部材GLB＋複製した生成スクリプト（`scripts/assets/arena/`）で床・中央フェンス・トラスを拡大寸法で再生成し、Blenderで再組立（`.cache/arena/`、決定0006） | 競技エリア内の展示用コアを除去 → 重複除去・未使用削除 → テクスチャをWebP化 → meshopt圧縮 |
 | `core_ball.glb` | `core_ball/output/core_ball.glb` | テクスチャをWebP化 → meshopt圧縮 |
+| `lcd_0_calm_mask.webp` / `lcd_1_panic_mask.webp` / `lcd_2_rage_mask.webp` | `core_ball/output/faces/` の同名PNG | 48×30のR（顔）・G（亀裂）を保持するlossless WebP化 |
 | `character.glb` | `art/kenney-protagonists`（characterMedium.fbx + cyborgFemaleA.png + idle/run/jump） | Blender 5.2でGLB化（アニメーション名 idle / run / jump） |
 
 ### 取り込み時の注意（確認済）
 
+- `M_LCD` は `CORE_LCD` のUV 0〜1を使う。GLBの発光画像はcalmのマスクだけで、Blenderの表情切り替え・色合成は残っていない。原本マスクのRが顔、Gが亀裂（rageのみ）、Bは0。色の参考は原本の `*_preview.png`。
+- 顔表示：危険時計の経過を `dangerDuration - (danger.expiresAt - now)` で求め、0〜3秒未満はcalm（水色）、3〜5秒未満はpanic（オレンジ）、5秒以降はrage（赤）。7秒以降だけGの亀裂を白く発光させる。3枚を事前に読み、表情・亀裂が変わったときだけ材質の値を更新する。開始前・危険時計なし・球なし・結果表示はcalmとし、球なしの非表示は既存処理に従う。simと警告音は変更しない。
+- 確認済（2026-10-08）：`npm run assets` で3枚のlossless WebP（92／148／176 bytes）を生成。境界・停止・リセットの純粋関数テスト10件と派生マスク検証3件を含む全644テスト、型検査、ビルドが成功。WebGPUのローカルプレビューで時刻を固定し、3表情・6.999秒で亀裂なし・7秒で亀裂あり・時計停止時のcalm復帰を接写画像で確認。WebGLでもrageと亀裂の描画、ハッシュ付きマスクURLを確認。通常の対戦距離での読みやすさは人間の試遊で未確認。
 - ステージのライト（KHR_lights_punctual）はBlenderの書き出しでW×683に換算されている。three.jsでは読み込み時に1/683倍してBlenderと同じ明るさにする（`src/main.ts`）。
 - Kenneyのモデル（characterMedium.fbx）の材質は画像ノードを持たず、Alpha=0で読み込まれる。ビルド時にスキン画像を接続し、不透明にする。
 - Kenneyの動作FBXはそれぞれ「Targeting Pose」（2フレームの照準姿勢）と本来の動作の2テイクを持つ。また動作側の骨格は基準姿勢がモデル（Tポーズ）と異なるため、回転値をそのまま移さず、ワールド空間で追従させて焼き込む（`scripts/assets/build_character.py`）。
 - 試合球は直径約0.22m。TPSの標準距離では画面上で非常に小さく、背景のプラズマフェンスに紛れる。見せ方はM1で決める（progress.mdの論点）。
 
-配信時のURLには内容ハッシュ（`?v=…`、`scripts/asset-versions.ts`）を付ける。GitHub Pagesは10分キャッシュするため、付けないと更新直後に旧素材と新しいプログラムが組み合わさる（2026-10-07、旧ステージの金網を通り抜けて見えた不具合）。
+配信時のGLB・WebPのURLには内容ハッシュ（`?v=…`、`scripts/asset-versions.ts`）を付ける。GitHub Pagesは10分キャッシュするため、付けないと更新直後に旧素材と新しいプログラムが組み合わさる（2026-10-07、旧ステージの金網を通り抜けて見えた不具合）。
 
 上限：1ファイル25MiB以下（`tests/assets.test.ts` で検証）。実サイズは `docs/benchmarks/m0.md` に記録する。
 
