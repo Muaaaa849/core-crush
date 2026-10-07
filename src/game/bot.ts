@@ -15,18 +15,21 @@ export class Bot {
   private feinted = false;
   private throwCount = 0;
   private seq = 0;
+  private roundStartsAt: number | null = null;
 
   constructor(private readonly id: PlayerId) {}
 
   /** 次のtickで処理するコマンドを返す。 */
   think(state: SimState): Command[] {
     const holding = state.ball.mode === 'held' && state.ball.owner === this.id;
-    if (!holding) {
+    // 引き分けの再試合は番号が変わらない。開始時刻で新ラウンドを識別する。
+    if (this.roundStartsAt !== state.match.roundStartsAt || state.match.phase !== 'play' || !holding) {
       this.heldSince = null;
       this.thrown = false;
       this.feinted = false;
-      return [];
+      this.roundStartsAt = state.match.roundStartsAt;
     }
+    if (!holding || state.match.phase !== 'play') return [];
     this.heldSince ??= state.now;
     if (this.thrown || state.now - this.heldSince < HOLD_BEFORE_THROW) return [];
 

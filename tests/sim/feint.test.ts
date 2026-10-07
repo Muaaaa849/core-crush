@@ -62,13 +62,12 @@ describe('S5-11 cancellation and priority', () => {
       expect(result.state.players[0].action).toEqual(cost === 1 ? null : { kind: 'feint', startedAt: F, endsAt: F + c.throwWindup });
     }
   });
-  it('same-time inputs, same effective keys, move/yaw/mouse preserve feint', () => {
+  it('same-time inputs, same effective keys, move/yaw preserve feint', () => {
     const commands: Command[] = [command('feint'), command('summon', 0, 1),
       { kind: 'keys', at: 0, seq: 2, player: 'p1', forward: 1, right: 0 },
       { kind: 'keys', at: F, seq: 3, player: 'p1', forward: 8, right: 0 },
       { kind: 'move', at: F, seq: 4, player: 'p1', x: 1, z: 0 },
-      { kind: 'yaw', at: F, seq: 5, player: 'p1', yaw: 1 },
-      { kind: 'mouse', at: F, seq: 6, player: 'p1', rightDegrees: 3, pullDegrees: 0 }];
+      { kind: 'yaw', at: F, seq: 5, player: 'p1', yaw: 1 }];
     expect(run(held(), F + 1, commands).state.players[0].action?.kind).toBe('feint');
     const saved = run(held(), 1, [command('feint')]).state;
     saved.now = 0; // Exercise a saved active feint with more commands at its start timestamp.

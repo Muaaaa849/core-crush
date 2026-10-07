@@ -51,6 +51,15 @@ export class SimRunner {
     }
   }
 
+  /** 新しい試合を始める（試合終了後の再戦）。古い状態・保留入力・端数時間は捨てる。 */
+  restart(state: SimState): void {
+    this.state = state;
+    this.previous = state;
+    this.pending.length = 0;
+    this.accumulated = 0;
+    this.events = [];
+  }
+
   /** 前回のtickから次のtickまでの進み具合（表示の補間用、0〜1）。 */
   get alpha(): number {
     return this.accumulated / this.config.tick;

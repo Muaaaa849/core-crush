@@ -1,19 +1,20 @@
 import { defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance } from './ball';
-import { gestureDirection, incomingDirection, pruneMouseSamples } from './actions';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
-import type { Command, DefenseGrade, GestureDirection, PlayerState, Side, SimEvent, SimState, Stats } from './types';
+import type { Command, DefenseGrade, PlayerState, Side, SimEvent, SimState, Stats, Vec3 } from './types';
 
 export function createInitialState(side: Side, config: SimConfig = defaultConfig, playerStats: Partial<Record<Side, Stats>> = {}): SimState {
   return {
     now: 0,
+    match: { round: 1, wins: { p1: 0, p2: 0 }, phase: 'play', firstBall: side,
+      roundStartsAt: config.ballStartDelay, roundEndsAt: config.ballStartDelay + config.roundDuration, nextRoundAt: null },
     players: (['p1', 'p2'] as const).map(id => {
       const stats = { ...(playerStats[id] ?? { attack: config.defaultStat, defense: config.defaultStat, agility: config.defaultStat }) };
       const maxHp = config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat);
       return {
         id, side: id, hp: maxHp, maxHp, stats, cost: config.initialCost,
         stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id], y: 0 }, keys: { forward: 0, right: 0 },
-        yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, mouseSamples: [], action: null,
+        yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
       };
     }),
     ball: { mode: 'loose', position: { ...config.supply[side] }, startsAt: config.ballStartDelay },
@@ -28,8 +29,12 @@ function bounds(player: PlayerState, config: SimConfig) {
     : { minZ: -config.playerMaxDepth, maxZ: -config.playerMinDepth };
 }
 
+function canMove(state: SimState): boolean {
+  return state.match.phase === 'play' && (state.danger !== null || state.now >= state.match.roundStartsAt);
+}
+
 function movementVelocity(player: PlayerState, state: SimState, config: SimConfig) {
-  if (!state.danger || player.hp <= 0) return { x: 0, z: 0 };
+  if (!canMove(state) || player.hp <= 0) return { x: 0, z: 0 };
   const scale = config.walkSpeed * (1 + config.agilityWalkCoefficient * (player.stats.agility - config.defaultStat))
     * (player.action?.kind === 'windup' || player.action?.kind === 'feint' ? config.windupWalkMultiplier : 1);
   const { minZ, maxZ } = bounds(player, config);
@@ -54,7 +59,11 @@ function movementBoundaryAt(state: SimState, config: SimConfig): number {
       [player.position.x, v.x, -config.playerHalfWidth, config.playerHalfWidth],
       [player.position.z, v.z, minZ, maxZ],
     ]) {
-      if (speed !== 0) next = Math.min(next, Math.ceil(state.now + ((speed > 0 ? max : min) - position) / speed * config.timeUnitsPerSecond));
+      if (speed !== 0) {
+        // 壁の直前の微小距離が時刻の浮動小数点精度より小さくても、同時刻を再処理し続けない。
+        const at = Math.ceil(state.now + ((speed > 0 ? max : min) - position) / speed * config.timeUnitsPerSecond);
+        next = Math.min(next, Math.max(state.now + 1, at));
+      }
     }
   }
   return next;
@@ -121,10 +130,11 @@ function advancePositions(state: SimState, at: number, config: SimConfig) {
 
 function applyCommand(state: SimState, command: Command, config: SimConfig, events: SimEvent[]): boolean {
   const player = state.players.find(p => p.id === command.player);
-  if (!player || player.hp <= 0) return false;
-  // 移動・向き・キーは入力の状態なので、開始前や爆発後の停止中も記録する（実際に動くのは時計の開始後）。
-  const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys' || command.kind === 'mouse';
-  if (!state.danger && !stateInput) return false;
+  if (!player || state.match.phase === 'over') return false;
+  // 入力状態は開始待機・結果表示・KO中も記録し、次ラウンドまで保持する。
+  const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys';
+  if (!stateInput && (player.hp <= 0 || state.match.phase !== 'play')) return false;
+  if (!stateInput && (command.kind === 'step' ? !canMove(state) : !state.danger)) return false;
   if (player.action?.kind === 'feint' && state.now > player.action.startedAt && !stateInput) player.action = null;
   switch (command.kind) {
     case 'yaw': player.yaw = command.yaw; break;
@@ -135,9 +145,6 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
       player.keys = keys;
       break;
     }
-    case 'mouse':
-      player.mouseSamples.push({ at: command.at, seq: command.seq, rightDegrees: command.rightDegrees, pullDegrees: command.pullDegrees });
-      break;
     case 'move': {
       const magnitude = Math.max(1, Math.hypot(command.x, command.z));
       player.move = { x: command.x / magnitude, z: command.z / magnitude };
@@ -155,7 +162,6 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
         const startsAt = state.now + config.defenseStartup;
         player.action = { kind: command.kind === 'secondary' ? 'catch' : 'parry', pressedAt: state.now, startsAt,
           endsAt: startsAt + config.defenseWindowFrames[player.stats.defense - 1] * config.frame };
-        events.push({ kind: 'defense-start', at: state.now, player: player.id, defense: player.action.kind, endsAt: player.action.endsAt });
         return true;
       }
       break;
@@ -205,21 +211,21 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
   return false;
 }
 
-function defend(state: SimState, player: PlayerState, config: SimConfig, events: SimEvent[]): boolean | { required: GestureDirection; actual: GestureDirection } {
+/** 接触時の水平入射方向を論理yawの正面160度で評価する。 */
+function inDefenseArc(velocity: Vec3, yaw: number, config: SimConfig): boolean {
+  const forward = Math.sin(yaw) * velocity.x + Math.cos(yaw) * velocity.z;
+  const right = -Math.cos(yaw) * velocity.x + Math.sin(yaw) * velocity.z;
+  return Math.hypot(velocity.x, velocity.z) > 0
+    && Math.abs(Math.atan2(right, forward)) <= config.defenseArcDegrees / 2 * Math.PI / 180 + 1e-12;
+}
+
+function defend(state: SimState, player: PlayerState, config: SimConfig, events: SimEvent[]): boolean {
   const action = player.action;
   const ball = state.ball;
   if (ball.mode !== 'flight' || !ball.attack || !action || (action.kind !== 'catch' && action.kind !== 'parry')
     || state.now < action.startsAt || state.now >= action.endsAt) return false;
   // yawの正面弧は水平の入射方向で評価する。
-  const incoming = incomingDirection(ball.velocity, player.yaw, config);
-  if (!incoming.inFront) return false;
-  if (action.kind === 'parry') {
-    const actual = gestureDirection(player.mouseSamples, action.pressedAt, state.now, config);
-    if (actual !== incoming.required) {
-      player.action = { kind: 'parry-whiff', endsAt: action.pressedAt + config.parryWhiffDuration };
-      return { required: incoming.required, actual };
-    }
-  }
+  if (!inDefenseArc(ball.velocity, player.yaw, config)) return false;
   const offset = state.now - action.startsAt;
   const grade: DefenseGrade = offset < config.defenseJustDuration ? 'just'
     : offset < config.defenseJustDuration + config.defenseGoodDuration ? 'good' : 'so-so';
@@ -245,14 +251,78 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
   return true;
 }
 
+/** 同じ時刻のダメージ・KOを解決した後、一度だけラウンドを確定する。 */
+function decideRound(state: SimState, config: SimConfig, events: SimEvent[]): boolean {
+  if (state.match.phase !== 'play') return false;
+  const alive = (side: Side) => state.players.some(p => p.side === side && p.hp > 0);
+  const p1 = alive('p1'), p2 = alive('p2');
+  const ko = !p1 || !p2;
+  if (!ko && state.now < state.match.roundEndsAt) return false;
+  let winner: Side | null;
+  if (ko) winner = p1 === p2 ? null : p1 ? 'p1' : 'p2';
+  else {
+    const fraction = (side: Side) => {
+      const team = state.players.filter(p => p.side === side);
+      return team.reduce((sum, p) => sum + p.hp, 0) / team.reduce((sum, p) => sum + p.maxHp, 0);
+    };
+    const difference = fraction('p1') - fraction('p2');
+    winner = difference === 0 ? null : difference > 0 ? 'p1' : 'p2';
+  }
+  events.push({ kind: 'round-end', at: state.now, winner, reason: ko ? 'ko' : 'time' });
+  if (winner) state.match.wins[winner]++;
+  state.danger = null;
+  if (winner && state.match.wins[winner] >= config.roundsToWin) {
+    state.match.phase = 'over';
+    state.match.nextRoundAt = null;
+    events.push({ kind: 'match-end', at: state.now, winner });
+    return true;
+  } else {
+    state.match.phase = 'result';
+    state.match.nextRoundAt = state.now + config.roundResultDuration;
+  }
+  return false;
+}
+
+function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]): void {
+  const match = state.match;
+  match.round = match.wins.p1 + match.wins.p2 + 1;
+  match.firstBall = opposite(match.firstBall);
+  match.phase = 'play';
+  match.roundStartsAt = state.now + config.ballStartDelay;
+  match.roundEndsAt = match.roundStartsAt + config.roundDuration;
+  match.nextRoundAt = null;
+  for (const player of state.players) {
+    player.position = { ...config.supply[player.side], y: 0 };
+    player.yaw = player.side === 'p1' ? 0 : Math.PI;
+    player.hp = player.maxHp;
+    player.cost = config.initialCost;
+    player.stepPoints = config.maxStepPoints;
+    player.stepRecoveryProgress = 0;
+    player.action = null;
+  }
+  state.ball = { mode: 'loose', position: { ...config.supply[match.firstBall] }, startsAt: match.roundStartsAt };
+  state.danger = null;
+  state.rally = { speed: 0, power: 0 };
+  events.push({ kind: 'spawn', at: state.now, side: match.firstBall });
+}
+
 export function step(input: SimState, commands: readonly Command[], config: SimConfig = defaultConfig): { state: SimState; events: SimEvent[] } {
   const state = structuredClone(input);
   const events: SimEvent[] = [];
+  if (state.match.phase === 'over') return { state, events };
   const end = input.now + config.tick;
   // 入力受付は[開始, 終了)。境界上の入力は次のtickへ渡す。
   const ordered = commands.filter(c => c.at >= input.now && c.at < end).sort((a, b) => a.at - b.at || a.seq - b.seq);
   let index = 0;
   for (;;) {
+    if (state.match.phase === 'result') {
+      const at = Math.min(end, state.match.nextRoundAt!, ordered[index]?.at ?? Infinity);
+      state.now = at; // 結果表示では球・行動・回復も進めない。
+      if (at === state.match.nextRoundAt) startNextRound(state, config, events);
+      while (ordered[index]?.at === at) applyCommand(state, ordered[index++], config, events);
+      if (at === end) break;
+      continue;
+    }
     const crossing = centerCrossingAt(state.ball, config);
     const guidance = guidanceAt(state.ball, config);
     const hit = hitAt(state, config);
@@ -263,6 +333,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const actionAt = Math.min(...state.players.map(p => p.action?.kind === 'step' && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
     const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
+      state.players.some(p => p.hp <= 0) ? state.now : state.match.roundEndsAt,
       appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, pickup.at, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
 
@@ -294,6 +365,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     if (state.ball.mode === 'loose' && !state.danger && state.ball.startsAt === at) {
       const side = state.ball.position.z > 0 ? 'p1' : 'p2';
       state.danger = { side, expiresAt: at + config.dangerDuration };
+      if (at === state.match.roundStartsAt) events.push({ kind: 'round-start', at, round: state.match.round, side });
       events.push({ kind: 'clock-start', at, side });
     }
 
@@ -309,7 +381,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     }
     const simultaneous: Command[] = [];
     while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
-    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys' || c.kind === 'mouse')) applyCommand(state, command, config, events);
+    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
     // 行動の優先順位は入力のseqに依存させない。
     for (const player of state.players) {
       let succeeded = false;
@@ -342,10 +414,10 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       const ball = state.ball;
       const receiver = state.players.find(p => p.id === ball.attack!.target)!;
       const defense = defend(state, receiver, config, events);
-      if (defense !== true) {
+      if (!defense) {
         const damage = ball.attack!.damage;
         receiver.hp = Math.max(0, receiver.hp - damage);
-        events.push({ kind: 'hit', at, player: receiver.id, damage, ...(typeof defense === 'object' ? defense : {}),
+        events.push({ kind: 'hit', at, player: receiver.id, damage,
           position: ballContactPoint(ball.position, receiver.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop) });
         state.ball = dropBall(ball, at, config);
         state.rally = { speed: 0, power: 0 };
@@ -368,7 +440,10 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
         events.push({ kind: 'pickup', at, player: currentPickup.player.id });
       }
     }
-    for (const player of state.players) pruneMouseSamples(player, at, config);
+    // tick終了の接触は次tickの同時刻入力を待つので、勝敗もその後で決める。
+    if (!(at === end && hit === at && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)) {
+      if (decideRound(state, config, events)) break;
+    }
     if (at === end) break;
   }
   return { state, events };

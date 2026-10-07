@@ -57,3 +57,20 @@ describe('SimRunner with a controller', () => {
     expect(calls).toBe(60);
   });
 });
+
+describe('SimRunner.restart (U3)', () => {
+  it('drops the old state, pending input and partial tick, then runs the new state', () => {
+    const runner = new SimRunner(createInitialState('p1'));
+    runner.advance(1000 + 5);
+    runner.input({ kind: 'primary', player: 'p1' });
+    const fresh = createInitialState('p2');
+    runner.restart(fresh);
+    expect(runner.state).toBe(fresh);
+    expect(runner.previous).toBe(fresh);
+    expect(runner.pending).toEqual([]);
+    expect(runner.alpha).toBe(0);
+    expect(runner.drainEvents()).toEqual([]);
+    runFor(runner, 60, 1);
+    expect(runner.state.now).toBe(60 * 1000);
+  });
+});

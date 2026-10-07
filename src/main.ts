@@ -8,7 +8,7 @@ import { Avatar } from './game/avatar';
 import { Bot } from './game/bot';
 import { CameraBlend } from './game/camera';
 import { Controls } from './game/controls';
-import { Hud } from './game/hud';
+import { Hud, REMATCH_SECONDS } from './game/hud';
 import { SimRunner } from './game/runner';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
@@ -74,7 +74,9 @@ const avatars = {
 };
 
 // 初球の陣は試合ごとに抽選（rules.md）。sim内では乱数を使わないため、ここで決める。
-const runner = new SimRunner(createInitialState(Math.random() < 0.5 ? 'p1' : 'p2'), config, [new Bot('p2')]);
+const newMatch = () => createInitialState(Math.random() < 0.5 ? 'p1' : 'p2');
+const runner = new SimRunner(newMatch(), config, [new Bot('p2')]);
+let rematchAt: number | null = null; // 試合終了後、表示時刻でこの時刻に再戦（0008）
 const controls = new Controls(renderer.domElement, runner, 'p1');
 const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
 const occlusion = new CameraOcclusion(stage.scene);
@@ -152,7 +154,13 @@ function step(dt: number): void {
   avatars.p1.root.visible = cameraBlend.fps < 0.5; // FPS中は自分の体で視界を塞がない
   ball.scene.rotation.y += dt * 0.6;
   const events = runner.drainEvents();
-  hud.update(state, events, performance.now());
+  const now = performance.now();
+  if (events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
+  if (rematchAt !== null && now >= rematchAt) {
+    rematchAt = null;
+    runner.restart(newMatch());
+  }
+  hud.update(runner.state, events, now);
   stageMixer.update(dt);
   controls.placeCamera(camera, avatars.p1.root.position, cameraBlend.fps);
   lookTargets[0].copy(avatars.p1.root.position).setY(1.6);

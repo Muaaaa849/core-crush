@@ -66,8 +66,7 @@ describe('R05 shared defense window', () => {
   it.each(kinds)('%s uses yaw at contact and a 160 degree front arc', kind => {
     for (const angle of [79, 81]) {
       const command: Command = { kind: 'yaw', yaw: angle * Math.PI / 180, at: F, seq: 1, player: 'p1' };
-      const gesture: Command = { kind: 'mouse', player: 'p1', at: F, seq: 2, rightDegrees: config.gestureThresholdDegrees, pullDegrees: 0 };
-      const result = run(incoming(), F + 1, [press(kind), command, ...(kind === 'primary' ? [gesture] : [])]);
+      const result = run(incoming(), F + 1, [press(kind), command]);
       expect(result.events.some(e => e.kind === 'hit')).toBe(angle > 80);
     }
   });
@@ -76,8 +75,7 @@ describe('R05 shared defense window', () => {
     const ball = flight(state);
     ball.position.y = ball.origin.y = ball.segmentOrigin.y = config.defenseHeight + 10;
     ball.velocity.y = -600;
-    const gesture: Command = { kind: 'mouse', player: 'p1', at: 0, seq: 1, rightDegrees: 0, pullDegrees: config.gestureThresholdDegrees };
-    const result = run(state, F + 1, [press(kind), ...(kind === 'primary' ? [gesture] : [])]);
+    const result = run(state, F + 1, [press(kind)]);
     expect(result.events.some(e => e.kind === (kind === 'secondary' ? 'catch' : 'parry'))).toBe(true);
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
   });
@@ -96,8 +94,6 @@ describe('R05 shared defense window', () => {
     const state = incoming(); state.danger!.expiresAt = F;
     const result = run(state, F + 1, [press(kind)]);
     expect(result.events).toEqual([
-      { kind: 'defense-start', at: 0, player: 'p1', defense: kind === 'secondary' ? 'catch' : 'parry',
-        endsAt: config.defenseStartup + config.defenseWindowFrames[config.defaultStat - 1] * F },
       { kind: 'explosion', at: F, side: 'p1' },
     ]);
     expect(result.state.players[0].cost).toBe(4);
@@ -172,6 +168,20 @@ describe('whiffs', () => {
 });
 
 describe('parry return and rally', () => {
+  for (const yaw of [-Math.PI / 6, 0, Math.PI / 6]) {
+    it.each([[F, 'just'], [3 * F, 'good'], [6 * F, 'so-so']] as const)(`S5-1: incoming angle at yaw ${yaw} needs only a button; grade %s/%s is unchanged`, (at, grade) => {
+      const state = incoming(at);
+      state.players[0].yaw = yaw;
+      state.players[0].hp = state.players[0].maxHp / 2;
+      state.players[0].cost = 0;
+      const result = run(state, at + 1, [press('primary')]);
+      expect(result.events).toContainEqual({ kind: 'parry', at, player: 'p1', grade });
+      expect(result.state.players[0].cost).toBe(config.parryReward);
+      expect(result.state.players[0].hp).toBe(state.players[0].hp);
+      expect(result.state.rally).toEqual(config.rallyGain[grade]);
+      expect(result.events.some(e => e.kind === 'hit')).toBe(false);
+    });
+  }
   it.each([[F, 0.07, 0.12], [3 * F, 0.05, 0.08], [6 * F, 0.03, 0.05]] as const)('contact %s adds speed %s / power %s and one cost', (at, speed, power) => {
     const state = incoming(at); state.players[0].cost = 0;
     const result = run(state, at + 1, [press('primary')]);
@@ -187,7 +197,7 @@ describe('parry return and rally', () => {
     expect(result.events.filter(e => e.kind === 'parry')).toHaveLength(1);
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
   });
-  it.each([[0, 0, 'straight'], [0, -1, 'left'], [0, 1, 'right'], [-1, 0, 'upper']] as const)('selects keys (forward %s, right %s) -> %s at contact', (forward, right, shot) => {
+  it.each([[0, 0, 'straight'], [1, 0, 'straight'], [0, -1, 'left'], [0, 1, 'right'], [-1, 0, 'upper'], [-1, -1, 'upper']] as const)('S5-2: selects keys (forward %s, right %s) -> %s at contact', (forward, right, shot) => {
     const result = run(incoming(), F + 1, [press('primary'), { kind: 'keys', player: 'p1', at: F, seq: 1, forward, right }]);
     expect(flight(result.state).attack?.shot).toBe(shot);
   });

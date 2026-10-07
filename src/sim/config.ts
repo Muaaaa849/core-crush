@@ -8,6 +8,9 @@ export interface SimConfig {
   explosionDamage: number;
   newBallAppearDelay: number;
   ballStartDelay: number;
+  roundDuration: number;
+  roundResultDuration: number;
+  roundsToWin: number;
   throwWindup: number;
   throwRecovery: number;
   windupWalkMultiplier: number;
@@ -59,10 +62,6 @@ export interface SimConfig {
   defenseJustDuration: number;
   defenseGoodDuration: number;
   defenseArcDegrees: number;
-  gestureLookback: number;
-  gestureFollowthrough: number;
-  gestureThresholdDegrees: number;
-  incomingNeutralDegrees: number;
   feintCost: number;
   catchDuration: number;
   catchWhiffDuration: number;
@@ -87,6 +86,9 @@ export const defaultConfig: SimConfig = {
   explosionDamage: 30,
   newBallAppearDelay: SECOND,
   ballStartDelay: SECOND,
+  roundDuration: 180 * SECOND,
+  roundResultDuration: 3 * SECOND,
+  roundsToWin: 2,
   throwWindup: 8 * FRAME,
   throwRecovery: 8 * FRAME,
   windupWalkMultiplier: 0.3,
@@ -137,10 +139,6 @@ export const defaultConfig: SimConfig = {
   defenseJustDuration: 2 * FRAME,
   defenseGoodDuration: 3 * FRAME,
   defenseArcDegrees: 160,
-  gestureLookback: 80 * SECOND / 1000,
-  gestureFollowthrough: 50 * SECOND / 1000,
-  gestureThresholdDegrees: 2,
-  incomingNeutralDegrees: 10,
   feintCost: 1,
   catchDuration: 24 * FRAME,
   catchWhiffDuration: 54 * FRAME,

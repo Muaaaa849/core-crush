@@ -18,6 +18,37 @@ function play(state: SimState, ticks: number) {
 }
 
 describe('Bot', () => {
+  it('resets per-hold state across a draw replay even if intermediate ticks were not observed', () => {
+    const bot = new Bot('p2');
+    const state = createInitialState('p2');
+    state.ball = { mode: 'held', owner: 'p2' };
+    state.danger = { side: 'p2', expiresAt: defaultConfig.dangerDuration };
+    expect(bot.think(state)).toEqual([]);
+    state.now = 1.5 * defaultConfig.timeUnitsPerSecond;
+    expect(bot.think(state).some(c => c.kind === 'primary')).toBe(true);
+    // Same round number after a draw, but a new round's first clock/hold.
+    state.now += defaultConfig.roundResultDuration + defaultConfig.ballStartDelay;
+    state.match.roundStartsAt = state.now;
+    expect(bot.think(state)).toEqual([]);
+    state.now += 1.5 * defaultConfig.timeUnitsPerSecond;
+    expect(bot.think(state).some(c => c.kind === 'primary')).toBe(true);
+  });
+
+  it('does not count frozen result time as holding time', () => {
+    const bot = new Bot('p2');
+    const state = createInitialState('p2');
+    state.ball = { mode: 'held', owner: 'p2' };
+    state.danger = { side: 'p2', expiresAt: defaultConfig.dangerDuration };
+    expect(bot.think(state)).toEqual([]);
+    state.now += defaultConfig.roundResultDuration;
+    state.match.phase = 'result';
+    state.danger = null;
+    expect(bot.think(state)).toEqual([]);
+    state.match.phase = 'play';
+    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    expect(bot.think(state)).toEqual([]);
+  });
+
   it('throws toward the opponent 1.5 s after picking the ball up', () => {
     const { events } = play(createInitialState('p2'), 60 * 4);
     const pickup = events.find((e) => e.kind === 'pickup' && e.player === 'p2');
