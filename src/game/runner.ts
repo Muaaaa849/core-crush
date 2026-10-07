@@ -10,7 +10,7 @@ export interface Controller {
 
 const MAX_FRAME_MS = 250; // これを超える描画の空白は中断とみなす
 
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 export type Input = DistributiveOmit<Command, 'at' | 'seq'>;
 
 export class SimRunner {

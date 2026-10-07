@@ -151,7 +151,9 @@ function step(dt: number): void {
   placeBall(state);
   avatars.p1.root.visible = cameraBlend.fps < 0.5; // FPS中は自分の体で視界を塞がない
   ball.scene.rotation.y += dt * 0.6;
-  hud.update(state, runner.drainEvents(), performance.now());
+  const events = runner.drainEvents();
+  controls.defenseLook.observe(events);
+  hud.update(state, events, performance.now());
   stageMixer.update(dt);
   controls.placeCamera(camera, avatars.p1.root.position, cameraBlend.fps);
   lookTargets[0].copy(avatars.p1.root.position).setY(1.6);

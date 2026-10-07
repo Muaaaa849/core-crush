@@ -2,9 +2,11 @@
 // 視点の回転は即座に画面へ反映し、simへは向き（yaw）として渡す。
 import * as THREE from 'three/webgpu';
 import type { PlayerId } from '../sim/types';
-import type { SimRunner } from './runner';
+import { DefenseLook, mouseDegrees } from './look';
+import type { DistributiveOmit, Input, SimRunner } from './runner';
 
-const MOUSE_RAD_PER_COUNT = THREE.MathUtils.degToRad(0.022 * 2);
+const MOUSE_DEG_PER_COUNT = 0.022 * 2;
+const MOUSE_RAD_PER_COUNT = THREE.MathUtils.degToRad(MOUSE_DEG_PER_COUNT);
 const PITCH_LIMIT = 1.2;
 // TPSの肩越し位置（初期案）
 const EYE_HEIGHT = 1.6;
@@ -19,16 +21,24 @@ export class Controls {
   private sentMove = { x: 0, z: 0 };
   private sentKeys = { forward: 0, right: 0 };
   private sentYaw = NaN;
+  private mouse = { rightDegrees: 0, pullDegrees: 0 }; // 次のフレームで送る、減衰前のマウス量
+  readonly defenseLook: DefenseLook;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly runner: SimRunner,
     private readonly player: PlayerId,
   ) {
+    this.defenseLook = new DefenseLook(player);
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
-      this.yaw -= e.movementX * MOUSE_RAD_PER_COUNT;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_RAD_PER_COUNT, -PITCH_LIMIT, PITCH_LIMIT);
+      // 判定用の量は減衰前（0007）。視点の回転だけ防御受付中は減衰する。
+      const degrees = mouseDegrees(e.movementX, e.movementY, MOUSE_DEG_PER_COUNT);
+      this.mouse.rightDegrees += degrees.rightDegrees;
+      this.mouse.pullDegrees += degrees.pullDegrees;
+      const scale = MOUSE_RAD_PER_COUNT * this.defenseLook.multiplier(this.runner.state.now);
+      this.yaw -= e.movementX * scale;
+      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * scale, -PITCH_LIMIT, PITCH_LIMIT);
     });
     // 左：所持中は投擲、非所持は跳ね返し。右：キャッチ（rules.md「入力設定とHUD」）。
     document.addEventListener('mousedown', (e) => {
@@ -44,6 +54,7 @@ export class Controls {
       if (!this.locked || e.repeat) return;
       if (e.code === 'ShiftLeft') this.send({ kind: 'step' });
       if (e.code === 'KeyC') this.send({ kind: 'summon' });
+      if (e.code === 'KeyF') this.send({ kind: 'feint' });
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
@@ -74,6 +85,10 @@ export class Controls {
       this.sentMove = move;
       this.send({ kind: 'move', ...move });
     }
+    if (this.mouse.rightDegrees !== 0 || this.mouse.pullDegrees !== 0) {
+      this.send({ kind: 'mouse', ...this.mouse });
+      this.mouse = { rightDegrees: 0, pullDegrees: 0 };
+    }
     if (this.yaw !== this.sentYaw) {
       this.sentYaw = this.yaw;
       this.send({ kind: 'yaw', yaw: this.yaw });
@@ -97,7 +112,7 @@ export class Controls {
     camera.lookAt(camera.position.clone().add(look));
   }
 
-  private send(input: { kind: 'primary' | 'secondary' | 'step' | 'summon' } | { kind: 'move'; x: number; z: number } | { kind: 'yaw'; yaw: number } | { kind: 'keys'; forward: number; right: number }): void {
+  private send(input: DistributiveOmit<Input, 'player'>): void {
     this.runner.input({ ...input, player: this.player });
   }
 }
