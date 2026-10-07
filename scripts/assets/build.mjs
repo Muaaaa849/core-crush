@@ -46,7 +46,16 @@ mkdirSync(OUT, { recursive: true });
 mkdirSync(root('.cache'), { recursive: true });
 
 const jobs = [
-  ['stage.glb', () => optimize(`${SRC}/arena/export/arena_stage.glb`, `${OUT}/stage.glb`, removeDisplayCores)],
+  ['stage.glb', async () => {
+    for (const asset of ['arena_floor', 'plasma_fence', 'light_truss', 'arena_stage']) {
+      execFileSync(BLENDER, ['-b', '--factory-startup', '--python-exit-code', '1',
+        '--python', root(`scripts/assets/arena/build_${asset}.py`)], {
+        stdio: 'inherit',
+        env: { ...process.env, CORECRUSH_ASSET_SRC: SRC, PYTHONUTF8: '1' },
+      });
+    }
+    await optimize(root('.cache/arena/export/arena_stage.glb'), `${OUT}/stage.glb`, removeDisplayCores);
+  }],
   ['core_ball.glb', () => optimize(`${SRC}/core_ball/output/core_ball.glb`, `${OUT}/core_ball.glb`)],
   ['character.glb', async () => {
     const raw = root('.cache/character.glb');

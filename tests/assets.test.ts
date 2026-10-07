@@ -6,7 +6,7 @@ const MAX_BYTES = 25 * 1024 * 1024;
 const dir = new URL('../public/assets/', import.meta.url);
 
 interface GltfJson {
-  nodes?: { name?: string }[];
+  nodes?: { name?: string; translation?: number[] }[];
   materials?: { name?: string; alphaMode?: string; pbrMetallicRoughness?: { baseColorTexture?: unknown } }[];
   animations?: { name?: string; samplers: { input: number }[] }[];
   accessors?: { max?: number[] }[];
@@ -66,5 +66,15 @@ describe('asset contents', () => {
     const json = readGlbJson(new URL('stage.glb', dir));
     expect(json.extensions?.KHR_lights_punctual?.lights.length ?? 0).toBeGreaterThan(0);
     expect((json.nodes ?? []).filter((n) => n.name?.startsWith('core_ball'))).toEqual([]);
+  });
+
+  it('stage is enlarged per decision 0006 (cage at x=±10.5 m, z=±18 m with 3 m modules)', () => {
+    const json = readGlbJson(new URL('stage.glb', dir));
+    const cage = (json.nodes ?? []).filter((n) => /^cage_perimeter__(module|gate|corner)_\d+$/.test(n.name ?? ''));
+    const xs = cage.map((n) => Math.abs(n.translation?.[0] ?? 0));
+    const zs = cage.map((n) => Math.abs(n.translation?.[2] ?? 0));
+    expect(Math.max(...xs)).toBeCloseTo(10.5, 3);
+    expect(Math.max(...zs)).toBeCloseTo(18, 3);
+    expect(cage.length).toBe(42); // 短辺7×2＋長辺12×2＋角4
   });
 });
