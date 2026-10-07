@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 // G1：描画フレームと固定60Hzのsimをつなぐ実行器。
 import { describe, expect, it } from 'vitest';
 import { SimRunner } from '../../src/game/runner';
@@ -9,13 +10,13 @@ const runFor = (runner: SimRunner, fps: number, seconds: number) => {
 
 describe('SimRunner', () => {
   it.each([30, 60, 144])('advances exactly 60 ticks per second at %i fps', (fps) => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runFor(runner, fps, 1);
     expect(runner.state.now).toBe(60 * 1000);
   });
 
   it('stamps an input with the current sim time inside the next tick', () => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runner.advance(10); // tickの途中（約0.6tick分を保持）
     runner.input({ kind: 'yaw', player: 'p1', yaw: 1 });
     const [command] = runner.pending;
@@ -26,20 +27,20 @@ describe('SimRunner', () => {
   });
 
   it('delivers inputs in order with increasing seq', () => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runner.input({ kind: 'yaw', player: 'p1', yaw: 1 });
     runner.input({ kind: 'yaw', player: 'p1', yaw: 2 });
     expect(runner.pending.map((c) => c.seq)).toEqual([0, 1]);
   });
 
   it('treats a long frame gap as a pause and only advances 250 ms', () => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runner.advance(5000);
     expect(runner.state.now).toBe(15 * 1000);
   });
 
   it('collects events and exposes interpolation alpha', () => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runFor(runner, 60, 1.05); // 1秒後に危険時計が始まる
     expect(runner.drainEvents().map((e) => e.kind)).toContain('clock-start');
     expect(runner.drainEvents()).toEqual([]);
@@ -52,7 +53,7 @@ describe('SimRunner', () => {
 describe('SimRunner with a controller', () => {
   it('asks controllers once per tick', () => {
     let calls = 0;
-    const runner = new SimRunner(createInitialState('p1'), undefined, [{ think: () => (calls++, []) }]);
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }), undefined, [{ think: () => (calls++, []) }]);
     for (let i = 0; i < 30; i++) runner.advance(1000 / 30);
     expect(calls).toBe(60);
   });
@@ -60,10 +61,10 @@ describe('SimRunner with a controller', () => {
 
 describe('SimRunner.restart (U3)', () => {
   it('drops the old state, pending input and partial tick, then runs the new state', () => {
-    const runner = new SimRunner(createInitialState('p1'));
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }));
     runner.advance(1000 + 5);
     runner.input({ kind: 'primary', player: 'p1' });
-    const fresh = createInitialState('p2');
+    const fresh = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     runner.restart(fresh);
     expect(runner.state).toBe(fresh);
     expect(runner.previous).toBe(fresh);

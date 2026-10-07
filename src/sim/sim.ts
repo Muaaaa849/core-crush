@@ -1,30 +1,63 @@
 import { defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
-import type { Command, DefenseGrade, PlayerState, Side, SimEvent, SimState, Stats, Vec3 } from './types';
+import { initialTarget } from './target';
+import type { Command, DefenseGrade, MatchOptions, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
 
-export function createInitialState(side: Side, config: SimConfig = defaultConfig, playerStats: Partial<Record<Side, Stats>> = {}): SimState {
+/** 参加構成は試合中固定。IDと陣を分け、同じ入力から同じ配置・HPを作る（0010）。 */
+export function createInitialState({ participants, firstBall }: MatchOptions, config: SimConfig = defaultConfig): SimState {
+  const counts = { a: 0, b: 0 };
+  const ids = new Set<string>();
+  if (!participants || participants.length < 2 || participants.length > 4) throw new Error('参加者は2〜4人');
+  for (const p of participants) {
+    if (!['p1', 'p2', 'p3', 'p4'].includes(p.id) || ids.has(p.id)) throw new Error('参加者IDが不正');
+    if (p.side !== 'a' && p.side !== 'b') throw new Error('陣が不正');
+    if (!p.stats || ![p.stats.attack, p.stats.defense, p.stats.agility].every(n => Number.isInteger(n) && n >= 1 && n <= 10)) throw new Error('能力値が不正');
+    ids.add(p.id); counts[p.side]++;
+  }
+  if (counts.a < 1 || counts.a > 2 || counts.b < 1 || counts.b > 2) throw new Error('各陣は1〜2人');
+  if (firstBall !== 'a' && firstBall !== 'b') throw new Error('初球の陣が不正');
+  const players: PlayerState[] = [...participants].sort((a, b) => a.id.localeCompare(b.id)).map(p => {
+    const stats = { ...p.stats };
+    const multiplier = counts[p.side] === 1 && counts[opposite(p.side)] === 2 ? config.singletonHpMultiplier : 1;
+    const maxHp = (config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat)) * multiplier;
+    return { id: p.id, side: p.side, hp: maxHp, maxHp, stats, cost: config.initialCost,
+      stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[p.side], y: 0 },
+      keys: { forward: 0, right: 0 }, yaw: p.side === 'a' ? 0 : Math.PI, lockTarget: null, move: { x: 0, z: 0 }, action: null };
+  });
+  placePlayers(players, config);
+  for (const p of players) p.lockTarget = initialTarget(p, players);
   return {
     now: 0,
-    match: { round: 1, wins: { p1: 0, p2: 0 }, phase: 'play', firstBall: side,
+    match: { round: 1, wins: { a: 0, b: 0 }, phase: 'play', firstBall,
       roundStartsAt: config.ballStartDelay, roundEndsAt: config.ballStartDelay + config.roundDuration, nextRoundAt: null },
-    players: (['p1', 'p2'] as const).map(id => {
-      const stats = { ...(playerStats[id] ?? { attack: config.defaultStat, defense: config.defaultStat, agility: config.defaultStat }) };
-      const maxHp = config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat);
-      return {
-        id, side: id, hp: maxHp, maxHp, stats, cost: config.initialCost,
-        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id], y: 0 }, keys: { forward: 0, right: 0 },
-        yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
-      };
-    }),
-    ball: createLooseBall(config.supply[side], 0, config.ballStartDelay, config),
-    danger: null,
-    rally: { speed: 0, power: 0 },
+    players, ball: createLooseBall(config.supply[firstBall], 0, config.ballStartDelay, config),
+    danger: null, rally: { speed: 0, power: 0 },
   };
 }
 
+function placePlayers(players: PlayerState[], config: SimConfig): void {
+  for (const side of ['a', 'b'] as const) {
+    const team = players.filter(p => p.side === side), sign = side === 'a' ? 1 : -1;
+    team.forEach((p, i) => { p.position = { ...config.supply[side], y: 0,
+      x: team.length === 1 ? 0 : (i === 0 ? -sign : sign) * config.teamSlotOffset }; });
+  }
+}
+
+function refreshTargets(state: SimState): void {
+  for (const p of state.players) {
+    if (!state.players.some(enemy => enemy.id === p.lockTarget && enemy.side !== p.side && enemy.hp > 0)) p.lockTarget = initialTarget(p, state.players);
+  }
+  const ball = state.ball;
+  if (ball.mode === 'flight' && ball.attack?.homing && !state.players.some(p => p.id === ball.attack!.target && p.hp > 0)) ball.attack.homing = false;
+}
+
+function lockReceiver(player: PlayerState, state: SimState): PlayerState | undefined {
+  return state.players.find(p => p.id === player.lockTarget && p.side !== player.side && p.hp > 0);
+}
+
 function bounds(player: PlayerState, config: SimConfig) {
-  return player.side === 'p1'
+  return player.side === 'a'
     ? { minZ: config.playerMinDepth, maxZ: config.playerMaxDepth }
     : { minZ: -config.playerMaxDepth, maxZ: -config.playerMinDepth };
 }
@@ -71,7 +104,7 @@ function movementBoundaryAt(state: SimState, config: SimConfig): number {
 
 function pickupPlayer(state: SimState, config: SimConfig): PlayerState | null {
   if (state.ball.mode !== 'loose' || !state.danger || state.ball.position.y > config.pickupHeight) return null;
-  const side = state.ball.position.z > 0 ? 'p1' : 'p2';
+  const side = state.ball.position.z > 0 ? 'a' : 'b';
   let result: PlayerState | null = null, distance = Infinity;
   for (const player of state.players) {
     if (player.hp <= 0 || player.side !== side || player.action?.kind === 'hitstun') continue;
@@ -88,8 +121,8 @@ function pickupPlayer(state: SimState, config: SimConfig): PlayerState | null {
 function hitAt(state: SimState, config: SimConfig): number {
   if (state.ball.mode !== 'flight' || !state.ball.attack) return Infinity;
   const ball = state.ball;
-  const receiver = state.players.find(p => p.id === ball.attack!.target)!;
-  if (receiver.hp <= 0) return Infinity;
+  const receiver = state.players.find(p => p.id === ball.attack!.target);
+  if (!receiver || receiver.hp <= 0) return Infinity;
   const v = movementVelocity(receiver, state, config);
   const seconds = sweptCapsuleContact(state.ball.position, state.ball.velocity, receiver.position, { ...v, y: 0 },
     config.ballDiameter / 2 + config.capsuleRadius, config.capsuleBottom, config.capsuleTop);
@@ -102,7 +135,7 @@ function advancePositions(state: SimState, at: number, config: SimConfig) {
   const ball = state.ball;
   const ballSide = ball.mode === 'absent' ? null : ball.mode === 'held'
     ? state.players.find(p => p.id === ball.owner)!.side
-    : ball.mode === 'flight' ? ball.side : ball.position.z > 0 ? 'p1' : 'p2';
+    : ball.mode === 'flight' ? ball.side : ball.position.z > 0 ? 'a' : 'b';
   for (const player of state.players) {
     if (player.stepPoints >= config.maxStepPoints) player.stepRecoveryProgress = 0;
     else if (state.danger && player.hp > 0 && ballSide !== null) {
@@ -166,7 +199,7 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
     case 'step': {
       if ((player.action && player.action.kind !== 'catch-whiff') || player.stepPoints < 1 || (player.move.x === 0 && player.move.z === 0)) break;
       // 前は中央、右はその陣から中央を向いた右方向。
-      const basis = player.side === 'p1' ? 1 : -1;
+      const basis = player.side === 'a' ? 1 : -1;
       const forward = -basis * player.move.z;
       const right = basis * player.move.x;
       const longitudinal = Math.abs(forward) >= Math.abs(right);
@@ -197,7 +230,7 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
       break;
     case 'summon':
       if (!player.action && player.cost >= config.summonCost && state.ball.mode === 'loose'
-        && (state.ball.position.z > 0 ? 'p1' : 'p2') === player.side) {
+        && (state.ball.position.z > 0 ? 'a' : 'b') === player.side) {
         player.cost -= config.summonCost;
         state.ball = { mode: 'held', owner: player.id };
         events.push({ kind: 'summon', at: state.now, player: player.id });
@@ -233,10 +266,11 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
     if (grade === 'just') player.hp = Math.min(player.maxHp, player.hp + player.maxHp * config.catchHealFraction);
     player.action = { kind: 'catch-recovery', endsAt: action.pressedAt + config.catchDuration };
   } else {
+    const receiver = lockReceiver(player, state);
+    if (!receiver) return false;
     const gain = config.rallyGain[grade];
     state.rally.speed = Math.min(config.rallySpeedCap, state.rally.speed + gain.speed);
     state.rally.power = Math.min(config.rallyPowerCap, state.rally.power + gain.power);
-    const receiver = state.players.find(p => p.side !== player.side)!;
     const elapsed = state.danger?.side === player.side
       ? (config.dangerDuration - (state.danger.expiresAt - state.now)) / config.timeUnitsPerSecond : 0;
     const origin = ballContactPoint(ball.position, player.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop);
@@ -252,18 +286,17 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
 function decideRound(state: SimState, config: SimConfig, events: SimEvent[]): boolean {
   if (state.match.phase !== 'play') return false;
   const alive = (side: Side) => state.players.some(p => p.side === side && p.hp > 0);
-  const p1 = alive('p1'), p2 = alive('p2');
-  const ko = !p1 || !p2;
+  const a = alive('a'), b = alive('b');
+  const ko = !a || !b;
   if (!ko && state.now < state.match.roundEndsAt) return false;
   let winner: Side | null;
-  if (ko) winner = p1 === p2 ? null : p1 ? 'p1' : 'p2';
+  if (ko) winner = a === b ? null : a ? 'a' : 'b';
   else {
-    const fraction = (side: Side) => {
-      const team = state.players.filter(p => p.side === side);
-      return team.reduce((sum, p) => sum + p.hp, 0) / team.reduce((sum, p) => sum + p.maxHp, 0);
-    };
-    const difference = fraction('p1') - fraction('p2');
-    winner = difference === 0 ? null : difference > 0 ? 'p1' : 'p2';
+    const totals = (side: Side) => state.players.filter(p => p.side === side)
+      .reduce((sum, p) => ({ hp: sum.hp + p.hp, maxHp: sum.maxHp + p.maxHp }), { hp: 0, maxHp: 0 });
+    const a = totals('a'), b = totals('b');
+    const difference = a.hp * b.maxHp - b.hp * a.maxHp;
+    winner = difference === 0 ? null : difference > 0 ? 'a' : 'b';
   }
   events.push({ kind: 'round-end', at: state.now, winner, reason: ko ? 'ko' : 'time' });
   if (winner) state.match.wins[winner]++;
@@ -282,21 +315,22 @@ function decideRound(state: SimState, config: SimConfig, events: SimEvent[]): bo
 
 function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]): void {
   const match = state.match;
-  match.round = match.wins.p1 + match.wins.p2 + 1;
+  match.round = match.wins.a + match.wins.b + 1;
   match.firstBall = opposite(match.firstBall);
   match.phase = 'play';
   match.roundStartsAt = state.now + config.ballStartDelay;
   match.roundEndsAt = match.roundStartsAt + config.roundDuration;
   match.nextRoundAt = null;
   for (const player of state.players) {
-    player.position = { ...config.supply[player.side], y: 0 };
-    player.yaw = player.side === 'p1' ? 0 : Math.PI;
+    player.yaw = player.side === 'a' ? 0 : Math.PI;
     player.hp = player.maxHp;
     player.cost = config.initialCost;
     player.stepPoints = config.maxStepPoints;
     player.stepRecoveryProgress = 0;
     player.action = null;
   }
+  placePlayers(state.players, config);
+  for (const p of state.players) p.lockTarget = initialTarget(p, state.players);
   state.ball = createLooseBall(config.supply[match.firstBall], state.now, match.roundStartsAt, config);
   state.danger = null;
   state.rally = { speed: 0, power: 0 };
@@ -307,9 +341,10 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
   const state = structuredClone(input);
   const events: SimEvent[] = [];
   if (state.match.phase === 'over') return { state, events };
+  refreshTargets(state);
   const end = input.now + config.tick;
   // 入力受付は[開始, 終了)。境界上の入力は次のtickへ渡す。
-  const ordered = commands.filter(c => c.at >= input.now && c.at < end).sort((a, b) => a.at - b.at || a.seq - b.seq);
+  const ordered = commands.filter(c => c.at >= input.now && c.at < end).sort((a, b) => a.at - b.at || a.player.localeCompare(b.player) || a.seq - b.seq);
   let index = 0;
   for (;;) {
     if (state.match.phase === 'result') {
@@ -330,7 +365,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const actionAt = Math.min(...state.players.map(p => (p.action?.kind === 'step' || p.action?.kind === 'hitstun') && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
     const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
-      state.players.some(p => p.hp <= 0) ? state.now : state.match.roundEndsAt,
+      !state.players.some(p => p.side === 'a' && p.hp > 0) || !state.players.some(p => p.side === 'b' && p.hp > 0) ? state.now : state.match.roundEndsAt,
       appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
 
@@ -339,7 +374,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       let side = state.danger.side;
       if (state.ball.mode === 'flight' || state.ball.mode === 'loose') {
         const z = state.ball.position.z;
-        if (z !== 0 && crossing !== at) side = z > 0 ? 'p1' : 'p2';
+        if (z !== 0 && crossing !== at) side = z > 0 ? 'a' : 'b';
       } else if (state.ball.mode === 'held') {
         const owner = state.ball.owner;
         side = state.players.find(p => p.id === owner)!.side;
@@ -360,7 +395,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       events.push({ kind: 'spawn', at, side });
     }
     if (state.ball.mode === 'loose' && !state.danger && state.ball.startsAt === at) {
-      const side = state.ball.position.z > 0 ? 'p1' : 'p2';
+      const side = state.ball.position.z > 0 ? 'a' : 'b';
       state.danger = { side, expiresAt: at + config.dangerDuration };
       if (at === state.match.roundStartsAt) events.push({ kind: 'round-start', at, round: state.match.round, side });
       events.push({ kind: 'clock-start', at, side });
@@ -392,7 +427,8 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       // 行動境界は同時刻の入力が必要なので、終了境界なら次のtickで解決する。
       if (at === end || player.action?.endsAt !== at) continue;
       if (player.action.kind === 'windup' && state.ball.mode === 'held' && state.ball.owner === player.id) {
-        const receiver = state.players.find(p => p.side !== player.side)!;
+        const receiver = lockReceiver(player, state);
+        if (!receiver) { player.action = null; continue; }
         const elapsed = state.danger?.side === player.side
           ? (config.dangerDuration - (state.danger.expiresAt - at)) / config.timeUnitsPerSecond : 0;
         state.ball = launchBall(player, receiver, at, elapsed, player.action.aim === true, config);
@@ -415,7 +451,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
         const damage = ball.attack!.damage;
         receiver.hp = Math.max(0, receiver.hp - damage);
         const horizontal = Math.hypot(ball.velocity.x, ball.velocity.z);
-        const direction = horizontal <= config.hitDirectionEpsilon ? { x: 0, y: 0, z: receiver.side === 'p1' ? 1 : -1 }
+        const direction = horizontal <= config.hitDirectionEpsilon ? { x: 0, y: 0, z: receiver.side === 'a' ? 1 : -1 }
           : { x: ball.velocity.x / horizontal, y: 0, z: ball.velocity.z / horizontal };
         const ko = receiver.hp === 0;
         const speed = config.hitKnockbackDistance / config.hitKnockbackMoveDuration * config.timeUnitsPerSecond;
@@ -448,6 +484,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     // tick終了の接触・物理更新は同時刻入力を待つので、勝敗もその後で決める。
     const pendingBoundary = at === end && ((hit === at && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)
       || (state.ball.mode === 'loose' && state.ball.nextPhysicsAt === at));
+    refreshTargets(state);
     if (!pendingBoundary) {
       if (decideRound(state, config, events)) break;
     }

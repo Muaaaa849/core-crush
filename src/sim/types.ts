@@ -1,13 +1,16 @@
-export type Side = 'p1' | 'p2';
-export type PlayerId = Side;
+export type Side = 'a' | 'b';
+export type PlayerId = 'p1' | 'p2' | 'p3' | 'p4';
+export type MatchMode = '1v1' | '1v2' | '2v2';
 export interface Vec3 { x: number; y: number; z: number }
 export interface Stats { attack: number; defense: number; agility: number }
+export interface Participant { id: PlayerId; side: Side; stats: Stats }
+export interface MatchOptions { participants: readonly Participant[]; firstBall: Side }
 export type StepDirection = 'forward' | 'back' | 'left' | 'right';
 export type Shot = 'straight' | 'left' | 'right' | 'upper';
 export type DefenseGrade = 'just' | 'good' | 'so-so';
 export interface Rally { speed: number; power: number }
 export interface BallAttack {
-  target: PlayerId;
+  target: PlayerId | null;
   shot: Shot;
   damage: number;
   speed: number;
@@ -29,6 +32,7 @@ export interface PlayerState {
   stepRecoveryProgress: number;
   position: Vec3;
   yaw: number;
+  lockTarget: PlayerId | null;
   move: { x: number; z: number };
   /** 押している移動キーの意図（カメラ基準、前=W・右=D）。球種の選択に使う（feel.md「入力設定」） */
   keys: { forward: number; right: number };

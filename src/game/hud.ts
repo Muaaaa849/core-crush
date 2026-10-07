@@ -1,13 +1,13 @@
 // 最小のHUD（feel.md「入力設定とHUD」）。危険時計は残り秒、表情は経過秒で決める。
 import type { SimConfig } from '../sim/config';
-import type { PlayerId, SimEvent, SimState } from '../sim/types';
+import { targetAngle } from '../sim/target';
+import type { PlayerId, Side, SimEvent, SimState } from '../sim/types';
 
 const FACE = [
   { until: 3, label: 'スマイル' },
   { until: 5, label: '焦り' },
   { until: 8, label: '激怒' },
 ];
-const SIDE_LABEL = { p1: 'P1側', p2: 'P2側' };
 const GRADE_LABEL = { just: 'JUST', good: 'GOOD', 'so-so': 'SO-SO' };
 const REASON_LABEL = { ko: 'KO', time: '時間切れ' };
 export const REMATCH_SECONDS = 5;
@@ -19,21 +19,24 @@ export class Hud {
   constructor(private readonly el: HTMLElement, private readonly config: SimConfig, private readonly local: PlayerId) {}
 
   update(state: SimState, events: readonly SimEvent[], now: number): void {
+    const local = state.players.find(p => p.id === this.local)!;
+    const sideName = (side: Side) => side === local.side ? '味方陣' : '敵陣';
+    const name = (id: PlayerId) => id === this.local ? 'あなた' : `${state.players.find(p => p.id === id)!.side === local.side ? '味方' : '敵'} ${id.toUpperCase()}`;
     for (const e of events) {
       if (e.kind === 'round-end') {
-        const result = e.winner === null ? '引き分け' : e.winner === this.local ? 'ラウンド勝利' : 'ラウンド敗北';
+        const result = e.winner === null ? '引き分け' : e.winner === local.side ? 'ラウンド勝利' : 'ラウンド敗北';
         this.flash(`${result}（${REASON_LABEL[e.reason]}）${e.winner === null ? '　同じラウンドをやり直し' : ''}`, now, 3000);
       }
       if (e.kind === 'match-end') {
-        this.flash(`試合終了：${e.winner === this.local ? 'あなたの勝ち！' : 'あなたの負け'}　${REMATCH_SECONDS}秒後に再戦`, now, REMATCH_SECONDS * 1000);
+        this.flash(`試合終了：${e.winner === local.side ? 'あなたの勝ち！' : 'あなたの負け'}　${REMATCH_SECONDS}秒後に再戦`, now, REMATCH_SECONDS * 1000);
       }
-      if (e.kind === 'explosion') this.flash(`爆発！ ${SIDE_LABEL[e.side]}に${this.config.explosionDamage}ダメージ`, now);
+      if (e.kind === 'explosion') this.flash(`爆発！ ${sideName(e.side)}に${this.config.explosionDamage}ダメージ`, now);
       if (e.kind === 'catch' || e.kind === 'parry') {
-        const who = e.player === this.local ? 'あなた' : '相手';
+        const who = name(e.player);
         this.flash(`${who}：${e.kind === 'catch' ? 'キャッチ' : '跳ね返し'} ${GRADE_LABEL[e.grade]}`, now);
       }
       if (e.kind === 'whiff' && e.player === this.local) this.flash('空振り', now);
-      if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : '命中'}！ ${Math.round(e.damage)}ダメージ`, now);
+      if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : name(e.player) + 'に命中'}！ ${Math.round(e.damage)}ダメージ`, now);
     }
     const second = this.config.timeUnitsPerSecond;
     let clock = '危険時計：待機中';
@@ -43,20 +46,23 @@ export class Hud {
       const face = FACE.find((f) => elapsed < f.until)?.label ?? '激怒';
       // 最終1秒だけ小数1桁。切り捨てて「0.0なのに生存」を長く見せない。
       const shown = remaining < 1 ? (Math.floor(remaining * 10) / 10).toFixed(1) : String(Math.ceil(remaining));
-      clock = `危険時計：${SIDE_LABEL[state.danger.side]} 残り${shown}秒（${face}）`;
+      clock = `危険時計：${sideName(state.danger.side)} 残り${shown}秒（${face}）`;
     }
     const { match } = state;
-    const opponent = this.local === 'p1' ? 'p2' : 'p1';
+    const opponent = local.side === 'a' ? 'b' : 'a';
     const left = Math.ceil(Math.max(0, match.roundEndsAt - Math.max(state.now, match.roundStartsAt)) / second);
-    const round = `ラウンド${match.round}　あなた ${match.wins[this.local]} − ${match.wins[opponent]} 相手　残り ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    const round = `ラウンド${match.round}　味方 ${match.wins[local.side]} − ${match.wins[opponent]} 敵　残り ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     const players = state.players
       .map((p) => {
-        const name = p.id === this.local ? 'あなた' : '相手';
-        return `${name} HP ${Math.ceil(p.hp)}/${p.maxHp}　コスト ${(p.cost / 4).toFixed(2)}　ステップ ${p.stepPoints}`;
+        const hp = (value: number) => String(Math.ceil(value * 10) / 10);
+        return `${name(p.id)} HP ${hp(p.hp)}/${hp(p.maxHp)}${p.hp <= 0 ? ' KO' : ''}${p.id === this.local ? `　コスト ${(p.cost / 4).toFixed(2)}　ステップ ${p.stepPoints}` : ''}`;
       })
       .join('\n');
+    const spectating = local.hp <= 0 ? `\nKO：${state.players.some(p => p.side === local.side && p.hp > 0) ? '味方を観戦中' : '結果待ち'}` : '';
+    const target = state.players.find(p => p.id === local.lockTarget);
+    const lock = `\nロック：${target ? name(target.id) : 'なし'}${target && targetAngle(local, target) > this.config.throwArcDegrees / 2 * Math.PI / 180 + 1e-12 ? '（対象が正面外）' : ''}`;
     const message = now < this.messageUntil ? `\n${this.message}` : '';
-    this.el.textContent = `${round}\n${clock}\n${players}${message}`;
+    this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${message}`;
   }
 
   private flash(text: string, now: number, durationMs = 1500): void {

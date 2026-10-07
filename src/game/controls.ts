@@ -19,14 +19,16 @@ export class Controls {
   private sentMove = { x: 0, z: 0 };
   private sentKeys = { forward: 0, right: 0 };
   private sentYaw = NaN;
+  private roundStartsAt: number;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly runner: SimRunner,
     private readonly player: PlayerId,
   ) {
+    this.roundStartsAt = runner.state.match.roundStartsAt;
     document.addEventListener('mousemove', (e) => {
-      if (!this.locked) return;
+      if (!this.locked || !this.alive) return;
       this.yaw -= e.movementX * MOUSE_RAD_PER_COUNT;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_RAD_PER_COUNT, -PITCH_LIMIT, PITCH_LIMIT);
     });
@@ -54,8 +56,27 @@ export class Controls {
     return document.pointerLockElement === this.canvas;
   }
 
+  private get alive(): boolean {
+    return this.runner.state.players.find(p => p.id === this.player)!.hp > 0;
+  }
+
+  /** 次ラウンド・再戦ではsimの初期yawへ戻し、押下状態を新たに送る（0010）。 */
+  sync(): void {
+    this.yaw = this.runner.state.players.find(p => p.id === this.player)!.yaw;
+    this.roundStartsAt = this.runner.state.match.roundStartsAt;
+    this.sentYaw = NaN;
+    this.sentMove = { x: NaN, z: NaN };
+    this.sentKeys = { forward: NaN, right: NaN };
+  }
+
+  syncRound(): void {
+    if (this.roundStartsAt !== this.runner.state.match.roundStartsAt) this.sync();
+  }
+
   /** 描画フレームごとに、変化した移動入力と向きをsimへ渡す。 */
   update(): void {
+    this.syncRound();
+    if (!this.alive) return;
     const axis = (plus: string, minus: string) => (this.keys.has(plus) ? 1 : 0) - (this.keys.has(minus) ? 1 : 0);
     const forward = axis('KeyW', 'KeyS');
     const right = axis('KeyD', 'KeyA');
@@ -82,13 +103,13 @@ export class Controls {
   }
 
   /** 表示上のキャラ位置に合わせてカメラを置く。fps は0（TPSの肩越し）〜1（目の位置）。向きは変えない。 */
-  placeCamera(camera: THREE.PerspectiveCamera, body: THREE.Vector3, fps: number): void {
+  placeCamera(camera: THREE.PerspectiveCamera, body: THREE.Vector3, fps: number, yaw = this.yaw, pitch = this.pitch): void {
     const look = new THREE.Vector3(
-      -Math.sin(this.yaw) * Math.cos(this.pitch),
-      Math.sin(this.pitch),
-      -Math.cos(this.yaw) * Math.cos(this.pitch),
+      -Math.sin(yaw) * Math.cos(pitch),
+      Math.sin(pitch),
+      -Math.cos(yaw) * Math.cos(pitch),
     );
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     camera.position
       .copy(body)
       .add(new THREE.Vector3(0, EYE_HEIGHT + CAMERA_UP, 0))
@@ -99,6 +120,7 @@ export class Controls {
   }
 
   private send(input: DistributiveOmit<Input, 'player'>): void {
+    if (!this.alive) return;
     this.runner.input({ ...input, player: this.player });
   }
 }

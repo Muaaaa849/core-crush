@@ -5,29 +5,29 @@ import type { Command, PlayerState } from '../../src/sim/types';
 import { ballOf, F, incoming, loose, press, R, run, S } from './k9-helpers';
 
 describe('0009 hit knockback', () => {
-  it.each(['p1', 'p2'] as const)('K9-1: pushes %s 1.4m in 12F, then holds still until 24F', side => {
-    const initial = incoming(side, { x: 21, y: -9, z: side === 'p1' ? 28 : -28 });
-    const self = initial.players.find(p => p.id === side)!;
+  it.each(['a', 'b'] as const)('K9-1: pushes %s 1.4m in 12F, then holds still until 24F', side => {
+    const initial = incoming(side, { x: 21, y: -9, z: side === 'a' ? 28 : -28 });
+    const self = initial.players.find(p => p.side === side)!;
     self.yaw = 0.7; self.stats = { attack: 10, defense: 10, agility: 10 };
     const moved = run(initial, initial.now + 12 * F);
-    const player = moved.state.players.find(p => p.id === side)!;
+    const player = moved.state.players.find(p => p.side === side)!;
     expect(player.hp).toBe(self.hp - c.hitDamage);
     expect(player.position.x - self.position.x).toBeCloseTo(1.4 * 0.6, 10);
-    expect(player.position.z - self.position.z).toBeCloseTo(1.4 * 0.8 * (side === 'p1' ? 1 : -1), 10);
+    expect(player.position.z - self.position.z).toBeCloseTo(1.4 * 0.8 * (side === 'a' ? 1 : -1), 10);
     expect(player.position.y).toBe(self.position.y); expect(player.yaw).toBe(self.yaw);
     expect(player.action).toMatchObject({ kind: 'hitstun', startedAt: initial.now,
       moveEndsAt: initial.now + 12 * F, endsAt: initial.now + 24 * F });
-    expect(run(moved.state, initial.now + 24 * F).state.players.find(p => p.id === side)!.position).toEqual(player.position);
+    expect(run(moved.state, initial.now + 24 * F).state.players.find(p => p.side === side)!.position).toEqual(player.position);
   });
 
-  it.each(['p1', 'p2'] as const)('K9-1: vertical or negligible horizontal incidence pushes %s toward the back', side => {
+  it.each(['a', 'b'] as const)('K9-1: vertical or negligible horizontal incidence pushes %s toward the back', side => {
     for (const vx of [0, 0.000001]) {
       const initial = incoming(side, { x: vx, y: -60, z: 0 });
       const result = run(initial, initial.now + 12 * F);
-      const before = initial.players.find(p => p.id === side)!, after = result.state.players.find(p => p.id === side)!;
+      const before = initial.players.find(p => p.side === side)!, after = result.state.players.find(p => p.side === side)!;
       expect(after.position.x).toBe(before.position.x);
-      expect(after.position.z - before.position.z).toBeCloseTo(side === 'p1' ? 1.4 : -1.4, 10);
-      expect(result.events.find(e => e.kind === 'hit')).toMatchObject({ direction: { x: 0, y: 0, z: side === 'p1' ? 1 : -1 } });
+      expect(after.position.z - before.position.z).toBeCloseTo(side === 'a' ? 1.4 : -1.4, 10);
+      expect(result.events.find(e => e.kind === 'hit')).toMatchObject({ direction: { x: 0, y: 0, z: side === 'a' ? 1 : -1 } });
     }
   });
 
@@ -89,16 +89,16 @@ describe('0009 hit knockback', () => {
     expect(result.state.players[0].action?.kind).toBe('hitstun');
   });
 
-  for (const side of ['p1', 'p2'] as const) it.each(['back', 'center', 'corner', 'slide'] as const)(`K9-4: ${side} clamps at %s without shortening hitstun`, boundary => {
-    const sign = side === 'p1' ? 1 : -1;
+  for (const side of ['a', 'b'] as const) it.each(['back', 'center', 'corner', 'slide'] as const)(`K9-4: ${side} clamps at %s without shortening hitstun`, boundary => {
+    const sign = side === 'a' ? 1 : -1;
     const initial = incoming(side, { x: 21, y: 0, z: (boundary === 'center' ? -28 : 28) * sign });
-    const self = initial.players.find(p => p.id === side)!;
+    const self = initial.players.find(p => p.side === side)!;
     self.position.x = boundary === 'corner' || boundary === 'slide' ? c.playerHalfWidth - 0.1 : 0;
     self.position.z = sign * (boundary === 'center' ? c.playerMinDepth + 0.1
       : boundary === 'slide' ? 8 : c.playerMaxDepth - 0.1);
     if (initial.ball.mode !== 'flight') throw Error('flight');
     initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { ...self.position, y: c.defenseHeight };
-    const result = run(initial, initial.now + 12 * F).state.players.find(p => p.id === side)!;
+    const result = run(initial, initial.now + 12 * F).state.players.find(p => p.side === side)!;
     expect(result.position.x).toBeCloseTo(boundary === 'corner' || boundary === 'slide' ? c.playerHalfWidth : 0.84, 10);
     expect(result.position.z).toBeCloseTo(sign * (boundary === 'center' ? c.playerMinDepth
       : boundary === 'slide' ? 8 + 1.12 : c.playerMaxDepth), 10);
@@ -108,7 +108,7 @@ describe('0009 hit knockback', () => {
   it.each([false, true])('K9-5: lethal hit drops once and freezes KO and ball through result/over (final=%s)', final => {
     const initial = incoming(); initial.players[0].hp = c.hitDamage;
     initial.players[0].action = { kind: 'recovery', endsAt: initial.now + F };
-    if (final) initial.match.wins.p2 = c.roundsToWin - 1;
+    if (final) initial.match.wins.b = c.roundsToWin - 1;
     const result = step(initial, []);
     expect(result.events.filter(e => e.kind === 'hit')).toHaveLength(1);
     expect(result.events.find(e => e.kind === 'hit')).toMatchObject({ ko: true });
@@ -125,13 +125,13 @@ describe('0009 hit knockback', () => {
     const initial = incoming(); const hit = run(initial, initial.now + F).state;
     hit.danger!.expiresAt = hit.now;
     const result = step(hit, [], { ...c, tick: 1 });
-    expect(result.events).toEqual([{ kind: 'explosion', at: hit.now, side: 'p1' }]);
+    expect(result.events).toEqual([{ kind: 'explosion', at: hit.now, side: 'a' }]);
     expect(result.state.players[0].position).toEqual(hit.players[0].position);
     expect(result.state.players[0].action).toBeNull(); expect(result.state.ball.mode).toBe('absent');
   });
 
   it('K9-15: reports direction/ko once and preserves the surface contact point', () => {
-    const initial = incoming('p1', { x: 30, y: 0, z: 40 });
+    const initial = incoming('a', { x: 30, y: 0, z: 40 });
     if (initial.ball.mode !== 'flight') throw Error('flight');
     initial.ball.position.x = initial.ball.origin.x = initial.ball.segmentOrigin.x = -0.5;
     const result = run(initial, initial.now + 25 * F);

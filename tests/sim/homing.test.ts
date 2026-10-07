@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as config } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
@@ -13,17 +14,17 @@ const longDistance = 26;
 const minimum = { straight: 240, left: 270, right: 270, upper: 320 };
 /** 球種を選ぶキー（S＝上、A＝左、D＝右）。 */
 const keysFor = (shot: Shot) => ({ forward: shot === 'upper' ? -1 : 0, right: shot === 'left' ? -1 : shot === 'right' ? 1 : 0 });
-function setup(shot: Shot, distance = standardDistance, side: Side = 'p1', elapsed = 0, attack = 5) {
-  const state = createInitialState(side);
-  const sign = side === 'p1' ? 1 : -1;
+function setup(shot: Shot, distance = standardDistance, side: Side = 'a', elapsed = 0, attack = 5) {
+  const state = createInitialState({ participants: duelParticipants, firstBall: side });
+  const sign = side === 'a' ? 1 : -1;
   state.players.forEach(p => { p.position = { x: 0, y: 0, z: (p.side === side ? sign : -sign) * distance / 2 }; });
-  const player = state.players.find(p => p.id === side)!;
+  const player = state.players.find(p => p.side === side)!;
   state.now = elapsed * S;
   player.stats.attack = attack;
   player.keys = keysFor(shot);
   // 発生直前を保存して、静止ケースでは投げ始めの移動を含めない。
   player.action = { kind: 'windup', endsAt: state.now };
-  state.ball = { mode: 'held', owner: side };
+  state.ball = { mode: 'held', owner: state.players.find(p => p.side === side)!.id };
   state.danger = { side, expiresAt: 8 * S };
   const released = step(state, []).state;
   released.players.forEach(p => { p.move = { x: 0, z: 0 }; });
@@ -41,7 +42,7 @@ function run(state: SimState, commands: Command[] = [], until = 8 * S, inspect?:
   return { state, events, hit: events.find(e => e.kind === 'hit') };
 }
 describe('homing flight', () => {
-  it.each([config.supply.p1.z, standardDistance, longDistance])('hits stationary targets at %sm with ordered, capped constant speed', distance => {
+  it.each([config.supply.a.z, standardDistance, longDistance])('hits stationary targets at %sm with ordered, capped constant speed', distance => {
     const times: number[] = [];
     for (const shot of shots) {
       const initial = setup(shot, distance);
@@ -82,23 +83,23 @@ describe('homing flight', () => {
     expect(maxY).toBeGreaterThan(5);
     expect(descending).toBe(true);
     expect(lastVy).toBeLessThan(0);
-    for (const shot of shots) for (const distance of [config.curveEndFraction * longDistance, longDistance, 100]) expect(curveOffset(shot, longDistance, distance, 'p1')).toEqual({ x: 0, y: 0, z: 0 });
+    for (const shot of shots) for (const distance of [config.curveEndFraction * longDistance, longDistance, 100]) expect(curveOffset(shot, longDistance, distance, 'a')).toEqual({ x: 0, y: 0, z: 0 });
   });
-  it.each(['p1', 'p2'] as const)('selects shot at release from the held keys (%s)', side => {
+  it.each(['a', 'b'] as const)('selects shot at release from the held keys (%s)', side => {
     for (const [forward, right, shot] of [[0, 0, 'straight'], [1, 0, 'straight'], [1, -1, 'left'], [1, 1, 'right'], [-1, 1, 'upper']] as const) {
       const state = setup('straight', standardDistance, side);
       state.now = 0;
-      state.ball = { mode: 'held', owner: side };
-      state.players.find(p => p.id === side)!.action = { kind: 'windup', endsAt: 200 };
-      const result = step(state, [{ kind: 'keys', player: side, at: 200, seq: 0, forward, right }]);
+      state.ball = { mode: 'held', owner: state.players.find(p => p.side === side)!.id };
+      state.players.find(p => p.side === side)!.action = { kind: 'windup', endsAt: 200 };
+      const result = step(state, [{ kind: 'keys', player: state.players.find(p => p.side === side)!.id, at: 200, seq: 0, forward, right }]);
       expect(result.state.ball.mode === 'flight' && result.state.ball.attack?.shot).toBe(shot);
     }
   });
-  for (const side of ['p1', 'p2'] as const) for (const shot of shots) for (const direction of ['forward', 'back', 'left', 'right'] as const) {
+  for (const side of ['a', 'b'] as const) for (const shot of shots) for (const direction of ['forward', 'back', 'left', 'right'] as const) {
     it(`${side} ${shot}: ${direction} step releases only when valid`, () => {
       const state = setup(shot, longDistance, side);
       const receiver = state.players.find(p => p.side !== side)!;
-      const sign = receiver.side === 'p1' ? 1 : -1;
+      const sign = receiver.side === 'a' ? 1 : -1;
       receiver.move = direction === 'forward' ? { x: 0, z: -sign } : direction === 'back' ? { x: 0, z: sign }
         : { x: (direction === 'right' ? 1 : -1) * sign, z: 0 };
       const result = step(state, [{ kind: 'step', player: receiver.id, at: state.now + 123, seq: 0 }]);
@@ -163,8 +164,8 @@ describe('homing flight', () => {
     }
   });
   it('keeps minimum flight time under attack and danger boosts', () => {
-    for (const distance of [3, config.supply.p1.z, standardDistance, longDistance]) for (const shot of shots) for (const elapsed of [0, 4, 7.5]) {
-      const state = setup(shot, distance, 'p1', elapsed, 10);
+    for (const distance of [3, config.supply.a.z, standardDistance, longDistance]) for (const shot of shots) for (const elapsed of [0, 4, 7.5]) {
+      const state = setup(shot, distance, 'a', elapsed, 10);
       if (state.ball.mode !== 'flight') throw Error('flight');
       const release = state.ball.releasedAt;
       const speed = Math.hypot(...Object.values(state.ball.velocity));
@@ -230,7 +231,7 @@ describe('homing flight', () => {
     const state = setup('upper', longDistance);
     if (state.ball.mode !== 'flight') throw Error('flight');
     state.ball.attack!.homing = false;
-    state.ball.side = 'p2';
+    state.ball.side = 'b';
     // Half a floor-speed tick inside the configured boundary.
     const margin = config.minimumBallSpeed * config.tick / S / 2;
     const position = boundary === 'floor' ? { x: 3, y: config.ballDiameter / 2 + margin, z: -5 }
@@ -276,7 +277,7 @@ describe('homing flight', () => {
         const result = step(state, [], cfg);
         if (result.events.some(e => e.kind === 'crossing')) {
           expected = crossing;
-          expect(result.events).toContainEqual({ kind: 'crossing', at: expected, side: 'p2' });
+          expect(result.events).toContainEqual({ kind: 'crossing', at: expected, side: 'b' });
           break;
         }
         state = result.state;

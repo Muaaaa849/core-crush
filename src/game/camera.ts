@@ -11,8 +11,15 @@ const BLEND_MS = 100;
  */
 export function cameraModeFor(previous: CameraMode, state: SimState, id: PlayerId): CameraMode {
   const player = state.players.find((p) => p.id === id)!;
+  if (player.hp <= 0) return 'tps';
   if (state.ball.mode === 'held' && state.ball.owner === id) return player.action?.kind === 'catch-recovery' ? 'tps' : 'fps';
   return previous === 'fps' && player.action?.kind === 'recovery' ? 'fps' : 'tps';
+}
+
+/** KO中は生存する味方をTPSで追う。操作するIDは移さない（0010）。 */
+export function cameraPlayerFor(state: SimState, local: PlayerId): PlayerId {
+  const self = state.players.find(p => p.id === local)!;
+  return self.hp > 0 ? local : state.players.find(p => p.side === self.side && p.hp > 0)?.id ?? local;
 }
 
 /** 切替を100msで補間する。fps は 0（TPS）〜1（FPS）。 */

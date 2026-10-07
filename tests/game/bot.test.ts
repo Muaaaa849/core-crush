@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 // G2：P2のボットはsimと同じコマンドだけで動く。
 import { describe, expect, it } from 'vitest';
 import { defaultConfig } from '../../src/sim/config';
@@ -20,9 +21,9 @@ function play(state: SimState, ticks: number) {
 describe('Bot', () => {
   it('K9-10: chases an own-side loose ball with move commands and stops after pickup', () => {
     const bot = new Bot('p2');
-    const state = createInitialState('p2');
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     state.now = defaultConfig.ballStartDelay;
-    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    state.danger = { side: 'b', expiresAt: state.now + defaultConfig.dangerDuration };
     state.ball = { mode: 'loose', position: { x: 3, y: 2, z: -6 }, velocity: { x: 2, y: 3, z: 0 },
       startsAt: state.now, motionAt: state.now, nextPhysicsAt: state.now + defaultConfig.frame };
     const before = structuredClone(state);
@@ -38,8 +39,8 @@ describe('Bot', () => {
 
   it('K9-2: waits through hitstun and resumes chasing exactly when it ends', () => {
     const bot = new Bot('p2');
-    const state = createInitialState('p2'); state.now = defaultConfig.ballStartDelay;
-    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'b' }); state.now = defaultConfig.ballStartDelay;
+    state.danger = { side: 'b', expiresAt: state.now + defaultConfig.dangerDuration };
     if (state.ball.mode !== 'loose') throw Error('loose');
     state.ball.position.x = 3;
     state.players[1].action = { kind: 'hitstun', startedAt: state.now, moveEndsAt: state.now + 12_000,
@@ -52,7 +53,7 @@ describe('Bot', () => {
   it('K9-10 K9-14: both bots recover drops and keep exchanging throws deterministically', () => {
     const replay = () => {
       const config = { ...defaultConfig, baseHp: 1000 };
-      let state = createInitialState('p1', config);
+      let state = createInitialState({ participants: duelParticipants, firstBall: 'a' }, config);
       const bots = [new Bot('p1'), new Bot('p2')], events: SimEvent[] = [];
       for (let tick = 0; tick < 60 * 40; tick++) {
         const result = step(state, bots.flatMap(bot => bot.think(state)), config);
@@ -69,9 +70,9 @@ describe('Bot', () => {
 
   it('resets per-hold state across a draw replay even if intermediate ticks were not observed', () => {
     const bot = new Bot('p2');
-    const state = createInitialState('p2');
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     state.ball = { mode: 'held', owner: 'p2' };
-    state.danger = { side: 'p2', expiresAt: defaultConfig.dangerDuration };
+    state.danger = { side: 'b', expiresAt: defaultConfig.dangerDuration };
     expect(bot.think(state)).toEqual([]);
     state.now = 1.5 * defaultConfig.timeUnitsPerSecond;
     expect(bot.think(state).some(c => c.kind === 'primary')).toBe(true);
@@ -85,21 +86,21 @@ describe('Bot', () => {
 
   it('does not count frozen result time as holding time', () => {
     const bot = new Bot('p2');
-    const state = createInitialState('p2');
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     state.ball = { mode: 'held', owner: 'p2' };
-    state.danger = { side: 'p2', expiresAt: defaultConfig.dangerDuration };
+    state.danger = { side: 'b', expiresAt: defaultConfig.dangerDuration };
     expect(bot.think(state)).toEqual([]);
     state.now += defaultConfig.roundResultDuration;
     state.match.phase = 'result';
     state.danger = null;
     expect(bot.think(state)).toEqual([]);
     state.match.phase = 'play';
-    state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+    state.danger = { side: 'b', expiresAt: state.now + defaultConfig.dangerDuration };
     expect(bot.think(state)).toEqual([]);
   });
 
   it('throws toward the opponent 1.5 s after picking the ball up', () => {
-    const { events } = play(createInitialState('p2'), 60 * 4);
+    const { events } = play(createInitialState({ participants: duelParticipants, firstBall: 'b' }), 60 * 4);
     const pickup = events.find((e) => e.kind === 'pickup' && e.player === 'p2');
     const release = events.find((e) => e.kind === 'release' && e.player === 'p2');
     expect(pickup).toBeDefined();
@@ -107,12 +108,12 @@ describe('Bot', () => {
     const holdTime = release!.at - pickup!.at;
     expect(holdTime).toBeGreaterThanOrEqual(1.5 * 60_000);
     expect(holdTime).toBeLessThan(1.5 * 60_000 + 10 * 1000); // 1.5秒＋投げ始め8F程度
-    expect(events.some((e) => e.kind === 'crossing' && e.side === 'p1')).toBe(true);
+    expect(events.some((e) => e.kind === 'crossing' && e.side === 'a')).toBe(true);
   });
 
   it('is deterministic', () => {
-    const a = play(createInitialState('p2'), 60 * 4);
-    const b = play(createInitialState('p2'), 60 * 4);
+    const a = play(createInitialState({ participants: duelParticipants, firstBall: 'b' }), 60 * 4);
+    const b = play(createInitialState({ participants: duelParticipants, firstBall: 'b' }), 60 * 4);
     expect(a.events).toEqual(b.events);
     expect(a.state).toEqual(b.state);
   });
@@ -122,11 +123,11 @@ describe('Bot', () => {
 describe('S5-14 bot shot cycle and feint', () => {
   it('cycles straight/left/right/upper twice and feints before every fourth throw', () => {
     const bot = new Bot('p2');
-    let state = createInitialState('p2');
+    let state = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     const shots: string[] = [];
     for (let turn = 1; turn <= 8; turn++) {
       state.ball = { mode: 'held', owner: 'p2' };
-      state.danger = { side: 'p2', expiresAt: state.now + defaultConfig.dangerDuration };
+      state.danger = { side: 'b', expiresAt: state.now + defaultConfig.dangerDuration };
       state.players.forEach(p => { p.action = null; p.hp = p.maxHp; p.cost = defaultConfig.maxCost; });
       const feints: Command[] = [], primaries: Command[] = [];
       let feintEnd: number | undefined;

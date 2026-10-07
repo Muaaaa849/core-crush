@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as c } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
@@ -14,7 +15,7 @@ function run(state: SimState, until: number, commands: Command[] = []) {
   return { state, events };
 }
 function exploded() {
-  return run(createInitialState('p1'), c.ballStartDelay + c.dangerDuration).state;
+  return run(createInitialState({ participants: duelParticipants, firstBall: 'a' }), c.ballStartDelay + c.dangerDuration).state;
 }
 
 describe('M8-6 movement during the explosion pause', () => {
@@ -66,7 +67,7 @@ describe('M8-6 movement during the explosion pause', () => {
   it.each(['primary', 'secondary', 'feint', 'summon'] as const)('%s still requires a running clock', kind => {
     const initial = exploded();
     if (kind === 'primary' || kind === 'feint') initial.ball = { mode: 'held', owner: 'p1' };
-    if (kind === 'summon') initial.ball = { mode: 'loose', position: { ...c.supply.p1, x: c.pickupRadius * 2 }, startsAt: initial.now + c.ballStartDelay,
+    if (kind === 'summon') initial.ball = { mode: 'loose', position: { ...c.supply.a, x: c.pickupRadius * 2 }, startsAt: initial.now + c.ballStartDelay,
       velocity: { x: 0, y: 0, z: 0 }, motionAt: initial.now, nextPhysicsAt: initial.now + F };
     const result = step(initial, [{ kind, player: 'p1', at: initial.now, seq: 0 }]);
     expect(result.state.players[0].action).toBeNull();
@@ -75,7 +76,7 @@ describe('M8-6 movement during the explosion pause', () => {
   });
 
   it('before a round first starts, held movement and step input do not move or consume', () => {
-    const initial = createInitialState('p1');
+    const initial = createInitialState({ participants: duelParticipants, firstBall: 'a' });
     const result = run(initial, c.ballStartDelay - 1, [
       { kind: 'move', player: 'p1', at: 0, seq: 0, x: 1, z: 0 },
       { kind: 'step', player: 'p1', at: F, seq: 1 },

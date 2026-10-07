@@ -19,6 +19,17 @@ export class Bot {
 
   constructor(private readonly id: PlayerId) {}
 
+  reset(): void {
+    this.heldSince = null; this.thrown = false; this.feinted = false;
+    this.throwCount = 0; this.seq = 0; this.roundStartsAt = null;
+  }
+
+  private stop(state: SimState): Command[] {
+    const self = state.players.find(p => p.id === this.id)!;
+    return self.move.x === 0 && self.move.z === 0 ? []
+      : [{ kind: 'move', player: this.id, at: state.now, seq: this.seq++, x: 0, z: 0 }];
+  }
+
   /** 次のtickで処理するコマンドを返す。 */
   think(state: SimState): Command[] {
     const holding = state.ball.mode === 'held' && state.ball.owner === this.id;
@@ -33,13 +44,19 @@ export class Bot {
     if (state.match.phase !== 'play' || self.hp <= 0
       || (self.action?.kind === 'hitstun' && state.now < self.action.endsAt)) return [];
     if (!holding) {
-      if (state.danger && state.ball.mode === 'loose' && (state.ball.position.z > 0 ? 'p1' : 'p2') === self.side) {
+      if (state.danger && state.ball.mode === 'loose' && (state.ball.position.z > 0 ? 'a' : 'b') === self.side) {
+        const position = state.ball.position;
+        const distanceSquared = (p: typeof self) => (p.position.x - position.x) ** 2 + (p.position.z - position.z) ** 2;
+        const nearest = state.players.filter(p => p.side === self.side && p.hp > 0
+          && !(p.action?.kind === 'hitstun' && state.now < p.action.endsAt))
+          .sort((a, b) => distanceSquared(a) - distanceSquared(b) || a.id.localeCompare(b.id))[0];
+        if (nearest?.id !== this.id) return this.stop(state);
         const dx = state.ball.position.x - self.position.x, dz = state.ball.position.z - self.position.z;
         const distance = Math.hypot(dx, dz);
         return [{ kind: 'move', player: this.id, at: state.now, seq: this.seq++,
           x: distance === 0 ? 0 : dx / distance, z: distance === 0 ? 0 : dz / distance }];
       }
-      return [];
+      return this.stop(state);
     }
     this.heldSince ??= state.now;
     // 取得後は追いかける入力を止め、保持時間と球種巡回は従来どおり。
@@ -52,7 +69,8 @@ export class Bot {
       this.feinted = true;
       return [{ kind: 'feint', player: this.id, at: state.now, seq: this.seq++ }];
     }
-    const target = state.players.find(p => p.id !== this.id)!;
+    const target = state.players.find(p => p.id === self.lockTarget && p.side !== self.side && p.hp > 0);
+    if (!target) return [];
     // yaw 0 で -z を向く（simの規約）。
     const yaw = Math.atan2(-(target.position.x - self.position.x), -(target.position.z - self.position.z));
     const keys = SHOTS[this.throwCount % SHOTS.length];

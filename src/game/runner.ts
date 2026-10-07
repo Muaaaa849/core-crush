@@ -6,6 +6,7 @@ import type { Command, SimEvent, SimState } from '../sim/types';
 /** tickごとにsimの状態を見てコマンドを返す相手（ボット）。 */
 export interface Controller {
   think(state: SimState): Command[];
+  reset?(): void;
 }
 
 const MAX_FRAME_MS = 250; // これを超える描画の空白は中断とみなす
@@ -56,6 +57,8 @@ export class SimRunner {
     this.state = state;
     this.previous = state;
     this.pending.length = 0;
+    this.seq = 0;
+    for (const controller of this.controllers) controller.reset?.();
     this.accumulated = 0;
     this.events = [];
   }

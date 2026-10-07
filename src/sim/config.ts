@@ -20,6 +20,9 @@ export interface SimConfig {
   playerMinDepth: number;
   playerMaxDepth: number;
   supply: Record<Side, Vec3>;
+  teamSlotOffset: number;
+  singletonHpMultiplier: number;
+  throwArcDegrees: number;
   pickupRadius: number;
   pickupHeight: number;
   hitDirectionEpsilon: number;
@@ -111,7 +114,10 @@ export const defaultConfig: SimConfig = {
   playerHalfWidth: 10.1,
   playerMinDepth: 0.5,
   playerMaxDepth: 17.6,
-  supply: { p1: { x: 0, y: BALL_DIAMETER / 2, z: 7.8 }, p2: { x: 0, y: BALL_DIAMETER / 2, z: -7.8 } },
+  supply: { a: { x: 0, y: BALL_DIAMETER / 2, z: 7.8 }, b: { x: 0, y: BALL_DIAMETER / 2, z: -7.8 } },
+  teamSlotOffset: 2.6,
+  singletonHpMultiplier: 1.6,
+  throwArcDegrees: 160,
   pickupRadius: 1.2,
   pickupHeight: 0.8,
   // 被弾と未所持球の運動（決定0009）。能力値の倍率は掛けない。

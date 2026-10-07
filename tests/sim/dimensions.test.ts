@@ -8,8 +8,8 @@ describe('dimensions (decision 0006)', () => {
     expect({ x: config.playerHalfWidth, min: config.playerMinDepth, max: config.playerMaxDepth }).toEqual({ x: 10.1, min: 0.5, max: 17.6 });
     expect({ x: config.ballHalfWidth, z: config.ballHalfDepth }).toEqual({ x: 6.175, z: 15.275 });
     expect({ x: config.guidanceHalfWidth, z: config.guidanceHalfDepth }).toEqual({ x: 10.175, z: 17.675 });
-    expect(config.supply.p1).toEqual({ x: 0, y: 0.325, z: 7.8 });
-    expect(config.supply.p2).toEqual({ x: 0, y: 0.325, z: -7.8 });
+    expect(config.supply.a).toEqual({ x: 0, y: 0.325, z: 7.8 });
+    expect(config.supply.b).toEqual({ x: 0, y: 0.325, z: -7.8 });
   });
 
   it('scales base shot speeds by 1.3 and keeps walking, step and the flight-time rules', () => {

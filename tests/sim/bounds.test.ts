@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 // プレイヤーはどんな入力でも移動範囲（金網の内側、自陣）から出ない（rules.md M1細則「プレイエリア」）。
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as config } from '../../src/sim/config';
@@ -11,7 +12,7 @@ function rng(seed: number) {
 describe('player bounds under random play', () => {
   it.each(Array.from({ length: 24 }, (_, i) => i + 1))('seed %i', (seed) => {
     const random = rng(seed);
-    let state = createInitialState(seed % 2 ? 'p1' : 'p2');
+    let state = createInitialState({ participants: duelParticipants, firstBall: seed % 2 ? 'a' : 'b' });
     let seq = 0;
     for (let tick = 0; tick < 60 * 40; tick++) {
       const commands: Command[] = [];
@@ -27,7 +28,7 @@ describe('player bounds under random play', () => {
       }
       state = step(state, commands).state;
       for (const p of state.players) {
-        const depth = p.side === 'p1' ? p.position.z : -p.position.z;
+        const depth = p.side === 'a' ? p.position.z : -p.position.z;
         expect(Math.abs(p.position.x), `${p.id} x at ${state.now}`).toBeLessThanOrEqual(config.playerHalfWidth + 1e-9);
         expect(depth, `${p.id} depth at ${state.now}`).toBeGreaterThanOrEqual(config.playerMinDepth - 1e-9);
         expect(depth, `${p.id} depth at ${state.now}`).toBeLessThanOrEqual(config.playerMaxDepth + 1e-9);

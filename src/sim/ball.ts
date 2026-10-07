@@ -5,7 +5,7 @@ import type { BallState, PlayerState, Rally, Shot, Side, Vec3 } from './types';
 type Flight = Extract<BallState, { mode: 'flight' }>;
 type Loose = Extract<BallState, { mode: 'loose' }>;
 const still = { x: 0, y: 0, z: 0 };
-export function opposite(side: Side): Side { return side === 'p1' ? 'p2' : 'p1'; }
+export function opposite(side: Side): Side { return side === 'a' ? 'b' : 'a'; }
 
 export function flightPosition(ball: Flight, at: number, config: SimConfig): Vec3 {
   const seconds = (at - ball.segmentAt) / config.timeUnitsPerSecond;
@@ -15,7 +15,7 @@ export function flightPosition(ball: Flight, at: number, config: SimConfig): Vec
 
 export function centerCrossingAt(ball: BallState, config: SimConfig): number {
   if (ball.mode !== 'flight') return Infinity;
-  const towardCenter = ball.side === 'p1' ? ball.velocity.z < 0 : ball.velocity.z > 0;
+  const towardCenter = ball.side === 'a' ? ball.velocity.z < 0 : ball.velocity.z > 0;
   if (!towardCenter) return Infinity;
   // 線分の開始を基準にし、幾何時刻を一度だけ切り上げる。
   return Math.ceil(ball.segmentAt - ball.segmentOrigin.z / ball.velocity.z * config.timeUnitsPerSecond);
@@ -34,7 +34,7 @@ export function curveOffset(shot: Shot, length: number, traveled: number, side: 
   const u = length > 0 ? Math.max(0, Math.min(1, traveled / (config.curveEndFraction * length))) : 1;
   const f = 1 - 3 * u * u + 2 * u * u * u;
   const horizontal = shot === 'left' ? -1 : shot === 'right' ? 1 : 0;
-  return { x: horizontal * (side === 'p1' ? 1 : -1) * config.horizontalCurveFraction * length * f || 0,
+  return { x: horizontal * (side === 'a' ? 1 : -1) * config.horizontalCurveFraction * length * f || 0,
     y: shot === 'upper' ? config.upperCurveFraction * length * f : 0, z: 0 };
 }
 
@@ -145,7 +145,7 @@ function horizontalBoundary(ball: Loose, side: Side, config: SimConfig): void {
   const radius = config.ballDiameter / 2;
   // 角ではx、zの順。内向き成分は保ち、余った移動距離は折り返さない。
   for (const [axis, min, max] of [['x', -config.ballHalfWidth, config.ballHalfWidth],
-    ['z', side === 'p1' ? radius : -config.ballHalfDepth, side === 'p1' ? config.ballHalfDepth : -radius]] as const) {
+    ['z', side === 'a' ? radius : -config.ballHalfDepth, side === 'a' ? config.ballHalfDepth : -radius]] as const) {
     const position = ball.position[axis], velocity = ball.velocity[axis];
     if ((position <= min && velocity < 0) || (position >= max && velocity > 0)) ball.velocity[axis] *= -config.looseBoundaryRestitution;
     ball.position[axis] = Math.max(min, Math.min(max, position));
@@ -169,7 +169,7 @@ export function dropBall(ball: Flight, at: number, config: SimConfig, reason: 'h
 export function updateLooseBall(input: Loose, config: SimConfig): Loose {
   const ball = structuredClone(input);
   const dt = (ball.nextPhysicsAt - ball.motionAt) / config.timeUnitsPerSecond;
-  const side = ball.position.z > 0 ? 'p1' : 'p2';
+  const side = ball.position.z > 0 ? 'a' : 'b';
   const grounded = ball.position.y === config.ballDiameter / 2 && ball.velocity.y === 0;
   ball.position.x += ball.velocity.x * dt;
   ball.position.z += ball.velocity.z * dt;

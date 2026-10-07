@@ -8,7 +8,13 @@
   <body>
     <div id="overlay">
       <h1>CORE-CRUSH</h1>
-      <p>M1 試作：WASD 移動 / マウス 視点 / 左クリック 投げる／跳ね返し（A・D・S で球種） / 右クリック キャッチ / F フリ / 左Shift ステップ / C 球召喚 / Esc マウス解放</p>
+      <p>ローカル試遊：WASD 移動 / マウス 視点 / 左クリック 投げる／跳ね返し（A・D・S で球種） / 右クリック キャッチ / F フリ / 左Shift ステップ / C 球召喚 / Esc マウス解放</p>
+      <fieldset id="match-mode">
+        <legend>人数（開始後は固定・変更は再読み込み）</legend>
+        <label><input type="radio" name="mode" value="1v1" checked /> 1v1</label>
+        <label><input type="radio" name="mode" value="1v2" /> 1v2（自分1人対ボット2人）</label>
+        <label><input type="radio" name="mode" value="2v2" /> 2v2（味方ボット1人）</label>
+      </fieldset>
       <button id="start" disabled>読み込み中…</button>
     </div>
     <div id="reticle"></div>

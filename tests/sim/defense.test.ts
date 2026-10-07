@@ -14,13 +14,13 @@ function press(kind: typeof kinds[number] | 'step' | 'summon', at = 0, seq = 0):
   return { kind, player: 'p1', at, seq };
 }
 function incoming(contact = F, defense = 5): SimState {
-  const state = createInitialState('p1', config, { p1: { attack: 5, defense, agility: 5 } });
-  state.danger = { side: 'p1', expiresAt: 8 * S };
+  const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: 5, defense, agility: 5 } }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } }], firstBall: 'a' }, config);
+  state.danger = { side: 'a', expiresAt: 8 * S };
   const origin = { x: 0, y: config.defenseHeight, z: state.players[0].position.z - contactRadius - incomingSpeed * contact / S };
   state.ball = { mode: 'flight', position: { ...origin }, origin, segmentOrigin: { ...origin },
-    releasedAt: 0, segmentAt: 0, side: 'p1', velocity: { x: 0, y: 0, z: incomingSpeed },
+    releasedAt: 0, segmentAt: 0, side: 'a', velocity: { x: 0, y: 0, z: incomingSpeed },
     attack: { target: 'p1', shot: 'straight', speed: incomingSpeed, damage: 20, homing: false, pure: true,
-      launchDistance: config.supply.p1.z - config.supply.p2.z, throwerSide: 'p2', guidanceIndex: 1 } };
+      launchDistance: config.supply.a.z - config.supply.b.z, throwerSide: 'b', guidanceIndex: 1 } };
   return state;
 }
 function empty(): SimState {
@@ -111,7 +111,7 @@ describe('R05 shared defense window', () => {
     const state = incoming(); state.danger!.expiresAt = F;
     const result = run(state, F + 1, [press(kind)]);
     expect(result.events).toEqual([
-      { kind: 'explosion', at: F, side: 'p1' },
+      { kind: 'explosion', at: F, side: 'a' },
     ]);
     expect(result.state.players[0].cost).toBe(4);
     expect(result.state.players[0].hp).toBe(70);
@@ -207,7 +207,7 @@ describe('parry return and rally', () => {
     expect(result.state.players[0].cost).toBe(1);
     const ball = flight(result.state);
     expect(ball.releasedAt).toBe(at);
-    expect(ball.origin).toEqual({ x: 0, y: config.defenseHeight, z: config.supply.p1.z - config.capsuleRadius });
+    expect(ball.origin).toEqual({ x: 0, y: config.defenseHeight, z: config.supply.a.z - config.capsuleRadius });
     expect(ball.attack).toMatchObject({ target: 'p2', homing: true, shot: 'straight' });
     expect(ball.velocity.z).toBeLessThan(0);
     expect(ball.attack!.speed).toBeCloseTo(config.shotSpeed.straight * (1 + 0.25 * (at / (8 * S)) ** 2) * (1 + speed));

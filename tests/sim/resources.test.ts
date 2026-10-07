@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as config } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
@@ -5,8 +6,8 @@ import type { Command, SimEvent, SimState } from '../../src/sim/types';
 
 const S = 60_000;
 function active(): SimState {
-  const state = createInitialState('p1');
-  state.danger = { side: 'p1', expiresAt: 8 * S };
+  const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
+  state.danger = { side: 'a', expiresAt: 8 * S };
   state.ball = { mode: 'held', owner: 'p1' };
   return state;
 }
@@ -22,14 +23,14 @@ function advance(state: SimState, until: number, commands: Command[] = []) {
 function press(state: SimState, kind: 'step' | 'primary' | 'summon', player: 'p1' | 'p2' = 'p1'): Command {
   return { kind, player, at: state.now, seq: 0 };
 }
-function loose(state: SimState, side: 'p1' | 'p2' = 'p1') {
-  state.ball = { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: side === 'p1' ? 10 : -10 }, startsAt: 0,
+function loose(state: SimState, side: 'a' | 'b' = 'a') {
+  state.ball = { mode: 'loose', position: { x: 4, y: config.ballDiameter / 2, z: side === 'a' ? 10 : -10 }, startsAt: 0,
     velocity: { x: 0, y: 0, z: 0 }, motionAt: state.now, nextPhysicsAt: (Math.floor(state.now / config.frame) + 1) * config.frame };
 }
 
 describe('stats and resources', () => {
   it('starts with default stats, full HP, quarter-unit cost and two steps', () => {
-    const state = createInitialState('p1');
+    const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
     for (const player of state.players) {
       expect(player.stats).toEqual({ attack: 5, defense: 5, agility: 5 });
       expect(player.hp).toBe(100);
@@ -44,8 +45,8 @@ describe('stats and resources', () => {
   });
 
   it.each([1, 5, 10])('derives HP, walking and recovery from stats (%s)', value => {
-    const state = createInitialState('p1', config, { p1: { attack: value, defense: value, agility: value } });
-    state.danger = { side: 'p2', expiresAt: 8 * S };
+    const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: value, defense: value, agility: value } }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } }], firstBall: 'a' }, config);
+    state.danger = { side: 'b', expiresAt: 8 * S };
     state.ball = { mode: 'held', owner: 'p2' };
     const player = state.players[0];
     expect(player.hp).toBe(100 + 6 * (value - 5));
@@ -137,8 +138,8 @@ describe('R08 recovery', () => {
     let state = active();
     state.players[0].stepPoints = 0;
     if (mode === 'held') state.ball = { mode: 'held', owner: 'p2' };
-    if (mode === 'loose') loose(state, 'p2');
-    if (mode === 'flight') state.ball = { mode: 'flight', side: 'p2', position: { x: 0, y: 1, z: -3 }, origin: { x: 0, y: 1, z: -3 }, segmentOrigin: { x: 0, y: 1, z: -3 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
+    if (mode === 'loose') loose(state, 'b');
+    if (mode === 'flight') state.ball = { mode: 'flight', side: 'b', position: { x: 0, y: 1, z: -3 }, origin: { x: 0, y: 1, z: -3 }, segmentOrigin: { x: 0, y: 1, z: -3 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
     state = advance(state, S).state;
     expect(state.players[0].stepRecoveryProgress).toBe(S);
     state.ball = { mode: 'held', owner: 'p1' };
@@ -176,7 +177,7 @@ describe('R08 recovery', () => {
     state.danger!.expiresAt = 500;
     const result = advance(state, 120_000);
     expect(result.state.players[1].stepRecoveryProgress).toBe(S + 500);
-    const first = createInitialState('p2');
+    const first = createInitialState({ participants: duelParticipants, firstBall: 'b' });
     first.players[0].stepPoints = 0;
     expect(advance(first, S).state.players[0].stepRecoveryProgress).toBe(0);
   });
@@ -184,10 +185,10 @@ describe('R08 recovery', () => {
   it('switches both players at the exact integer center crossing inside a tick', () => {
     const state = active();
     state.players.forEach(p => { p.stepPoints = 0; });
-    state.ball = { mode: 'flight', side: 'p1', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -config.shotSpeed.straight } };
+    state.ball = { mode: 'flight', side: 'a', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -config.shotSpeed.straight } };
     const result = step(state, []);
     const crossing = Math.ceil(0.1 / config.shotSpeed.straight * S);
-    expect(result.events).toContainEqual({ kind: 'crossing', at: crossing, side: 'p2' });
+    expect(result.events).toContainEqual({ kind: 'crossing', at: crossing, side: 'b' });
     expect(result.state.players[0].stepRecoveryProgress).toBe(config.tick - crossing);
     expect(result.state.players[1].stepRecoveryProgress).toBe(crossing);
   });
@@ -209,8 +210,8 @@ describe('common summon and simultaneous action priority', () => {
     let state = active();
     loose(state);
     if (reason === 'held') state.ball = { mode: 'held', owner: 'p2' };
-    if (reason === 'flight') state.ball = { mode: 'flight', side: 'p1', position: { x: 4, y: 1, z: 10 }, origin: { x: 4, y: 1, z: 10 }, segmentOrigin: { x: 4, y: 1, z: 10 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
-    if (reason === 'other-side') loose(state, 'p2');
+    if (reason === 'flight') state.ball = { mode: 'flight', side: 'a', position: { x: 4, y: 1, z: 10 }, origin: { x: 4, y: 1, z: 10 }, segmentOrigin: { x: 4, y: 1, z: 10 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -1 } };
+    if (reason === 'other-side') loose(state, 'b');
     if (reason === 'cost') state.players[0].cost = 3;
     if (reason === 'windup' || reason === 'recovery') state.players[0].action = { kind: reason, endsAt: 8_000 };
     if (reason === 'step') state = stateStepAction(state);

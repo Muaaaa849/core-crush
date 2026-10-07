@@ -1,9 +1,12 @@
+import { duelParticipants } from '../fixtures';
 // 再実行（0004、0005「テスト」）：試合全体の入力記録から、最初からでも途中保存からでも同じ結果になる。
 // M2の通信（ホストが入力を集めて同じsimを進める）の前提。
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as config } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, PlayerId, SimEvent, SimState } from '../../src/sim/types';
+import { localMatch } from '../../src/game/match';
+import { SimRunner, type Controller } from '../../src/game/runner';
 
 function rng(seed: number) {
   return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
@@ -12,7 +15,7 @@ function rng(seed: number) {
 /** 両者の全種類の入力を記録。seed 1はラウンド境界を越える長さで実行する。 */
 function record(seed: number): Command[][] {
   const random = rng(seed);
-  let state = createInitialState(seed % 2 ? 'p1' : 'p2');
+  let state = createInitialState({ participants: duelParticipants, firstBall: seed % 2 ? 'a' : 'b' });
   let seq = 0;
   const log: Command[][] = [];
   const duration = seed === 1 ? 2 * (config.roundDuration + config.roundResultDuration + config.ballStartDelay) : 40 * config.timeUnitsPerSecond;
@@ -48,7 +51,7 @@ function run(state: SimState, log: Command[][]): { state: SimState; events: SimE
 
 describe('whole-match replay', () => {
   it.each([1, 2, 3, 4])('seed %i: replaying from the start and from a mid-match snapshot gives the same result', (seed) => {
-    const initial = createInitialState(seed % 2 ? 'p1' : 'p2');
+    const initial = createInitialState({ participants: duelParticipants, firstBall: seed % 2 ? 'a' : 'b' });
     const log = record(seed);
     const full = run(structuredClone(initial), log);
     // 試合として成り立っている（投擲・接触が起きている）ことも確かめる。
@@ -70,5 +73,41 @@ describe('whole-match replay', () => {
     const resumed = run(structuredClone(firstHalf.state), log.slice(half));
     expect(resumed.state).toEqual(full.state);
     expect([...firstHalf.events, ...resumed.events]).toEqual(full.events);
+  });
+});
+
+describe('T10-12 team replay', () => {
+  for (const mode of ['1v1', '1v2', '2v2'] as const) it.each([1, 2, 3, 4])(`${mode} seed %i: 60 seconds, render rates and a 30-second snapshot agree`, seed => {
+    const initial = createInitialState(localMatch(mode, seed % 2 ? 'a' : 'b'), config);
+    // 部分KOを含む固定ロスターでも60秒の時刻が前進する。
+    if (mode === '2v2') initial.players.find(p => p.id === 'p2')!.hp = 0;
+    const random = rng(seed), log: Command[][] = [];
+    for (let tick = 0; tick < 60 * 60; tick++) {
+      const commands: Command[] = [];
+      for (const p of initial.players) {
+        const at = tick * config.tick + Math.floor(random() * config.tick);
+        if (random() < 0.1) {
+          const angle = random() * Math.PI * 2;
+          commands.push({ kind: 'move', player: p.id, at, seq: tick * 4, x: Math.cos(angle), z: Math.sin(angle) });
+          commands.push({ kind: 'keys', player: p.id, at, seq: tick * 4 + 1, forward: Math.floor(random() * 3) - 1, right: Math.floor(random() * 3) - 1 });
+        }
+        if (random() < 0.05) commands.push({ kind: 'yaw', player: p.id, at, seq: tick * 4 + 2, yaw: (p.side === 'a' ? 0 : Math.PI) + random() - 0.5 });
+        const kinds = ['primary', 'secondary', 'step', 'summon', 'feint'] as const;
+        if (random() < 0.1) commands.push({ kind: kinds[Math.floor(random() * kinds.length)], player: p.id, at, seq: tick * 4 + 3 });
+      }
+      log.push(commands);
+    }
+    const full = run(initial, log), prefix = run(initial, log.slice(0, 1800));
+    const suffix = run(structuredClone(prefix.state), log.slice(1800));
+    expect(full.state.now).toBe(60 * config.timeUnitsPerSecond);
+    expect(full.events.some(e => e.kind === 'release')).toBe(true);
+    expect(suffix.state).toEqual(full.state); expect([...prefix.events, ...suffix.events]).toEqual(full.events);
+    for (const fps of [30, 60, 144]) {
+      let index = 0;
+      const controller: Controller = { think: () => log[index++] ?? [] };
+      const runner = new SimRunner(structuredClone(initial), config, [controller]);
+      for (let frame = 0; frame < fps * 60; frame++) runner.advance(1000 / fps);
+      expect(runner.state).toEqual(full.state); expect(runner.drainEvents()).toEqual(full.events);
+    }
   });
 });

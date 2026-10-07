@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 // 画面と同じ組み合わせ（実行器＋ボット＋P1の入力）で、往復と球の範囲を確かめる。
 import { describe, expect, it } from 'vitest';
 import { Bot } from '../../src/game/bot';
@@ -8,7 +9,7 @@ import type { SimEvent } from '../../src/sim/types';
 
 describe('practice match', () => {
   it('P1 chases drops and throws on pickup, both sides get hit, and loose balls stay inside the white lines', () => {
-    const runner = new SimRunner(createInitialState('p1'), config, [new Bot('p2')]);
+    const runner = new SimRunner(createInitialState({ participants: duelParticipants, firstBall: 'a' }), config, [new Bot('p2')]);
     const events: SimEvent[] = [];
     let requested = false;
     for (let frame = 0; frame < 60 * 30; frame++) {

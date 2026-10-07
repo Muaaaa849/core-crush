@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as c } from '../../src/sim/config';
 import { createInitialState } from '../../src/sim/sim';
@@ -7,7 +8,7 @@ import type { Command, SimEvent, SimState, Vec3 } from '../../src/sim/types';
 import { active, ballOf, F, incoming, loose, press, R, run, S } from './k9-helpers';
 
 function moving(position: Vec3 = { x: 0, y: 2, z: 4 }, velocity: Vec3 = { x: 3, y: 3, z: 4 }, now = 123) {
-  const state = active(position.z > 0 ? 'p1' : 'p2', now);
+  const state = active(position.z > 0 ? 'a' : 'b', now);
   state.players.forEach(p => { p.position.x = -8; });
   state.ball = loose(position, velocity, now);
   return state;
@@ -16,7 +17,7 @@ function update(state: SimState) { return run(state, ballOf(state).nextPhysicsAt
 
 describe('0009 loose motion', () => {
   it.each([{ x: 6, y: -80, z: 8 }, { x: 30, y: 100, z: 40 }, { x: 0, y: -60, z: 0 }])('K9-6: drops at the hit center with reversed capped horizontal speed (%j)', velocity => {
-    const initial = incoming('p1', velocity); initial.rally = { speed: 0.4, power: 0.8 };
+    const initial = incoming('a', velocity); initial.rally = { speed: 0.4, power: 0.8 };
     const result = run(initial, initial.now + 1);
     const ball = ballOf(result.state), speed = Math.hypot(velocity.x, velocity.z);
     expect(ball.position).toEqual({ x: 0, y: c.defenseHeight, z: 8 });
@@ -71,8 +72,8 @@ describe('0009 loose motion', () => {
     expect(ballOf(update(initial).state).velocity).toEqual({ x: 0, y: 0, z: 0 });
   });
 
-  for (const side of ['p1', 'p2'] as const) it.each(['outer', 'center', 'corner', 'inward'] as const)(`K9-8: ${side} reflects only outward components at %s and preserves clock`, boundary => {
-    const sign = side === 'p1' ? 1 : -1;
+  for (const side of ['a', 'b'] as const) it.each(['outer', 'center', 'corner', 'inward'] as const)(`K9-8: ${side} reflects only outward components at %s and preserves clock`, boundary => {
+    const sign = side === 'a' ? 1 : -1;
     const position = { x: boundary === 'corner' || boundary === 'inward' ? c.ballHalfWidth : 0,
       y: 4, z: sign * (boundary === 'center' ? R : c.ballHalfDepth) };
     const velocity = { x: boundary === 'inward' ? -3 : boundary === 'corner' ? 3 : 0, y: 0,
@@ -86,9 +87,9 @@ describe('0009 loose motion', () => {
     expect(result.events).toEqual([]);
   });
 
-  it.each(['p1', 'p2'] as const)('K9-8: clamps a white-line-exterior hit into %s without switching sides', side => {
-    const initial = incoming(side); const sign = side === 'p1' ? 1 : -1;
-    initial.players.find(p => p.id === side)!.position = { x: c.playerHalfWidth, y: 0, z: sign * c.playerMaxDepth };
+  it.each(['a', 'b'] as const)('K9-8: clamps a white-line-exterior hit into %s without switching sides', side => {
+    const initial = incoming(side); const sign = side === 'a' ? 1 : -1;
+    initial.players.find(p => p.side === side)!.position = { x: c.playerHalfWidth, y: 0, z: sign * c.playerMaxDepth };
     if (initial.ball.mode !== 'flight') throw Error('flight');
     initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { x: c.playerHalfWidth, y: 1.2, z: sign * c.playerMaxDepth };
     const ball = ballOf(run(initial, initial.now + 1).state);
@@ -96,7 +97,7 @@ describe('0009 loose motion', () => {
   });
 
   it.each(['floor', 'x', 'z'] as const)('K9-9: loses attack at the analytic %s time and reflects only the contacted component', boundary => {
-    const initial = incoming('p1', { x: 30, y: -60, z: 40 }); initial.players.forEach(p => { p.position.x = -8; });
+    const initial = incoming('a', { x: 30, y: -60, z: 40 }); initial.players.forEach(p => { p.position.x = -8; });
     if (initial.ball.mode !== 'flight') throw Error('flight');
     const velocity = boundary === 'floor' ? { x: 6, y: -60, z: 8 } : boundary === 'x' ? { x: 60, y: 20, z: 0 } : { x: 0, y: 20, z: 60 };
     const offset = 0.25, dt = (500 - offset) / S;
@@ -113,7 +114,7 @@ describe('0009 loose motion', () => {
   });
 
   it('K9-9: zero vertical attack loss rolls without an artificial upward kick', () => {
-    const initial = incoming('p1', { x: 10, y: 0, z: 0 });
+    const initial = incoming('a', { x: 10, y: 0, z: 0 });
     if (initial.ball.mode !== 'flight') throw Error('flight');
     initial.ball.position.y = R; initial.ball.origin.y = R; initial.ball.segmentOrigin.y = R;
     initial.players.forEach(p => { p.position.x = -8; });
@@ -146,7 +147,7 @@ describe('0009 recovery and event ordering', () => {
   it.each(['ko', 'hitstun', 'enemy', 'no-danger'] as const)('K9-10: rejects %s pickup', reason => {
     const initial = moving({ x: 0, y: R, z: R }, { x: 0, y: 0, z: 0 });
     initial.players[0].position = { x: 0, y: 0, z: c.playerMinDepth };
-    if (reason === 'ko') { initial.players[0].hp = 0; initial.players[1].side = 'p1'; }
+    if (reason === 'ko') initial.players[0].hp = 0;
     if (reason === 'hitstun') initial.players[0].action = { kind: 'hitstun', startedAt: 0, moveEndsAt: 12 * F, endsAt: 24 * F, velocity: { x: 0, z: 0 } };
     if (reason === 'enemy') { initial.players[0].position.x = -8; initial.players[1].position = { x: 0, y: 0, z: -c.playerMinDepth }; }
     if (reason === 'no-danger') { initial.danger = null; ballOf(initial).startsAt = S; }
@@ -155,10 +156,15 @@ describe('0009 recovery and event ordering', () => {
 
   it.each([false, true])('K9-10: chooses nearest then fixed player ID regardless of array order (tie=%s)', tie => {
     const initial = moving({ x: 0, y: R, z: 4 }, { x: 0, y: 0, z: 0 });
+    initial.players = createInitialState({ participants: [
+      { id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } },
+      { id: 'p2', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } },
+      { id: 'p3', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } },
+    ], firstBall: 'a' }).players;
     initial.players[0].position = { x: 1, y: 0, z: 4 };
-    initial.players[1].side = 'p1'; initial.players[1].position = { x: tie ? -1 : 0.5, y: 0, z: 4 };
+    initial.players[1].position = { x: tie ? -1 : 0.5, y: 0, z: 4 };
     initial.players.reverse();
-    // 同陣2人の回収候補を、勝敗確定前の未処理境界で比較する。
+    // 有効な両陣ロスターで同陣2人の回収候補を比較する。
     initial.now = F;
     expect(update(initial).events.filter(e => e.kind === 'pickup')).toEqual([{ kind: 'pickup', at: F, player: tie ? 'p1' : 'p2' }]);
   });
@@ -173,7 +179,7 @@ describe('0009 recovery and event ordering', () => {
 
   it('K9-10: supply is recovered on the first boundary after clock start, including the same boundary', () => {
     for (const delay of [F, F + 123]) {
-      const initial = createInitialState('p1', { ...c, ballStartDelay: delay });
+      const initial = createInitialState({ participants: duelParticipants, firstBall: 'a' }, { ...c, ballStartDelay: delay });
       const result = run(initial, 2 * F + 1);
       expect(result.events.find(e => e.kind === 'pickup')).toEqual({ kind: 'pickup', at: delay === F ? F : 2 * F, player: 'p1' });
     }
@@ -203,37 +209,37 @@ describe('0009 recovery and event ordering', () => {
   it.each(['floor', 'pickup', 'summon', 'hit'] as const)('K9-12: explosion wins same-time %s and damages only loose z side', kind => {
     let initial = moving({ x: 0, y: kind === 'floor' ? R + 0.001 : R, z: -4 }, { x: 0, y: kind === 'floor' ? -2 : 0, z: 0 });
     initial.players[1].position = { x: 0, y: 0, z: -4 };
-    if (kind === 'hit') initial = incoming('p2', { x: 0, y: 0, z: -36.4 }, F);
-    initial.danger = { side: 'p1', expiresAt: F };
+    if (kind === 'hit') initial = incoming('b', { x: 0, y: 0, z: -36.4 }, F);
+    initial.danger = { side: 'a', expiresAt: F };
     const result = run(initial, F + 1, kind === 'summon' ? [press('summon', F, 'p2')] : []);
-    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'p2' }]);
+    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'b' }]);
     expect(result.state.players.map(p => p.hp)).toEqual([100, 70]); expect(result.state.ball.mode).toBe('absent');
   });
 
   it.each(['hit', 'loss', 'expiry'] as const)('K9-12: same-time center crossing and %s uses crossing order', kind => {
-    const initial = incoming('p2', { x: 0, y: 0, z: -10 }, F);
+    const initial = incoming('b', { x: 0, y: 0, z: -10 }, F);
     initial.players[1].position.z = -c.playerMinDepth;
     if (initial.ball.mode !== 'flight') throw Error('flight');
-    initial.ball.side = 'p1'; initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { x: 0, y: kind === 'loss' ? R : 1.2, z: 0 };
+    initial.ball.side = 'a'; initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { x: 0, y: kind === 'loss' ? R : 1.2, z: 0 };
     if (kind === 'loss') initial.players[1].position.x = -8;
-    initial.danger = { side: 'p1', expiresAt: kind === 'expiry' ? F : S };
+    initial.danger = { side: 'a', expiresAt: kind === 'expiry' ? F : S };
     const result = run(initial, F + 1);
     if (kind === 'expiry') {
-      expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'p1' }]);
+      expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'a' }]);
       expect(result.state.ball.mode).toBe('absent');
     } else {
-      expect(result.events[0]).toEqual({ kind: 'crossing', at: F, side: 'p2' });
+      expect(result.events[0]).toEqual({ kind: 'crossing', at: F, side: 'b' });
       expect(ballOf(result.state).position.z).toBe(-R);
-      expect(result.state.danger).toEqual({ side: 'p2', expiresAt: F + c.dangerDuration });
+      expect(result.state.danger).toEqual({ side: 'b', expiresAt: F + c.dangerDuration });
     }
   });
 
   it('K9-12: contact before center crossing leaves loose in the old court and does not reset danger', () => {
-    const initial = incoming('p2', { x: 0, y: 0, z: -10 });
+    const initial = incoming('b', { x: 0, y: 0, z: -10 });
     initial.players[1].position.z = -c.playerMinDepth;
     if (initial.ball.mode !== 'flight') throw Error('flight');
-    initial.ball.side = 'p1'; initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { x: 0, y: 1.2, z: 0.1 };
-    initial.danger = { side: 'p1', expiresAt: S };
+    initial.ball.side = 'a'; initial.ball.position = initial.ball.origin = initial.ball.segmentOrigin = { x: 0, y: 1.2, z: 0.1 };
+    initial.danger = { side: 'a', expiresAt: S };
     const result = run(initial, initial.now + 1);
     expect(ballOf(result.state).position.z).toBe(R); expect(result.state.danger).toEqual(initial.danger);
     expect(result.events.some(e => e.kind === 'crossing')).toBe(false);

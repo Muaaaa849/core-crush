@@ -1,3 +1,4 @@
+import { duelParticipants } from '../fixtures';
 // フリ（R06、0007 S5-9〜S5-13）：開始時だけ消費、8Fで保持に戻る、解除条件、本投げは押下から8F。
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as c } from '../../src/sim/config';
@@ -6,7 +7,7 @@ import type { Command, SimEvent, SimState } from '../../src/sim/types';
 const F = c.frame;
 const command = (kind: 'feint' | 'primary' | 'secondary' | 'step' | 'summon', at = 0, seq = 0): Command => ({ kind, at, seq, player: 'p1' });
 function held() {
-  const state = createInitialState('p1'); state.danger = { side: 'p1', expiresAt: c.dangerDuration };
+  const state = createInitialState({ participants: duelParticipants, firstBall: 'a' }); state.danger = { side: 'a', expiresAt: c.dangerDuration };
   state.ball = { mode: 'held', owner: 'p1' }; return state;
 }
 function run(state: SimState, until: number, commands: Command[] = []) {
@@ -96,7 +97,7 @@ describe('S5-12..13 fresh windup and danger clock', () => {
   it('start, cancel and completion never change expiry; explosion still interrupts feint', () => {
     const initial = held(); initial.danger!.expiresAt = F;
     const result = run(initial, F + 1, [command('feint')]);
-    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'p1' }]);
+    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'a' }]);
     expect(result.state.players[0].hp).toBe(initial.players[0].hp - c.explosionDamage);
     expect(result.state.players[0].action).toBeNull();
     const completed = run(held(), c.throwWindup + 1, [command('feint')]);
