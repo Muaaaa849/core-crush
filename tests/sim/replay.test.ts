@@ -92,7 +92,7 @@ describe('T10-12 team replay', () => {
           commands.push({ kind: 'keys', player: p.id, at, seq: tick * 4 + 1, forward: Math.floor(random() * 3) - 1, right: Math.floor(random() * 3) - 1 });
         }
         if (random() < 0.05) commands.push({ kind: 'yaw', player: p.id, at, seq: tick * 4 + 2, yaw: (p.side === 'a' ? 0 : Math.PI) + random() - 0.5 });
-        const kinds = ['primary', 'secondary', 'step', 'summon', 'feint'] as const;
+        const kinds = ['primary', 'secondary', 'step', 'summon', 'feint', 'cycle-target'] as const;
         if (random() < 0.1) commands.push({ kind: kinds[Math.floor(random() * kinds.length)], player: p.id, at, seq: tick * 4 + 3 });
       }
       log.push(commands);

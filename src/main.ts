@@ -13,6 +13,7 @@ import { HitStop } from './game/hitstop';
 import { Hud, REMATCH_SECONDS } from './game/hud';
 import { localMatch } from './game/match';
 import { SimRunner } from './game/runner';
+import { TargetView } from './game/targetview';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
 import { createInitialState } from './sim/sim';
@@ -90,6 +91,7 @@ const modeSelector = document.querySelector<HTMLFieldSetElement>('#match-mode')!
 let rematchAt: number | null = null; // 試合終了後、表示時刻でこの時刻に再戦（0008）
 const controls = new Controls(renderer.domElement, runner, 'p1');
 const hud = new Hud(document.querySelector<HTMLElement>('#hud')!, config, 'p1');
+const targets = new TargetView(scene);
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
 const hitStop = new HitStop();
@@ -207,6 +209,7 @@ function step(dt: number): void {
   placeBall(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
   hud.update(runner.state, events, now);
+  targets.update(state, 'p1', id => playerPosition(id, new THREE.Vector3()));
   stageMixer.update(dt);
   const viewing = cameraPlayerFor(runner.state, 'p1');
   const body = playerPosition(viewing, new THREE.Vector3());

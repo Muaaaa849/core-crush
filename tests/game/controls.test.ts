@@ -6,6 +6,17 @@ import { createInitialState } from '../../src/sim/sim';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('local spectator controls', () => {
+  it('T10-13: one Q press sends one cycle-target command and key repeat sends none', () => {
+    const canvas = {} as HTMLCanvasElement;
+    const listeners = new Map<string, (e: Record<string, unknown>) => void>();
+    vi.stubGlobal('document', { pointerLockElement: canvas, addEventListener: (type: string, listener: (e: Record<string, unknown>) => void) => listeners.set(type, listener) });
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const runner = new SimRunner(createInitialState(localMatch('2v2', 'a')));
+    new Controls(canvas, runner, 'p1');
+    listeners.get('keydown')!({ code: 'KeyQ', repeat: false });
+    listeners.get('keydown')!({ code: 'KeyQ', repeat: true });
+    expect(runner.pending.filter(c => c.kind === 'cycle-target')).toHaveLength(1);
+  });
   it('T10-11: KO sends no camera or action input to a teammate and revival synchronizes yaw and held keys', () => {
     const canvas = {} as HTMLCanvasElement;
     const listeners = new Map<string, (e: Record<string, unknown>) => void>();

@@ -21,7 +21,7 @@ export function incoming(side: Side = 'a', velocity: Vec3 = { x: 0, y: 0, z: 36.
   const player = state.players.find(p => p.side === side)!;
   const position = { ...player.position, y: c.defenseHeight };
   state.ball = { mode: 'flight', position: { ...position }, origin: { ...position }, segmentOrigin: { ...position },
-    releasedAt: now, segmentAt: now, velocity: { ...velocity }, side,
+    releasedAt: now - 1, segmentAt: now, velocity: { ...velocity }, side,
     attack: { target: player.id, shot: 'straight', damage: c.hitDamage, speed: Math.hypot(velocity.x, velocity.y, velocity.z),
       homing: false, pure: true, launchDistance: 16, throwerSide: side === 'a' ? 'b' : 'a', guidanceIndex: 1 } };
   return state;

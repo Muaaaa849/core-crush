@@ -10,7 +10,7 @@ describe('M8-7 long random matches', () => {
     let state = createInitialState(localMatch(mode, 'a'));
     let seq = 0, completed = 0, resets = 0;
     const stagnant = state.players.map(() => 0);
-    const actions = ['primary', 'secondary', 'step', 'summon', 'feint'] as const;
+    const actions = ['primary', 'secondary', 'step', 'summon', 'feint', 'cycle-target'] as const;
     const ticks = 4 * (c.roundDuration + c.roundResultDuration + c.ballStartDelay) / c.tick;
     for (let tick = 0; tick < ticks && state.match.phase !== 'over'; tick++) {
       const commands: Command[] = [];

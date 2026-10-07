@@ -78,12 +78,12 @@ function stationaryPathLength(origin: Vec3, feet: Vec3, shot: Shot, side: Side, 
   }
 }
 
-export function launchBall(player: PlayerState, receiver: PlayerState, at: number, elapsedSeconds: number, aim: boolean, config: SimConfig,
+export function launchBall(player: PlayerState, receiver: PlayerState | null, at: number, elapsedSeconds: number, config: SimConfig,
   origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }): Flight {
-  const shot = aim ? 'straight' : selectShot(player);
+  const shot = receiver ? selectShot(player) : 'straight';
   const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config, rally.speed);
   let speed = Math.max(config.minimumBallSpeed, raw);
-  if (!aim) {
+  if (receiver) {
     // 丸めが速度へ与える微小な差も、同じ誘導で再評価する。
     for (let i = 0; i < 3; i++) {
       const path = stationaryPathLength(origin, receiver.position, shot, player.side, speed, config);
@@ -93,10 +93,10 @@ export function launchBall(player: PlayerState, receiver: PlayerState, at: numbe
   const ball: Flight = { mode: 'flight', position: { ...origin }, origin, releasedAt: at, side: player.side,
     segmentOrigin: { ...origin }, segmentAt: at,
     velocity: { x: -Math.sin(player.yaw) * speed, y: 0, z: -Math.cos(player.yaw) * speed },
-    attack: { target: receiver.id, shot, damage: launchDamage(elapsedSeconds, config, rally.power), speed,
-      homing: !aim, pure: false, launchDistance: Math.hypot(receiver.position.x - origin.x,
-        receiver.position.y + config.defenseHeight - origin.y, receiver.position.z - origin.z), throwerSide: player.side, guidanceIndex: 1 } };
-  if (!aim) updateGuidance(ball, receiver, at, config);
+    attack: { target: receiver?.id ?? null, shot, damage: launchDamage(elapsedSeconds, config, rally.power), speed,
+      homing: receiver !== null, pure: false, launchDistance: receiver ? Math.hypot(receiver.position.x - origin.x,
+        receiver.position.y + config.defenseHeight - origin.y, receiver.position.z - origin.z) : 0, throwerSide: player.side, guidanceIndex: 1 } };
+  if (receiver) updateGuidance(ball, receiver, at, config);
   return ball;
 }
 

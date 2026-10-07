@@ -1,7 +1,7 @@
 import { defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
-import { initialTarget } from './target';
+import { cycleTarget, initialTarget, inThrowArc } from './target';
 import type { Command, DefenseGrade, MatchOptions, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
 
 /** 参加構成は試合中固定。IDと陣を分け、同じ入力から同じ配置・HPを作る（0010）。 */
@@ -118,15 +118,43 @@ function pickupPlayer(state: SimState, config: SimConfig): PlayerState | null {
   return result;
 }
 
-function hitAt(state: SimState, config: SimConfig): number {
-  if (state.ball.mode !== 'flight' || !state.ball.attack) return Infinity;
+type Contact = { at: number; player: PlayerState; defense: boolean };
+
+/** 受付区間との最初の交差を探す。非対象の無効な重なりは事象にしない（0010）。 */
+function contacts(state: SimState, config: SimConfig): Contact[] {
   const ball = state.ball;
-  const receiver = state.players.find(p => p.id === ball.attack!.target);
-  if (!receiver || receiver.hp <= 0) return Infinity;
-  const v = movementVelocity(receiver, state, config);
-  const seconds = sweptCapsuleContact(state.ball.position, state.ball.velocity, receiver.position, { ...v, y: 0 },
-    config.ballDiameter / 2 + config.capsuleRadius, config.capsuleBottom, config.capsuleTop);
-  return Math.ceil(state.now + seconds * config.timeUnitsPerSecond);
+  if (ball.mode !== 'flight' || !ball.attack) return [];
+  const result: Contact[] = [];
+  for (const player of state.players) {
+    if (player.hp <= 0 || player.side === ball.attack.throwerSide) continue;
+    const v = movementVelocity(player, state, config);
+    const contactAt = (from: number) => {
+      const seconds = (from - state.now) / config.timeUnitsPerSecond;
+      const origin = { x: ball.position.x + ball.velocity.x * seconds, y: ball.position.y + ball.velocity.y * seconds,
+        z: ball.position.z + ball.velocity.z * seconds };
+      const feet = { ...player.position, x: player.position.x + v.x * seconds, z: player.position.z + v.z * seconds };
+      const contact = sweptCapsuleContact(origin, ball.velocity, feet, { ...v, y: 0 },
+        config.ballDiameter / 2 + config.capsuleRadius, config.capsuleBottom, config.capsuleTop);
+      return Math.ceil(from + contact * config.timeUnitsPerSecond);
+    };
+    // 新しい返球の発射位置が重なっていても同時刻に往復させない。
+    const from = Math.max(state.now, ball.releasedAt + 1);
+    if (ball.attack.target === null || ball.attack.target === player.id) {
+      result.push({ at: contactAt(from), player, defense: false });
+    }
+    const action = player.action;
+    if (action && (action.kind === 'catch' || action.kind === 'parry')) {
+      const at = contactAt(Math.max(from, action.startsAt));
+      if (at < action.endsAt) result.push({ at, player, defense: true });
+    }
+  }
+  return result;
+}
+
+function validDefense(player: PlayerState, at: number, velocity: Vec3, config: SimConfig): boolean {
+  const action = player.action;
+  return !!action && (action.kind === 'catch' || action.kind === 'parry')
+    && at >= action.startsAt && at < action.endsAt && inDefenseArc(velocity, player.yaw, config);
 }
 
 function advancePositions(state: SimState, at: number, config: SimConfig) {
@@ -164,6 +192,10 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
   // 入力状態は開始待機・結果表示・KO中も記録し、次ラウンドまで保持する。
   const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys';
   if (!stateInput && (player.hp <= 0 || state.match.phase !== 'play')) return false;
+  if (command.kind === 'cycle-target') {
+    if (canMove(state)) player.lockTarget = cycleTarget(player, state.players);
+    return false;
+  }
   if (!stateInput && (command.kind === 'step' ? !canMove(state) : !state.danger)) return false;
   if (player.action?.kind === 'feint' && state.now > player.action.startedAt && !stateInput) player.action = null;
   switch (command.kind) {
@@ -267,14 +299,14 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
     player.action = { kind: 'catch-recovery', endsAt: action.pressedAt + config.catchDuration };
   } else {
     const receiver = lockReceiver(player, state);
-    if (!receiver) return false;
+    const targeted = receiver && inThrowArc(player, receiver, config);
     const gain = config.rallyGain[grade];
     state.rally.speed = Math.min(config.rallySpeedCap, state.rally.speed + gain.speed);
     state.rally.power = Math.min(config.rallyPowerCap, state.rally.power + gain.power);
     const elapsed = state.danger?.side === player.side
       ? (config.dangerDuration - (state.danger.expiresAt - state.now)) / config.timeUnitsPerSecond : 0;
     const origin = ballContactPoint(ball.position, player.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop);
-    state.ball = launchBall(player, receiver, state.now, elapsed, false, config, origin, state.rally);
+    state.ball = launchBall(player, targeted ? receiver : null, state.now, elapsed, config, origin, state.rally);
     player.cost = Math.min(config.maxCost, player.cost + config.parryReward);
     player.action = { kind: 'recovery', endsAt: state.now + config.parryRecovery };
   }
@@ -339,10 +371,15 @@ function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]):
 
 export function step(input: SimState, commands: readonly Command[], config: SimConfig = defaultConfig): { state: SimState; events: SimEvent[] } {
   const state = structuredClone(input);
+  state.players.sort((a, b) => a.id.localeCompare(b.id));
   const events: SimEvent[] = [];
   if (state.match.phase === 'over') return { state, events };
-  refreshTargets(state);
+  // 保存状態にある失効対象も、Qより前に別の飛行対象へ差し替えない。
+  const initialBall = state.ball;
+  if (initialBall.mode === 'flight' && initialBall.attack?.homing
+    && !state.players.some(p => p.id === initialBall.attack!.target && p.hp > 0)) initialBall.attack.homing = false;
   const end = input.now + config.tick;
+  let cleanupAt = state.now;
   // 入力受付は[開始, 終了)。境界上の入力は次のtickへ渡す。
   const ordered = commands.filter(c => c.at >= input.now && c.at < end).sort((a, b) => a.at - b.at || a.player.localeCompare(b.player) || a.seq - b.seq);
   let index = 0;
@@ -357,17 +394,32 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     }
     const crossing = centerCrossingAt(state.ball, config);
     const guidance = guidanceAt(state.ball, config);
-    const hit = hitAt(state, config);
+    const incomingBall = state.ball;
+    const candidates = contacts(state, config);
+    if (incomingBall.mode === 'flight' && incomingBall.pendingContacts) {
+      const pending = incomingBall.pendingContacts;
+      delete incomingBall.pendingContacts;
+      if (pending.at === state.now) {
+        for (const c of pending.candidates) candidates.push({ at: pending.at,
+          player: state.players.find(p => p.id === c.player)!, defense: c.defense });
+      }
+    }
+    // 正面外の防御は次事象にしない。幾何候補は同時刻のyaw入力後にも使う。
+    const hit = Math.min(...candidates.filter(c => !c.defense || (state.ball.mode === 'flight'
+      && inDefenseArc(state.ball.velocity, c.player.yaw, config))).map(c => c.at));
     const loss = attackLossAt(state.ball, state.now, config);
     const physicsAt = state.ball.mode === 'loose' ? state.ball.nextPhysicsAt : Infinity;
     const appearsAt = state.ball.mode === 'absent' ? state.ball.appearsAt : Infinity;
     const startsAt = state.ball.mode === 'loose' && !state.danger ? state.ball.startsAt : Infinity;
+    const defenseStartAt = Math.min(...state.players.map(p => p.action && (p.action.kind === 'catch' || p.action.kind === 'parry')
+      && p.action.startsAt > state.now ? p.action.startsAt : Infinity));
     const actionAt = Math.min(...state.players.map(p => (p.action?.kind === 'step' || p.action?.kind === 'hitstun') && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
-    const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
+    const at = Math.min(end, cleanupAt, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
       !state.players.some(p => p.side === 'a' && p.hp > 0) || !state.players.some(p => p.side === 'b' && p.hp > 0) ? state.now : state.match.roundEndsAt,
-      appearsAt, startsAt, actionAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
+      appearsAt, startsAt, actionAt, defenseStartAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
+    cleanupAt = Infinity;
 
     // 同時刻の中央通過より爆発を先に確定する。
     if (state.danger && state.danger.expiresAt === at) {
@@ -414,6 +466,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const simultaneous: Command[] = [];
     while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
     for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
+    for (const command of simultaneous.filter(c => c.kind === 'cycle-target')) applyCommand(state, command, config, events);
     // 行動の優先順位は入力のseqに依存させない。
     for (const player of state.players) {
       let succeeded = false;
@@ -428,26 +481,38 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       if (at === end || player.action?.endsAt !== at) continue;
       if (player.action.kind === 'windup' && state.ball.mode === 'held' && state.ball.owner === player.id) {
         const receiver = lockReceiver(player, state);
-        if (!receiver) { player.action = null; continue; }
+        const aim = player.action.aim === true;
+        if (!aim && (!receiver || !inThrowArc(player, receiver, config))) { player.action = null; continue; }
         const elapsed = state.danger?.side === player.side
           ? (config.dangerDuration - (state.danger.expiresAt - at)) / config.timeUnitsPerSecond : 0;
-        state.ball = launchBall(player, receiver, at, elapsed, player.action.aim === true, config);
+        state.ball = launchBall(player, aim ? null : receiver!, at, elapsed, config);
         player.action = { kind: 'recovery', endsAt: at + config.throwRecovery };
         events.push({ kind: 'release', at, player: player.id });
       } else player.action = null;
     }
-    if (state.ball.mode === 'flight' && crossing === at) {
+    if (state.ball === incomingBall && state.ball.mode === 'flight' && crossing === at) {
       state.ball.side = opposite(state.ball.side);
       state.danger = { side: state.ball.side, expiresAt: at + config.dangerDuration };
       events.push({ kind: 'crossing', at, side: state.ball.side });
     }
     const contactingBall = state.ball;
+    // 同時刻入力後の受付を再評価する。切り上げ前に成立した接触も同じ整数時刻へ残す。
+    const current = contacts(state, config).filter(c => c.at === at);
+    const due = state.ball === incomingBall ? [...candidates.filter(c => c.at === at), ...current] : current;
+    const pendingContact = due.length > 0;
     // 終了境界の接触は次tickへ渡し、同時刻の向き・移動入力を先に反映する。
-    if (at !== end && state.ball.mode === 'flight' && state.ball.attack && hit === at) {
+    if (at !== end && state.ball.mode === 'flight' && state.ball.attack && pendingContact) {
       const ball = state.ball;
-      const receiver = state.players.find(p => p.id === ball.attack!.target)!;
-      const defense = defend(state, receiver, config, events);
-      if (!defense) {
+      const distance = (p: PlayerState) => (p.position.x - ball.position.x) ** 2
+        + (p.position.y + config.defenseHeight - ball.position.y) ** 2 + (p.position.z - ball.position.z) ** 2;
+      const order = (a: Contact, b: Contact) => distance(a.player) - distance(b.player) || a.player.id.localeCompare(b.player.id);
+      const defenders = due.filter(c => c.defense && c.player.hp > 0 && c.player.side !== ball.attack!.throwerSide
+        && validDefense(c.player, at, ball.velocity, config)).sort(order);
+      const defended = defenders.length > 0 && defend(state, defenders[0].player, config, events);
+      const direct = due.filter(c => !c.defense && c.player.hp > 0 && c.player.side !== ball.attack!.throwerSide
+        && (ball.attack!.target === null || ball.attack!.target === c.player.id)).sort(order);
+      if (!defended && direct.length > 0) {
+        const receiver = direct[0].player;
         const damage = ball.attack!.damage;
         receiver.hp = Math.max(0, receiver.hp - damage);
         const horizontal = Math.hypot(ball.velocity.x, ball.velocity.z);
@@ -463,11 +528,11 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
         state.rally = { speed: 0, power: 0 };
       }
     }
-    if (!(at === end && hit === at) && state.ball === contactingBall && state.ball.mode === 'flight' && loss === at) {
+    if (!(at === end && pendingContact) && state.ball === contactingBall && state.ball.mode === 'flight' && loss === at) {
       state.ball = dropBall(state.ball, at, config, 'loss');
       state.rally = { speed: 0, power: 0 };
     }
-    if (!(at === end && hit === at) && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack?.homing && guidance === at) {
+    if (!(at === end && pendingContact) && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack?.homing && guidance === at) {
       const ball = state.ball;
       ball.attack!.guidanceIndex++;
       updateGuidance(ball, state.players.find(p => p.id === ball.attack!.target)!, at, config);
@@ -482,8 +547,14 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       }
     }
     // tick終了の接触・物理更新は同時刻入力を待つので、勝敗もその後で決める。
-    const pendingBoundary = at === end && ((hit === at && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)
+    const pendingBoundary = at === end && ((pendingContact && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack)
       || (state.ball.mode === 'loose' && state.ball.nextPhysicsAt === at));
+    if (at === end && pendingContact && state.ball === contactingBall && state.ball.mode === 'flight' && state.ball.attack) {
+      // 接線接触は丸め後にカプセルの外へ進むため、再探索で消さず球と一緒に保存する。
+      state.ball.pendingContacts = { at, candidates: due
+        .filter((c, i) => due.findIndex(d => d.player.id === c.player.id && d.defense === c.defense) === i)
+        .map(c => ({ player: c.player.id, defense: c.defense })) };
+    }
     refreshTargets(state);
     if (!pendingBoundary) {
       if (decideRound(state, config, events)) break;

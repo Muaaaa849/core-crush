@@ -189,8 +189,8 @@ describe('slice one team simulation', () => {
   });
   it.each(['angle', 'distance', 'id'] as const)('T10-9: reselection orders candidates by %s', criterion => {
     const state = active(); const self = state.players[0]; self.lockTarget = null; self.position = { x: 0, y: 0, z: 8 }; self.yaw = 0;
-    state.players[2].position = { x: criterion === 'angle' ? 4 : 0, y: 0, z: 4 };
-    state.players[3].position = { x: 0, y: 0, z: criterion === 'distance' ? 6 : criterion === 'id' ? 4 : -8 };
+    state.players[2].position = { x: criterion === 'angle' ? 4 : 0, y: 0, z: -4 };
+    state.players[3].position = { x: 0, y: 0, z: criterion === 'distance' ? -2 : criterion === 'id' ? -4 : -8 };
     expect(step(state, []).state.players[0].lockTarget).toBe(criterion === 'id' ? 'p3' : 'p4');
   });
 });

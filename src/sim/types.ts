@@ -49,7 +49,9 @@ export type BallState =
   | { mode: 'loose'; position: Vec3; startsAt: number; velocity: Vec3; motionAt: number; nextPhysicsAt: number }
   | { mode: 'held'; owner: PlayerId }
   | { mode: 'flight'; position: Vec3; origin: Vec3; releasedAt: number; velocity: Vec3; side: Side;
-      segmentOrigin: Vec3; segmentAt: number; attack: BallAttack | null };
+      segmentOrigin: Vec3; segmentAt: number; attack: BallAttack | null;
+      /** 切り上げ済みの終了境界接触。接線接触も保存復元後の同時刻入力を待つ。 */
+      pendingContacts?: { at: number; candidates: { player: PlayerId; defense: boolean }[] } };
 
 export interface SimState {
   now: number;
@@ -75,7 +77,7 @@ export type Command = InputTime & (
   | { kind: 'yaw'; yaw: number }
   | { kind: 'keys'; forward: number; right: number }
   | { kind: 'primary'; aim?: boolean }
-  | { kind: 'secondary' | 'step' | 'feint' | 'summon' }
+  | { kind: 'secondary' | 'step' | 'feint' | 'summon' | 'cycle-target' }
 );
 
 export type SimEvent =

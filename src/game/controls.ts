@@ -47,6 +47,7 @@ export class Controls {
       if (e.code === 'ShiftLeft') this.send({ kind: 'step' });
       if (e.code === 'KeyC') this.send({ kind: 'summon' });
       if (e.code === 'KeyF') this.send({ kind: 'feint' });
+      if (e.code === 'KeyQ') this.send({ kind: 'cycle-target' });
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());

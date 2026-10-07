@@ -61,8 +61,10 @@ export class Hud {
     const spectating = local.hp <= 0 ? `\nKO：${state.players.some(p => p.side === local.side && p.hp > 0) ? '味方を観戦中' : '結果待ち'}` : '';
     const target = state.players.find(p => p.id === local.lockTarget);
     const lock = `\nロック：${target ? name(target.id) : 'なし'}${target && targetAngle(local, target) > this.config.throwArcDegrees / 2 * Math.PI / 180 + 1e-12 ? '（対象が正面外）' : ''}`;
+    const flightTarget = state.ball.mode === 'flight' ? state.ball.attack?.target : null;
+    const flight = state.ball.mode === 'flight' ? `\n飛行対象：${flightTarget ? name(flightTarget) : 'なし'}` : '';
     const message = now < this.messageUntil ? `\n${this.message}` : '';
-    this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${message}`;
+    this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${flight}${message}`;
   }
 
   private flash(text: string, now: number, durationMs = 1500): void {
