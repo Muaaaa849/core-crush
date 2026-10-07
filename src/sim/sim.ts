@@ -1,14 +1,19 @@
 import { defaultConfig, type SimConfig } from './config';
 import { centerCrossingAt, flightPosition, opposite } from './ball';
-import type { Command, PlayerState, Side, SimEvent, SimState } from './types';
+import type { Command, PlayerState, Side, SimEvent, SimState, Stats } from './types';
 
-export function createInitialState(side: Side, config: SimConfig = defaultConfig): SimState {
+export function createInitialState(side: Side, config: SimConfig = defaultConfig, playerStats: Partial<Record<Side, Stats>> = {}): SimState {
   return {
     now: 0,
-    players: (['p1', 'p2'] as const).map(id => ({
-      id, side: id, hp: config.initialHp, position: { ...config.supply[id] },
-      yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
-    })),
+    players: (['p1', 'p2'] as const).map(id => {
+      const stats = { ...(playerStats[id] ?? { attack: config.defaultStat, defense: config.defaultStat, agility: config.defaultStat }) };
+      const maxHp = config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat);
+      return {
+        id, side: id, hp: maxHp, maxHp, stats, cost: config.initialCost,
+        stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[id] },
+        yaw: id === 'p1' ? 0 : Math.PI, move: { x: 0, z: 0 }, action: null,
+      };
+    }),
     ball: { mode: 'loose', position: { ...config.supply[side] }, startsAt: config.ballStartDelay },
     danger: null,
   };
@@ -16,17 +21,23 @@ export function createInitialState(side: Side, config: SimConfig = defaultConfig
 
 function bounds(player: PlayerState, config: SimConfig) {
   return player.side === 'p1'
-    ? { minZ: Number.EPSILON, maxZ: config.courtSideLength }
-    : { minZ: -config.courtSideLength, maxZ: -Number.EPSILON };
+    ? { minZ: config.playerMinDepth, maxZ: config.playerMaxDepth }
+    : { minZ: -config.playerMaxDepth, maxZ: -config.playerMinDepth };
 }
 
-function walkVelocity(player: PlayerState, state: SimState, config: SimConfig) {
+function movementVelocity(player: PlayerState, state: SimState, config: SimConfig) {
   if (!state.danger || player.hp <= 0) return { x: 0, z: 0 };
-  const scale = config.walkSpeed * (player.action?.kind === 'windup' ? config.windupWalkMultiplier : 1);
+  const scale = config.walkSpeed * (1 + config.agilityWalkCoefficient * (player.stats.agility - config.defaultStat))
+    * (player.action?.kind === 'windup' ? config.windupWalkMultiplier : 1);
   const { minZ, maxZ } = bounds(player, config);
   let x = player.move.x * scale;
   let z = player.move.z * scale;
-  if ((x < 0 && player.position.x <= -config.courtWidth / 2) || (x > 0 && player.position.x >= config.courtWidth / 2)) x = 0;
+  if (player.action?.kind === 'step') {
+    const moving = state.now < player.action.moveEndsAt;
+    x = moving ? player.action.velocity.x : 0;
+    z = moving ? player.action.velocity.z : 0;
+  }
+  if ((x < 0 && player.position.x <= -config.playerHalfWidth) || (x > 0 && player.position.x >= config.playerHalfWidth)) x = 0;
   if ((z < 0 && player.position.z <= minZ) || (z > 0 && player.position.z >= maxZ)) z = 0;
   return { x, z };
 }
@@ -34,13 +45,13 @@ function walkVelocity(player: PlayerState, state: SimState, config: SimConfig) {
 function movementBoundaryAt(state: SimState, config: SimConfig): number {
   let next = Infinity;
   for (const player of state.players) {
-    const v = walkVelocity(player, state, config);
+    const v = movementVelocity(player, state, config);
     const { minZ, maxZ } = bounds(player, config);
     for (const [position, speed, min, max] of [
-      [player.position.x, v.x, -config.courtWidth / 2, config.courtWidth / 2],
+      [player.position.x, v.x, -config.playerHalfWidth, config.playerHalfWidth],
       [player.position.z, v.z, minZ, maxZ],
     ]) {
-      if (speed !== 0) next = Math.min(next, state.now + ((speed > 0 ? max : min) - position) / speed * config.timeUnitsPerSecond);
+      if (speed !== 0) next = Math.min(next, Math.ceil(state.now + ((speed > 0 ? max : min) - position) / speed * config.timeUnitsPerSecond));
     }
   }
   return next;
@@ -54,32 +65,49 @@ function pickupAt(state: SimState, config: SimConfig): { at: number; player: Pla
     const dx = player.position.x - state.ball.position.x;
     const dz = player.position.z - state.ball.position.z;
     const c = dx * dx + dz * dz - config.pickupRadius ** 2;
-    const v = walkVelocity(player, state, config);
+    const v = movementVelocity(player, state, config);
     const a = v.x * v.x + v.z * v.z;
     const b = 2 * (dx * v.x + dz * v.z);
     const discriminant = b * b - 4 * a * c;
     const seconds = c <= 0 ? 0 : a > 0 && b < 0 && discriminant >= 0 ? (-b - Math.sqrt(discriminant)) / (2 * a) : Infinity;
-    const at = state.now + seconds * config.timeUnitsPerSecond;
+    const at = Math.ceil(state.now + seconds * config.timeUnitsPerSecond);
     if (at < result.at) result = { at, player };
   }
   return result;
 }
 
 function advancePositions(state: SimState, at: number, config: SimConfig) {
+  const duration = at - state.now;
   const seconds = (at - state.now) / config.timeUnitsPerSecond;
+  const ball = state.ball;
+  const ballSide = ball.mode === 'absent' ? null : ball.mode === 'held'
+    ? state.players.find(p => p.id === ball.owner)!.side
+    : ball.mode === 'flight' ? ball.side : ball.position.z > 0 ? 'p1' : 'p2';
   for (const player of state.players) {
-    const v = walkVelocity(player, state, config);
+    if (player.stepPoints >= config.maxStepPoints) player.stepRecoveryProgress = 0;
+    else if (state.danger && player.hp > 0 && ballSide !== null) {
+      if (ballSide !== player.side) {
+        const recovery = (config.stepRecoveryBaseSeconds - player.stats.agility) * config.timeUnitsPerSecond;
+        player.stepRecoveryProgress += duration;
+        while (player.stepPoints < config.maxStepPoints && player.stepRecoveryProgress >= recovery) {
+          player.stepRecoveryProgress -= recovery;
+          player.stepPoints++;
+        }
+        if (player.stepPoints === config.maxStepPoints) player.stepRecoveryProgress = 0;
+      }
+    }
+    const v = movementVelocity(player, state, config);
     const { minZ, maxZ } = bounds(player, config);
-    player.position.x = Math.max(-config.courtWidth / 2, Math.min(config.courtWidth / 2, player.position.x + v.x * seconds));
+    player.position.x = Math.max(-config.playerHalfWidth, Math.min(config.playerHalfWidth, player.position.x + v.x * seconds));
     player.position.z = Math.max(minZ, Math.min(maxZ, player.position.z + v.z * seconds));
   }
   if (state.ball.mode === 'flight') state.ball.position = flightPosition(state.ball, at, config);
   state.now = at;
 }
 
-function applyCommand(state: SimState, command: Command, config: SimConfig) {
+function applyCommand(state: SimState, command: Command, config: SimConfig, events: SimEvent[]): boolean {
   const player = state.players.find(p => p.id === command.player);
-  if (!player || player.hp <= 0 || !state.danger) return;
+  if (!player || player.hp <= 0 || !state.danger) return false;
   switch (command.kind) {
     case 'yaw': player.yaw = command.yaw; break;
     case 'move': {
@@ -90,9 +118,39 @@ function applyCommand(state: SimState, command: Command, config: SimConfig) {
     case 'primary':
       if (!player.action && state.ball.mode === 'held' && state.ball.owner === player.id) {
         player.action = { kind: 'windup', endsAt: state.now + config.throwWindup };
+        return true;
+      }
+      break;
+    case 'step': {
+      if (player.action || player.stepPoints < 1 || (player.move.x === 0 && player.move.z === 0)) break;
+      // 前は中央、右はその陣から中央を向いた右方向。
+      const basis = player.side === 'p1' ? 1 : -1;
+      const forward = -basis * player.move.z;
+      const right = basis * player.move.x;
+      const longitudinal = Math.abs(forward) >= Math.abs(right);
+      const direction = longitudinal ? forward > 0 ? 'forward' : 'back' : right > 0 ? 'right' : 'left';
+      const axis = longitudinal ? { x: 0, z: Math.sign(player.move.z) } : { x: Math.sign(player.move.x), z: 0 };
+      const { minZ, maxZ } = bounds(player, config);
+      if ((axis.x < 0 && player.position.x <= -config.playerHalfWidth) || (axis.x > 0 && player.position.x >= config.playerHalfWidth)
+        || (axis.z < 0 && player.position.z <= minZ) || (axis.z > 0 && player.position.z >= maxZ)) break;
+      const speed = config.stepDistance / config.stepMoveDuration * config.timeUnitsPerSecond;
+      player.action = { kind: 'step', endsAt: state.now + config.stepActionDuration, moveEndsAt: state.now + config.stepMoveDuration,
+        velocity: { x: axis.x * speed, z: axis.z * speed } };
+      player.stepPoints--;
+      events.push({ kind: 'step', at: state.now, player: player.id, direction });
+      return true;
+    }
+    case 'summon':
+      if (!player.action && player.cost >= config.summonCost && state.ball.mode === 'loose'
+        && (state.ball.position.z > 0 ? 'p1' : 'p2') === player.side) {
+        player.cost -= config.summonCost;
+        state.ball = { mode: 'held', owner: player.id };
+        events.push({ kind: 'summon', at: state.now, player: player.id });
+        return true;
       }
       break;
   }
+  return false;
 }
 
 export function step(input: SimState, commands: readonly Command[], config: SimConfig = defaultConfig): { state: SimState; events: SimEvent[] } {
@@ -107,7 +165,8 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const pickup = pickupAt(state, config);
     const appearsAt = state.ball.mode === 'absent' ? state.ball.appearsAt : Infinity;
     const startsAt = state.ball.mode === 'loose' && !state.danger ? state.ball.startsAt : Infinity;
-    const actionAt = Math.min(...state.players.map(p => p.action?.endsAt ?? Infinity));
+    const actionAt = Math.min(...state.players.map(p => p.action?.kind === 'step' && p.action.moveEndsAt > state.now
+      ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
     const at = Math.min(end, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
       appearsAt, startsAt, actionAt, crossing, pickup.at, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
@@ -142,7 +201,24 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       events.push({ kind: 'clock-start', at, side });
     }
 
-    while (ordered[index]?.at === at) applyCommand(state, ordered[index++], config);
+    // 硬直の終了時刻から次の行動を受け付ける。投擲発生は同時刻の向き入力を待つ。
+    if (at !== end) {
+      for (const player of state.players) {
+        if (player.action && player.action.kind !== 'windup' && player.action.endsAt === at) player.action = null;
+      }
+    }
+    const simultaneous: Command[] = [];
+    while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
+    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw')) applyCommand(state, command, config, events);
+    // 行動の優先順位は入力のseqに依存させない。
+    for (const player of state.players) {
+      let succeeded = false;
+      for (const kind of ['step', 'primary', 'summon'] as const) {
+        for (const command of simultaneous.filter(c => c.player === player.id && c.kind === kind)) {
+          if (!succeeded) succeeded = applyCommand(state, command, config, events);
+        }
+      }
+    }
     for (const player of state.players) {
       // 行動境界は同時刻の入力が必要なので、終了境界なら次のtickで解決する。
       if (at === end || player.action?.endsAt !== at) continue;

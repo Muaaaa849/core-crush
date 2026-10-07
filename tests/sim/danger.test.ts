@@ -181,10 +181,10 @@ describe('R01/R02 danger clock', () => {
       { kind: 'move', player: 'p1', at: S, seq: 0, x: 1, z: -1 },
       { kind: 'move', player: 'p2', at: S, seq: 1, x: -1, z: 1 },
     ]);
-    expect(result.state.players[0].position.x).toBe(5);
-    expect(result.state.players[0].position.z).toBeGreaterThan(0);
-    expect(result.state.players[1].position.x).toBe(-5);
-    expect(result.state.players[1].position.z).toBeLessThan(0);
+    expect(result.state.players[0].position.x).toBe(config.playerHalfWidth);
+    expect(result.state.players[0].position.z).toBeGreaterThanOrEqual(config.playerMinDepth);
+    expect(result.state.players[1].position.x).toBe(-config.playerHalfWidth);
+    expect(result.state.players[1].position.z).toBeLessThanOrEqual(-config.playerMinDepth);
     expect(result.state.danger).toEqual({ side: 'p1', expiresAt: expiry });
   });
 

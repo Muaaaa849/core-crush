@@ -1,11 +1,13 @@
 // M0の仮プレイヤー：マウス捕捉・WASD移動・TPSカメラ。ルール判定はM1でsimへ分離する。
 import * as THREE from 'three/webgpu';
+import { defaultConfig } from './sim/config';
 
 const WALK_SPEED = 5; // m/s（rules.md 基準歩行速度）
 const MOUSE_RAD_PER_COUNT = THREE.MathUtils.degToRad(0.022 * 2);
 const PITCH_LIMIT = 1.2;
-// P1側の移動範囲（glTFではz>0）。白線ではなくケージの金網の内側まで（rules.md「プレイエリア」）。小物とは衝突しない。
-const COURT = { minX: -7.1, maxX: 7.1, minZ: 0.5, maxZ: 13.1 };
+// P1側の移動範囲（glTFではz>0）。値はsimと共通（rules.md「プレイエリア」）。小物とは衝突しない。
+const { playerHalfWidth, playerMinDepth, playerMaxDepth } = defaultConfig;
+const COURT = { minX: -playerHalfWidth, maxX: playerHalfWidth, minZ: playerMinDepth, maxZ: playerMaxDepth };
 // TPSの肩越し位置（初期案）
 const EYE_HEIGHT = 1.6;
 const CAMERA_BACK = 2.2;

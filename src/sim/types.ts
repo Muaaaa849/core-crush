@@ -1,15 +1,23 @@
 export type Side = 'p1' | 'p2';
 export type PlayerId = Side;
 export interface Vec3 { x: number; y: number; z: number }
+export interface Stats { attack: number; defense: number; agility: number }
+export type StepDirection = 'forward' | 'back' | 'left' | 'right';
 
 export interface PlayerState {
   id: PlayerId;
   side: Side;
   hp: number;
+  maxHp: number;
+  stats: Stats;
+  cost: number;
+  stepPoints: number;
+  stepRecoveryProgress: number;
   position: Vec3;
   yaw: number;
   move: { x: number; z: number };
-  action: { kind: 'windup' | 'recovery'; endsAt: number } | null;
+  action: { kind: 'windup' | 'recovery'; endsAt: number }
+    | { kind: 'step'; endsAt: number; moveEndsAt: number; velocity: { x: number; z: number } } | null;
 }
 
 export type BallState =
@@ -29,9 +37,10 @@ type InputTime = { at: number; seq: number; player: PlayerId };
 export type Command = InputTime & (
   | { kind: 'move'; x: number; z: number }
   | { kind: 'yaw'; yaw: number }
-  | { kind: 'primary' }
+  | { kind: 'primary' | 'step' | 'summon' }
 );
 
 export type SimEvent =
   | { kind: 'explosion' | 'spawn' | 'clock-start' | 'crossing'; at: number; side: Side }
-  | { kind: 'pickup' | 'release'; at: number; player: PlayerId };
+  | { kind: 'pickup' | 'release' | 'summon'; at: number; player: PlayerId }
+  | { kind: 'step'; at: number; player: PlayerId; direction: StepDirection };
