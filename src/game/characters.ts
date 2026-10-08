@@ -1,8 +1,9 @@
 // キャラ定義（0013 M3-2、characters.md「初期ロスター案」）。HPは持たず、能力からsimの式で決める。
 // sim・通信・表示が同じ表を使う。three.js・DOMはimportしない。
 import type { PlayerId, Side, SkillId, Stats } from '../sim/types';
+import { skillKind } from '../sim/skills';
 
-export interface SkillDefinition { name: string; kind: 'active' | 'passive'; status: 'unimplemented'; plan?: string }
+export interface SkillDefinition { name: string; kind: 'active' | 'passive'; status: 'implemented' | 'unimplemented' }
 export interface CharacterDefinition {
   name: string;
   stats: Readonly<Stats>;
@@ -10,16 +11,21 @@ export interface CharacterDefinition {
   colors: { base: string; emissive: string };
 }
 
+function skillDefinition(id: SkillId, name: string): SkillDefinition {
+  return { name, kind: skillKind(id) === 'passive' ? 'passive' : 'active',
+    status: skillKind(id) === 'unimplemented' ? 'unimplemented' : 'implemented' };
+}
+
 export const SKILLS: Record<SkillId, SkillDefinition> = {
-  overcharge: { name: 'オーバーチャージ', kind: 'active', status: 'unimplemented' },
-  blink: { name: 'ブリンク', kind: 'active', status: 'unimplemented' },
-  phantom: { name: 'ファントム・スロー', kind: 'active', status: 'unimplemented' },
-  'boost-ring': { name: 'ブーストリング', kind: 'active', status: 'unimplemented' },
-  chain: { name: 'チェーンハンド', kind: 'active', status: 'unimplemented' },
-  charge: { name: '蓄勢', kind: 'passive', status: 'unimplemented', plan: 'goodキャッチの獲得量増加' },
-  trap: { name: 'スクラップ・トラップ', kind: 'active', status: 'unimplemented' },
-  'energy-bolt': { name: 'エナジーボルト', kind: 'active', status: 'unimplemented' },
-  economy: { name: '省エネ', kind: 'passive', status: 'unimplemented', plan: '召喚コスト減少' },
+  overcharge: skillDefinition('overcharge', 'オーバーチャージ'),
+  blink: skillDefinition('blink', 'ブリンク'),
+  phantom: skillDefinition('phantom', 'ファントム・スロー'),
+  'boost-ring': skillDefinition('boost-ring', 'ブーストリング'),
+  chain: skillDefinition('chain', 'チェーンハンド'),
+  charge: skillDefinition('charge', '蓄勢'),
+  trap: skillDefinition('trap', 'スクラップ・トラップ'),
+  'energy-bolt': skillDefinition('energy-bolt', 'エナジーボルト'),
+  economy: skillDefinition('economy', '省エネ'),
 };
 
 export const CHARACTERS = {
@@ -45,10 +51,13 @@ export function playerLabel(roster: Roster, local: PlayerId, id: PlayerId): stri
   return `${relation} ${id.toUpperCase()} ${CHARACTERS[entry.characterId].name}`;
 }
 
-/** 2枠の表示。アクティブは割当キー（既定E/R）、パッシブは常時。効果はまだないので未実装と明示する。 */
+/** キャラ選択とHUDで共有する枠の説明。使用可否・CTは試合中のstateから加える。 */
+export function skillDescription(id: SkillId, key: string): string {
+  if (id === 'charge') return '常時：蓄勢 good +0.75';
+  if (id === 'economy') return '常時：省エネ 召喚0.75';
+  return `[${key}] ${SKILLS[id].name}${skillKind(id) === 'unimplemented' ? ' — 未実装' : ''}`;
+}
+
 export function skillLines(id: CharacterId, keys: readonly [string, string] = ['E', 'R']): string[] {
-  return CHARACTERS[id].skills.map((skill, slot) => {
-    const s = SKILLS[skill];
-    return s.kind === 'active' ? `[${keys[slot]}] ${s.name} — 未実装` : `常時：${s.name} — 未実装（${s.plan}）`;
-  });
+  return CHARACTERS[id].skills.map((skill, slot) => skillDescription(skill, keys[slot]));
 }

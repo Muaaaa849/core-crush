@@ -146,6 +146,6 @@ describe('S13-15 key labels on the HUD', () => {
     const { skillLines } = await import('../../src/game/characters');
     expect(['KeyE', 'Mouse2', 'ShiftLeft', 'Digit3', 'Space'].map(inputLabel)).toEqual(['E', '右クリック', '左Shift', '3', 'Space']);
     expect(bindingLabel(['KeyE', 'Mouse4'])).toBe('E / マウス5');
-    expect(skillLines('volt', ['G', 'E / マウス5'])).toEqual(['[G] オーバーチャージ — 未実装', '[E / マウス5] ブリンク — 未実装']);
+    expect(skillLines('volt', ['G', 'E / マウス5'])).toEqual(['[G] オーバーチャージ', '[E / マウス5] ブリンク']);
   });
 });

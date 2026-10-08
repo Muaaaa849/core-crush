@@ -49,11 +49,14 @@ export function updatePresentation(previous: PresentationState, input: Presentat
     if (active && (next.seq !== state.consumed + 1 || next.event.at > input.viewSimAt)) break;
     state.pending.shift(); state.consumed = next.seq;
     const e = next.event;
-    const transient = e.kind === 'parry' || e.kind === 'catch' || e.kind === 'hit' || e.kind === 'explosion' || e.kind === 'crossing';
+    const transient = e.kind === 'parry' || e.kind === 'catch' || e.kind === 'hit' || e.kind === 'explosion' || e.kind === 'crossing' || e.kind === 'skill-rejected';
     if (!transient) { events.push(e); continue; }
     state.lastDelayMs = (input.viewSimAt - e.at) * 1000 / input.config.timeUnitsPerSecond;
     if (!active || reset || state.lastDelayMs > 300 || e.at < input.state.match.roundStartsAt) { state.skipped++; continue; }
-    effects.push({ event: e, startedAtMs: input.displayNowMs }); events.push(e);
+    events.push(e);
+    // 不成立は該当HUD枠の短文だけ。SE・VFX・ヒットストップへ渡さない。
+    if (e.kind === 'skill-rejected') continue;
+    effects.push({ event: e, startedAtMs: input.displayNowMs });
     if (audible && next.audible) sounds.push(e);
   }
 

@@ -1,4 +1,4 @@
-// M3-2（0013 C12）：キャラ定義・ローカルのロスター・能力の解決・名前。スキルは未実装表示だけ。
+// M3-2（0013 C12）：キャラ定義・ローカルのロスター・能力の解決・名前。スキル表示は0014 K14へ更新。
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS, SKILLS, playerLabel, skillLines, type CharacterId } from '../../src/game/characters';
 import { localRoster, rosterMatch } from '../../src/game/match';
@@ -69,10 +69,10 @@ describe('C12-2 local roster', () => {
   });
 });
 
-describe('C12-5 skills are shown as unimplemented', () => {
-  it('C12-5a: active slots show their key, passives say always-on, and all are unimplemented', () => {
-    expect(skillLines('volt')).toEqual(['[E] オーバーチャージ — 未実装', '[R] ブリンク — 未実装']);
-    expect(skillLines('anchor')).toEqual(['[E] チェーンハンド — 未実装', '常時：蓄勢 — 未実装（goodキャッチの獲得量増加）']);
+describe('C12-5 / K14-28 skill descriptions', () => {
+  it('K14-28: implemented slots stop claiming unimplemented, while passives have no key', () => {
+    expect(skillLines('volt')).toEqual(['[E] オーバーチャージ', '[R] ブリンク']);
+    expect(skillLines('anchor')).toEqual(['[E] チェーンハンド — 未実装', '常時：蓄勢 good +0.75']);
   });
 
   it('C12-5b: an extra definition with other stats works through the same conversion without sim changes', () => {

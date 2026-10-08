@@ -23,6 +23,8 @@ import { describeSound, warningSound } from './game/sound';
 import { addEffects, effectsFor, judgement, liveEffects, type Effect } from './game/vfx';
 import { VfxView } from './game/vfxview';
 import { TargetView } from './game/targetview';
+import { SkillMarkers } from './game/skillmarkers';
+import { overchargeVisible, playerDisplayPosition } from './game/skillview';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
 import { createInitialState } from './sim/sim';
@@ -169,14 +171,16 @@ const game = {
   input(input: Input) { if (onlineMatch) onlineMatch.input(input); else runner.input(input); },
 };
 const avatars = new Map<PlayerId, Avatar>();
+const avatarMarkers = new Map<PlayerId, ReturnType<typeof addMarkers>>();
 function createAvatars(): void {
   for (const avatar of avatars.values()) scene.remove(avatar.root);
   avatars.clear();
+  avatarMarkers.clear();
   const roster = currentRoster();
   for (const player of game.state.players) {
     const model = cloneSkinned(character.scene);
     const entry = roster.find(e => e.id === player.id)!;
-    addMarkers(model, playerLabel(roster, localPlayer, player.id), TEAM_COLORS[entry.side], CHARACTERS[entry.characterId].colors, player.id !== localPlayer);
+    avatarMarkers.set(player.id, addMarkers(model, playerLabel(roster, localPlayer, player.id), TEAM_COLORS[entry.side], CHARACTERS[entry.characterId].colors, player.id !== localPlayer));
     scene.add(model); avatars.set(player.id, new Avatar(model, character.animations));
   }
 }
@@ -190,6 +194,7 @@ const controls = new Controls(renderer.domElement, game, localPlayer);
 const hudElement = document.querySelector<HTMLElement>('#hud')!;
 let hud = new Hud(hudElement, config, localPlayer, currentRoster());
 const targets = new TargetView(scene);
+const skillMarkers = new SkillMarkers(scene, config);
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
 const hitStop = new HitStop();
@@ -223,10 +228,8 @@ const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの�
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
 function playerPosition(id: PlayerId, out: THREE.Vector3): THREE.Vector3 {
-  const a = game.previous.players.find(p => p.id === id)!.position;
-  const b = game.state.players.find(p => p.id === id)!.position;
-  if (game.previous.match.roundStartsAt !== game.state.match.roundStartsAt) return out.set(b.x, 0, b.z);
-  return out.set(a.x, 0, a.z).lerp(new THREE.Vector3(b.x, 0, b.z), game.alpha);
+  const position = playerDisplayPosition(game.previous, game.state, id, game.alpha);
+  return out.set(position.x, 0, position.z);
 }
 
 // 保持中の球の表示位置（キャラの向き基準）。FPSでは画面右下へ寄せ、正面の視界を空ける（feel.md）。
@@ -415,6 +418,7 @@ function step(dt: number): void {
   let historyThrough: number | undefined;
   if (onlineMatch && onlineMatch.presentationRevision !== presentedRevision) {
     presentedRevision = onlineMatch.presentationRevision; historyThrough = onlineMatch.presentationHistoryThrough;
+    hud.clearSkillNotices();
   }
   // 確定した結果だけを、表示中の時刻に達した最初の描画で一度だけ提示する（0012）。
   const shownResults = updatePresentation(presentation, {
@@ -470,12 +474,14 @@ function step(dt: number): void {
     const yaw = player.id === localPlayer && player.hp > 0 ? controls.yaw : player.yaw;
     const avatar = avatars.get(player.id)!;
     avatar.update(playerPosition(player.id, tmp), yaw, dt, shown, hitstun(state, player.id));
+    avatarMarkers.get(player.id)!.update(overchargeVisible(player, state.now), settings.effects.flash);
     avatar.root.visible = player.hp > 0 && (player.id !== localPlayer || cameraBlend.fps < 0.5);
   }
   placeBall(state);
   updateCoreFace(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
   hud.skillKeys = [bindingLabel(settings.bindings.skill1), bindingLabel(settings.bindings.skill2)];
+  hud.skillYaw = controls.yaw;
   hud.update(onlineMatch?.finished ? onlineMatch.confirmed : state, events, now);
   targets.update(state, localPlayer, id => playerPosition(id, new THREE.Vector3()));
   stageMixer.update(dt);
@@ -483,6 +489,9 @@ function step(dt: number): void {
   const body = playerPosition(viewing, new THREE.Vector3());
   if (viewing === localPlayer) controls.placeCamera(camera, body, cameraBlend.fps);
   else controls.placeCamera(camera, body, 0, state.players.find(p => p.id === viewing)!.yaw, 0);
+  skillMarkers.update(state, localPlayer, controls.yaw,
+    started && overlay.hidden && controls.enabled && !document.hidden && (!onlineMatch || onlineMatch.status === 'running'),
+    ball.scene.visible, ball.scene.position, camera);
   // 音の定位は揺れを混ぜない論理カメラから求める。
   const listener = { player: localPlayer, players: state.players, position: camera.position.clone(),
     right: new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), rallySpeedCap: config.rallySpeedCap };

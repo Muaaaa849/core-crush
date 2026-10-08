@@ -2,7 +2,8 @@
 import type { SimConfig } from '../sim/config';
 import { targetAngle } from '../sim/target';
 import type { PlayerId, Side, SimEvent, SimState } from '../sim/types';
-import { playerLabel, skillLines, type Roster } from './characters';
+import { playerLabel, type Roster } from './characters';
+import { skillHudLines, updateSkillNotices, type SkillNotices } from './skillview';
 
 const FACE = [
   { until: 3, label: 'スマイル' },
@@ -15,6 +16,9 @@ export const REMATCH_SECONDS = 5;
 export class Hud {
   /** 固有枠の割当キーの表示名（設定から）。 */
   skillKeys: readonly [string, string] = ['E', 'R'];
+  /** 表示フレームの最新論理yaw。不可理由も次の押下と同じ向きで検査する。 */
+  skillYaw: number | undefined;
+  private skillNotices: SkillNotices = [null, null];
   private message = '';
   private messageUntil = 0;
 
@@ -22,6 +26,7 @@ export class Hud {
     private readonly roster: Roster, private readonly online = false) {}
 
   update(state: SimState, events: readonly SimEvent[], now: number): void {
+    this.skillNotices = updateSkillNotices(this.skillNotices, events, this.local, now);
     const local = state.players.find(p => p.id === this.local)!;
     const sideName = (side: Side) => side === local.side ? '味方陣' : '敵陣';
     const name = (id: PlayerId) => playerLabel(this.roster, this.local, id);
@@ -62,7 +67,7 @@ export class Hud {
     const lock = `\nロック：${target ? name(target.id) : 'なし'}${target && targetAngle(local, target) > this.config.throwArcDegrees / 2 * Math.PI / 180 + 1e-12 ? '（対象が正面外）' : ''}`;
     const flightTarget = state.ball.mode === 'flight' ? state.ball.attack?.target : null;
     const flight = state.ball.mode === 'flight' ? `\n飛行対象：${flightTarget ? name(flightTarget) : 'なし'}` : '';
-    const skills = `\n${skillLines(this.roster.find(e => e.id === this.local)!.characterId, this.skillKeys).join('　')}`;
+    const skills = `\n${skillHudLines(state, { ...local, yaw: this.skillYaw ?? local.yaw }, this.config, this.skillKeys, this.skillNotices, now).join('\n')}`;
     const message = now < this.messageUntil ? `\n${this.message}` : '';
     this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${flight}${skills}${message}`;
   }
@@ -71,4 +76,6 @@ export class Hud {
     this.message = text;
     this.messageUntil = now + durationMs;
   }
+
+  clearSkillNotices(): void { this.skillNotices = [null, null]; }
 }

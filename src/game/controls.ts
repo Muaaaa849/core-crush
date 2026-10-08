@@ -103,7 +103,7 @@ export class Controls {
     if (action === 'parry') this.send({ kind: 'primary' });
     if (action === 'catch') this.send({ kind: 'secondary' });
     if (action === 'feint' || action === 'step' || action === 'summon' || action === 'cycle-target') this.send({ kind: action });
-    // skill1・skill2は割当だけ。効果はM3-3以降。
+    if (action === 'skill1' || action === 'skill2') this.send({ kind: 'skill', slot: action === 'skill1' ? 1 : 2 });
   }
 
   /** 次ラウンド・再戦ではsimの初期yawへ戻し、押下状態を新たに送る（0010）。 */

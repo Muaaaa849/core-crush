@@ -14,6 +14,30 @@ function input(edit: Partial<PresentationInput> = {}): PresentationInput {
 }
 
 describe('M3-1 presentation clock', () => {
+  it('K14-31: confirmed rejection is shown once at contact without SE/VFX/hit-stop requests', () => {
+    const event: SimEvent = { kind: 'skill-rejected', at: 60000, player: 'p1', slot: 2, reason: 'cost' };
+    let r = updatePresentation(createPresentation('m'), input({ events: [{ seq: 1, event }], viewSimAt: 59999 }));
+    expect(r.events).toEqual([]);
+    r = updatePresentation(r.state, input({ events: [{ seq: 1, event }] }));
+    expect(r.events).toEqual([event]); expect(r.effects).toEqual([]); expect(r.sounds).toEqual([]);
+    expect(updatePresentation(r.state, input({ events: [{ seq: 1, event }] })).events).toEqual([]);
+    expect(updatePresentation(createPresentation('m'), input({ events: [] })).events).toEqual([]);
+  });
+  it.each([300, 300.01])('K14-31: rejection delay %ims uses the 300ms boundary', delay => {
+    const event: SimEvent = { kind: 'skill-rejected', at: 60000, player: 'p1', slot: 1, reason: 'reserved' };
+    const r = updatePresentation(createPresentation('m'), input({ events: [{ seq: 1, event }], viewSimAt: event.at + delay * c.timeUnitsPerSecond / 1000 }));
+    expect(r.events).toEqual(delay === 300 ? [event] : []);
+    expect(r.effects).toEqual([]); expect(r.sounds).toEqual([]); expect(r.state.consumed).toBe(1);
+  });
+  it('K14-31: hidden/interrupted, resync history and old rounds omit rejection permanently', () => {
+    const event: SimEvent = { kind: 'skill-rejected', at: 60000, player: 'p1', slot: 1, reason: 'priority' };
+    const oldRound = active(); oldRound.match.roundStartsAt = event.at + 1;
+    for (const edit of [{ visible: false }, { running: false }, { historyThrough: 1 }, { state: oldRound }]) {
+      const r = updatePresentation(createPresentation('m'), input({ events: [{ seq: 1, event }], ...edit }));
+      expect(r.events).toEqual([]); expect(r.effects).toEqual([]); expect(r.sounds).toEqual([]);
+      expect(updatePresentation(r.state, input({ events: [{ seq: 1, event }] })).events).toEqual([]);
+    }
+  });
   it('F12-4: waits for displayed contact, uses one start time and never mutates inputs', () => {
     let state = createPresentation('m');
     const i = input({ viewSimAt: parry.at - 0.1 }); const before = structuredClone(i);
