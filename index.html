@@ -20,6 +20,7 @@
         <label>効果音 <input id="effect-volume" type="range" min="0" max="100" value="100" /></label>
         <label><input id="effect-mute" type="checkbox" /> ミュート</label>
         <label><input id="effect-shake" type="checkbox" checked /> 画面の揺れ</label>
+        <label><input id="effect-flash" type="checkbox" checked /> 閃光</label>
       </fieldset>
       <button id="start" disabled>読み込み中…</button>
       <p id="audio-status" role="status"></p>
@@ -42,6 +43,8 @@
       </section>
     </div>
     <div id="reticle"></div>
+    <p id="judgement" aria-live="polite"></p>
+    <div id="hit-edge"></div>
     <p id="network-status" role="status" hidden></p>
     <pre id="hud"></pre>
     <script type="module" src="/src/main.ts"></script>

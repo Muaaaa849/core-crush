@@ -1,4 +1,4 @@
-// 最小のHUD（feel.md「入力設定とHUD」）。危険時計は残り秒、表情は経過秒で決める。
+// 最小のHUD（feel.md「入力設定とHUD」）。危険時計は残り秒、表情は経過秒で決める。キャッチ・跳ね返しの評価は判定文字（vfx.ts）で出す。
 import type { SimConfig } from '../sim/config';
 import { targetAngle } from '../sim/target';
 import type { PlayerId, Side, SimEvent, SimState } from '../sim/types';
@@ -8,7 +8,6 @@ const FACE = [
   { until: 5, label: '焦り' },
   { until: 8, label: '激怒' },
 ];
-const GRADE_LABEL = { just: 'JUST', good: 'GOOD', 'so-so': 'SO-SO' };
 const REASON_LABEL = { ko: 'KO', time: '時間切れ' };
 export const REMATCH_SECONDS = 5;
 
@@ -31,10 +30,6 @@ export class Hud {
         this.flash(`試合終了：${e.winner === local.side ? 'あなたの勝ち！' : 'あなたの負け'}　${this.online ? '結果を確認して部屋へ戻ってください' : `${REMATCH_SECONDS}秒後に再戦`}`, now, this.online ? Infinity : REMATCH_SECONDS * 1000);
       }
       if (e.kind === 'explosion') this.flash(`爆発！ ${sideName(e.side)}に${this.config.explosionDamage}ダメージ`, now);
-      if (e.kind === 'catch' || e.kind === 'parry') {
-        const who = name(e.player);
-        this.flash(`${who}：${e.kind === 'catch' ? 'キャッチ' : '跳ね返し'} ${GRADE_LABEL[e.grade]}`, now);
-      }
       if (e.kind === 'whiff' && e.player === this.local) this.flash('空振り', now);
       if (e.kind === 'hit') this.flash(`${e.player === this.local ? '被弾' : name(e.player) + 'に命中'}！ ${Math.round(e.damage)}ダメージ`, now);
     }

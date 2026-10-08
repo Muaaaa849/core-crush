@@ -17,6 +17,8 @@ import { localMatch } from './game/match';
 import { createPresentation, updatePresentation } from './game/presentation';
 import { SimRunner } from './game/runner';
 import { describeSound, warningSound } from './game/sound';
+import { addEffects, effectsFor, judgement, liveEffects, type Effect } from './game/vfx';
+import { VfxView } from './game/vfxview';
 import { TargetView } from './game/targetview';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
@@ -165,22 +167,31 @@ const hitStop = new HitStop();
 const audio = createAudioOutput();
 let presentation = createPresentation('local:0');
 let presentedRevision = 0; // OnlineMatchが履歴を捨てた回数。変わったら過去分を鳴らさない
-const effects = { volume: 1, muted: false, shake: true };
+const effects = { volume: 1, muted: false, shake: true, flash: true };
 const audioStatus = document.querySelector<HTMLElement>('#audio-status')!;
 const volumeInput = document.querySelector<HTMLInputElement>('#effect-volume')!;
 const muteInput = document.querySelector<HTMLInputElement>('#effect-mute')!;
 const shakeInput = document.querySelector<HTMLInputElement>('#effect-shake')!;
+const flashInput = document.querySelector<HTMLInputElement>('#effect-flash')!;
 function applyEffects(): void {
-  effects.volume = Number(volumeInput.value) / 100; effects.muted = muteInput.checked; effects.shake = shakeInput.checked;
+  effects.volume = Number(volumeInput.value) / 100; effects.muted = muteInput.checked; effects.shake = shakeInput.checked; effects.flash = flashInput.checked;
   audio.setVolume(effects.volume, effects.muted);
 }
-for (const input of [volumeInput, muteInput, shakeInput]) input.addEventListener('input', applyEffects);
+for (const input of [volumeInput, muteInput, shakeInput, flashInput]) input.addEventListener('input', applyEffects);
 applyEffects();
 async function startAudio(): Promise<void> {
   await audio.start();
   audioStatus.textContent = audio.status;
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) audio.stop(); });
+const vfx = new VfxView(scene, config.ballDiameter / 2);
+let shownEffects: Effect[] = [];
+// 判定文字はレティクル下の固定枠に450ms。本人の結果を優先し、同じ優先度なら最新で置き換える（0012）。
+const JUDGEMENT_MS = 450, HIT_EDGE_MS = 120;
+const judgementElement = document.querySelector<HTMLElement>('#judgement')!;
+const hitEdge = document.querySelector<HTMLElement>('#hit-edge')!;
+let shownJudgement = { text: '', self: false, until: 0 };
+let hitEdgeAt = -Infinity;
 const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
@@ -401,6 +412,14 @@ function step(dt: number): void {
   const state = game.state;
   if (events.some(e => e.kind === 'spawn')) lastBall.mode = 'absent';
   hitStop.trigger(shownResults.effects.map(e => e.event), now);
+  for (const { event, startedAtMs } of shownResults.effects) {
+    shownEffects = addEffects(liveEffects(shownEffects, now), effectsFor(event, startedAtMs, effects.flash));
+    const text = judgement(event, localPlayer, game.state.players);
+    if (text && (text.self || !shownJudgement.self || now >= shownJudgement.until)) shownJudgement = { ...text, until: now + JUDGEMENT_MS };
+    if (event.kind === 'hit' && event.player === localPlayer && effects.flash) hitEdgeAt = now;
+  }
+  judgementElement.textContent = now < shownJudgement.until ? shownJudgement.text : '';
+  hitEdge.style.opacity = String(0.25 * Math.max(0, 1 - (now - hitEdgeAt) / HIT_EDGE_MS));
   const shown = dt * hitStop.timeScale(now); // ヒットストップ中は見た目の動きだけ止める
   cameraBlend.update(state, localPlayer, dt * 1000);
   for (const player of state.players) {
@@ -422,6 +441,7 @@ function step(dt: number): void {
   // 音の定位は揺れを混ぜない論理カメラから求める。
   const listener = { player: localPlayer, players: state.players, position: camera.position.clone(),
     right: new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), rallySpeedCap: config.rallySpeedCap };
+  vfx.update(shownEffects, now, camera);
   for (const e of shownResults.sounds) {
     const plan = describeSound(e, listener);
     if (plan) audio.play(plan);
