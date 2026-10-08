@@ -79,7 +79,8 @@ function stationaryPathLength(origin: Vec3, feet: Vec3, shot: Shot, side: Side, 
 }
 
 export function launchBall(player: PlayerState, receiver: PlayerState | null, at: number, elapsedSeconds: number, config: SimConfig,
-  origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }, overcharge = false): Flight {
+  origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }, overcharge = false,
+  direction: Vec3 = { x: -Math.sin(player.yaw), y: 0, z: -Math.cos(player.yaw) }): Flight {
   const shot = receiver ? selectShot(player) : 'straight';
   const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config, rally.speed, overcharge ? config.overchargeSpeedMultiplier : 1);
   let speed = Math.max(config.minimumBallSpeed, raw);
@@ -92,7 +93,7 @@ export function launchBall(player: PlayerState, receiver: PlayerState | null, at
   }
   const ball: Flight = { mode: 'flight', position: { ...origin }, origin, releasedAt: at, side: player.side,
     segmentOrigin: { ...origin }, segmentAt: at,
-    velocity: { x: -Math.sin(player.yaw) * speed, y: 0, z: -Math.cos(player.yaw) * speed },
+    velocity: { x: direction.x * speed, y: direction.y * speed, z: direction.z * speed },
     attack: { target: receiver?.id ?? null, shot, damage: launchDamage(elapsedSeconds, config, rally.power, overcharge ? config.overchargePowerMultiplier : 1), speed,
       homing: receiver !== null, pure: false, launchDistance: receiver ? Math.hypot(receiver.position.x - origin.x,
         receiver.position.y + config.defenseHeight - origin.y, receiver.position.z - origin.z) : 0, throwerSide: player.side, guidanceIndex: 1 } };

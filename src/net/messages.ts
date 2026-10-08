@@ -1,5 +1,5 @@
 import type { Roster } from '../game/characters';
-import type { SimConfig } from '../sim/config';
+import { aimPitchLimit, type SimConfig } from '../sim/config';
 import { step } from '../sim/sim';
 import { skillKind, validSkills } from '../sim/skills';
 import type { Command, PlayerId, SimEvent, SimState } from '../sim/types';
@@ -95,7 +95,7 @@ export function validMessage(msg: Message): boolean {
   const state = (s: SimState) => s && integer(s.now) && Array.isArray(s.players) && s.players.length >= 2
     && s.players.length <= 4 && s.players.every(p => p && ['p1', 'p2', 'p3', 'p4'].includes(p.id)
       && Number.isFinite(p.hp) && Number.isFinite(p.maxHp) && vector(p.position) && side(p.side)
-      && p.move && p.keys && Number.isFinite(p.yaw) && p.stats
+      && p.move && p.keys && Number.isFinite(p.yaw) && Number.isFinite(p.pitch) && Math.abs(p.pitch) <= aimPitchLimit && p.stats
       && [p.stats.attack, p.stats.defense, p.stats.agility, p.cost, p.stepPoints, p.stepRecoveryProgress].every(Number.isFinite)
       && validSkills(p.skills) && Array.isArray(p.skillReadyAt) && p.skillReadyAt.length === 2
       && [p.skillReadyAt[0], p.skillReadyAt[1]].every((at, i) => integer(at) && (skillKind(p.skills[i]) === 'active' || at === 0))
@@ -155,6 +155,9 @@ export function validCommand(command: Command): boolean {
       break;
     case 'yaw':
       fields.push('yaw'); if (!Number.isFinite(command.yaw) || Math.abs(command.yaw) > 1e6) return false;
+      break;
+    case 'pitch':
+      fields.push('pitch'); if (!Number.isFinite(command.pitch) || Math.abs(command.pitch) > aimPitchLimit) return false;
       break;
     case 'primary':
       fields.push('aim'); if (command.aim !== undefined && typeof command.aim !== 'boolean') return false;

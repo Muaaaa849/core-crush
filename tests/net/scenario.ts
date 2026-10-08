@@ -1,7 +1,7 @@
 import { PROTOCOL } from '../../src/net/room-protocol';
 import { Bot } from '../../src/game/bot';
 import { evenMatch, rosterOf } from '../fixtures';
-import { defaultConfig } from '../../src/sim/config';
+import { aimPitchLimit, defaultConfig } from '../../src/sim/config';
 import { createInitialState } from '../../src/sim/sim';
 import type { MatchMode, PlayerId, SimState } from '../../src/sim/types';
 import { MemoryClient } from '../../src/net/client';
@@ -22,7 +22,8 @@ export function runScenario(options: ScenarioOptions) {
   const actors = ids.map(id => ({ id, bot: new Bot(id), seq: 0 }));
   let invariantFailures = 0;
   const valid = (state: SimState) => {
-    if (!state.players.every(p => Number.isFinite(p.hp) && p.hp >= 0 && p.hp <= p.maxHp)
+    if (!state.players.every(p => Number.isFinite(p.hp) && p.hp >= 0 && p.hp <= p.maxHp
+      && Number.isFinite(p.pitch) && Math.abs(p.pitch) <= aimPitchLimit)
       || (state.ball.mode === 'held' && !ids.includes(state.ball.owner))) invariantFailures++;
   };
   for (const id of ids) host.connect(id, session);
@@ -43,7 +44,11 @@ export function runScenario(options: ScenarioOptions) {
       const actions = actor.bot.think(state);
       const self = state.players.find(p => p.id === actor.id)!;
       const inputs = [{ kind: 'move' as const, ...self.move }, { kind: 'keys' as const, ...self.keys },
-        { kind: 'yaw' as const, yaw: self.yaw }, ...actions];
+        { kind: 'yaw' as const, yaw: self.yaw },
+        // 操作者の上下照準も既存の再送・予測・確定経路へ載せる。Botの思考は変えない。
+        { kind: 'pitch' as const, pitch: aimPitchLimit * Math.sin(at / config.timeUnitsPerSecond + ids.indexOf(actor.id)) },
+        ...actions.map(action => action.kind === 'primary' && Math.floor(at / config.timeUnitsPerSecond) % 2 === 0
+          ? { ...action, aim: true } : action)];
       // Q・防御のエッジも毎秒注入する。押下状態の周期送信からは生成しない。
       if (at > config.timeUnitsPerSecond && at % 60000 === 0) inputs.push({ kind: 'cycle-target', player: actor.id, at, seq: 0 });
       if (at > config.timeUnitsPerSecond && at % 47000 === 0) inputs.push({ kind: 'secondary', player: actor.id, at, seq: 0 });

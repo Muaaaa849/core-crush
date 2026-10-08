@@ -197,7 +197,7 @@ describe('homing flight', () => {
     const released = step(state, []).state;
     expect(run(released).state.players[1].hp).toBe(77);
   });
-  it('aim flag keeps release-time facing with straight-shot power and no homing', () => {
+  it('V15-18: aim flag keeps release-time facing with straight-shot 3D power and no homing', () => {
     const state = setup('upper');
     state.now = 0; state.ball = { mode: 'held', owner: 'p1' }; state.players[0].action = null;
     state.players[0].move = { x: 0, z: 1 };
@@ -208,7 +208,8 @@ describe('homing flight', () => {
     expect(current.ball.mode).toBe('flight');
     if (current.ball.mode !== 'flight') throw Error('flight');
     expect(current.ball.attack).toMatchObject({ shot: 'straight', homing: false });
-    expect(current.ball.velocity.x).toBeGreaterThan(base.straight);
+    expect(Math.hypot(current.ball.velocity.x, current.ball.velocity.y, current.ball.velocity.z)).toBeGreaterThan(base.straight);
+    expect(current.ball.velocity.y).toBeGreaterThan(0);
     expect(current.ball.velocity.z).toBeCloseTo(0, 10);
     expect(current.ball.origin.y).toBe(config.defenseHeight);
   });

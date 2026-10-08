@@ -21,6 +21,8 @@ function advance(state: SimState, until: number, commands: Command[] = []) {
 function throwAt(release: number, distance: number) {
   let state = advance(createInitialState({ participants: duelParticipants, firstBall: 'a' }, config), S + config.tick).state;
   state.players[0].position.z = distance;
+  // 0015: 目とMの視差を相殺して水平射線にし、時計境界の距離条件を保つ。
+  state.players[0].pitch = Math.atan2(config.defenseHeight - config.aimEyeHeight, config.ballHalfDepth + config.ballDiameter / 2 + distance);
   state.players[1].position.x = 4;
   // 回収済みの球を保持したまま、リリース直前まで待つ。
   state = advance(state, release - config.throwWindup).state;
@@ -158,7 +160,7 @@ describe('R01/R02 danger clock', () => {
     expect(released.events).toContainEqual({ kind: 'release', at: command.at + 8_000, player: 'p1' });
   });
 
-  it('uses release-time facing, reduces windup walking, and keeps flight speed constant', () => {
+  it('V15-6: uses release-time facing, reduces windup walking, and keeps 3D flight speed constant', () => {
     const state = advance(createInitialState({ participants: duelParticipants, firstBall: 'a' }, config), S + config.tick).state;
     const release = state.now + 8_000;
     const commands: Command[] = [
@@ -170,9 +172,14 @@ describe('R01/R02 danger clock', () => {
     expect(result.state.players[0].position.x).toBeCloseTo(5 * 0.3 * 8 / 60 + 5 * 8 / 60);
     expect(result.state.ball.mode).toBe('flight');
     if (result.state.ball.mode !== 'flight') throw new Error('expected released ball');
-    expect(result.state.ball.position.x).toBeCloseTo(5 * 0.3 * 8 / 60 + config.shotSpeed.straight * 8 / 60);
+    const launchX = 5 * 0.3 * 8 / 60;
+    const dx = config.ballHalfWidth + config.ballDiameter / 2 - launchX;
+    const dy = config.aimEyeHeight - config.defenseHeight;
+    const horizontalSpeed = config.shotSpeed.straight * dx / Math.hypot(dx, dy);
+    expect(result.state.ball.position.x).toBeCloseTo(launchX + horizontalSpeed * 8 / 60);
     expect(result.state.ball.position.z).toBeCloseTo(config.supply.a.z);
-    expect(Math.hypot(result.state.ball.velocity.x, result.state.ball.velocity.z)).toBeCloseTo(config.shotSpeed.straight);
+    expect(Math.hypot(result.state.ball.velocity.x, result.state.ball.velocity.y, result.state.ball.velocity.z)).toBeCloseTo(config.shotSpeed.straight);
+    expect(result.state.ball.velocity.y).toBeGreaterThan(0);
     expect(result.state.danger).toEqual({ side: 'a', expiresAt: expiry });
     const recovered = advance(result.state, release + 8_000 + config.tick);
     expect(recovered.state.players[0].action).toBeNull();

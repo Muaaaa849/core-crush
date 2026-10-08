@@ -17,5 +17,5 @@ export type RoomReply = { kind: 'room'; room: RoomView; serverNow: number }
   | { kind: 'repair'; from: PlayerId; matchId: string }
   | { kind: 'host-left'; matchId: string }
   | { kind: 'error' | 'aborted'; reason: string };
-export const PROTOCOL = 3;
+export const PROTOCOL = 4;
 export interface Admission { code: string; token: string; player: PlayerId; room: RoomView }

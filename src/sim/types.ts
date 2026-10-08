@@ -38,6 +38,7 @@ export interface PlayerState {
   stepRecoveryProgress: number;
   position: Vec3;
   yaw: number;
+  pitch: number;
   lockTarget: PlayerId | null;
   move: { x: number; z: number };
   /** 押している移動キーの意図（カメラ基準、前=W・右=D）。球種の選択に使う（feel.md「入力設定」） */
@@ -81,6 +82,7 @@ type InputTime = { at: number; seq: number; player: PlayerId };
 export type Command = InputTime & (
   | { kind: 'move'; x: number; z: number }
   | { kind: 'yaw'; yaw: number }
+  | { kind: 'pitch'; pitch: number }
   | { kind: 'keys'; forward: number; right: number }
   | { kind: 'primary'; aim?: boolean }
   | { kind: 'skill'; slot: SkillSlot }

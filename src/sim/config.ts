@@ -50,6 +50,8 @@ export interface SimConfig {
   hitDamage: number;
   powerCapMultiplier: number;
   defenseHeight: number;
+  aimEyeHeight: number;
+  aimMaxDistance: number;
   capsuleRadius: number;
   capsuleBottom: number;
   capsuleTop: number;
@@ -106,6 +108,7 @@ export interface SimConfig {
 const SECOND = 60_000;
 const FRAME = 1_000;
 const BALL_DIAMETER = 0.65; // 決定0006
+export const aimPitchLimit = 1.2;
 export const defaultConfig: SimConfig = {
   timeUnitsPerSecond: SECOND,
   frame: FRAME,
@@ -156,6 +159,8 @@ export const defaultConfig: SimConfig = {
   hitDamage: 20,
   powerCapMultiplier: 2.5,
   defenseHeight: 1.2,
+  aimEyeHeight: 1.60,
+  aimMaxDistance: 60,
   capsuleRadius: 0.30,
   capsuleBottom: 0.30,
   capsuleTop: 1.50,

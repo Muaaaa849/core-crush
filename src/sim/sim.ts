@@ -1,6 +1,7 @@
-import { defaultConfig, type SimConfig } from './config';
+import { aimPitchLimit, defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
+import { aimLine } from './aim';
 import { cycleTarget, initialTarget, inThrowArc } from './target';
 import { blinkDestination, skillKind, skillRejection, validSkills } from './skills';
 import type { BallState, Command, DefenseGrade, MatchOptions, PlayerId, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
@@ -25,7 +26,7 @@ export function createInitialState({ participants, firstBall }: MatchOptions, co
     const maxHp = (config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat)) * multiplier;
     return { id: p.id, side: p.side, hp: maxHp, maxHp, stats, skills: [...p.skills], skillReadyAt: [0, 0], overcharge: null, cost: config.initialCost,
       stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[p.side], y: 0 },
-      keys: { forward: 0, right: 0 }, yaw: p.side === 'a' ? 0 : Math.PI, lockTarget: null, move: { x: 0, z: 0 }, action: null };
+      keys: { forward: 0, right: 0 }, yaw: p.side === 'a' ? 0 : Math.PI, pitch: 0, lockTarget: null, move: { x: 0, z: 0 }, action: null };
   });
   placePlayers(players, config);
   for (const p of players) p.lockTarget = initialTarget(p, players);
@@ -212,7 +213,7 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
     return true;
   }
   // 入力状態は開始待機・結果表示・KO中も記録し、次ラウンドまで保持する。
-  const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys';
+  const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'pitch' || command.kind === 'keys';
   if (!stateInput && (player.hp <= 0 || state.match.phase !== 'play')) return false;
   if (command.kind === 'cycle-target') {
     if (canMove(state)) player.lockTarget = cycleTarget(player, state.players);
@@ -222,6 +223,9 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
   if (player.action?.kind === 'feint' && state.now > player.action.startedAt && !stateInput) player.action = null;
   switch (command.kind) {
     case 'yaw': player.yaw = command.yaw; break;
+    case 'pitch':
+      if (Number.isFinite(command.pitch)) player.pitch = Math.max(-aimPitchLimit, Math.min(aimPitchLimit, command.pitch));
+      break;
     case 'keys': {
       const keys = { forward: Math.sign(command.forward), right: Math.sign(command.right) };
       if (player.action?.kind === 'feint' && state.now > player.action.startedAt
@@ -300,7 +304,7 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
 /** 同時入力は全員の行動後にリリース・接触を解決する。瞬間移動者だけ旧接触を捨てる。 */
 function applyCommands(state: SimState, simultaneous: Command[], config: SimConfig, events: SimEvent[]): Set<PlayerId> {
   const blinked = new Set<PlayerId>();
-  for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
+  for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'pitch' || c.kind === 'keys')) applyCommand(state, command, config, events);
   for (const command of simultaneous.filter(c => c.kind === 'cycle-target')) applyCommand(state, command, config, events);
   for (const player of state.players) {
     let succeeded = false;
@@ -408,6 +412,7 @@ function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]):
   match.nextRoundAt = null;
   for (const player of state.players) {
     player.yaw = player.side === 'a' ? 0 : Math.PI;
+    player.pitch = 0;
     player.hp = player.maxHp;
     player.cost = config.initialCost;
     player.stepPoints = config.maxStepPoints;
@@ -550,7 +555,8 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
           } else events.push({ kind: 'skill-rejected', at, player: player.id, slot: reservation.slot, reason: 'cost' });
           player.overcharge = null;
         }
-        state.ball = launchBall(player, aim ? null : receiver!, at, elapsed, config, undefined, undefined, boosted);
+        const line = aim ? aimLine(player, state.players, config) : undefined;
+        state.ball = launchBall(player, aim ? null : receiver!, at, elapsed, config, line?.origin, undefined, boosted, line?.direction);
         player.action = { kind: 'recovery', endsAt: at + config.throwRecovery };
         events.push({ kind: 'release', at, player: player.id });
       } else player.action = null;

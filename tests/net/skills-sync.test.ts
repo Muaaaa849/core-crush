@@ -35,7 +35,7 @@ it('K14-22: skill uses authenticated identity, duplicate seq and exact 100ms acc
   h.advance(at + 8000); expect(h.state.players[0].cost).toBe(14);
   const late = host(s); expect(late.receive('host', packet(s, [cmd]), at + 6001)[0]).toMatchObject({ reason: 'late' });
 });
-it('K14-23: protocol 2 cannot connect to a protocol 3 session', () => {
+it('K14-23: old protocol cannot connect to a current session', () => {
   const s = session(), h = new MemoryHost(s, { host: 'p1', p3: 'p3' });
   expect(h.connect('host', { ...s, protocol: 2 })).toBe(false);
   expect(h.connect('host', s)).toBe(true);

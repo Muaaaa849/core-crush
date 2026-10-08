@@ -71,8 +71,8 @@ it.each(['state', 'sync', 'resume', 'complete'] as const)('K14-23: %s recursivel
   if (kind !== 'sync') expect(validMessage(wrap('input'))).toBe(false);
   if (kind !== 'state') expect(validMessage(wrap('event'))).toBe(false);
 });
-it('K14-23: validates nested input and event payloads, permits expired reservations, and uses PROTOCOL 3', () => {
-  expect(PROTOCOL).toBe(3);
+it('K14-23: validates nested input and event payloads, permits expired reservations, and uses current PROTOCOL', () => {
+  expect(PROTOCOL).toBe(4);
   const packet = snapshot(); expect(validMessage(packet)).toBe(true);
   packet.confirmed.players[0].overcharge = { slot: 1, expiresAt: 0 };
   expect(validMessage(packet)).toBe(true);
