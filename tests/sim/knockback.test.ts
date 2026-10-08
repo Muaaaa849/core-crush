@@ -76,7 +76,7 @@ describe('0009 hit knockback', () => {
   it.each(['secondary', 'primary'] as const)('K9-3: same-time successful %s prevents hitstun', kind => {
     const initial = incoming();
     const result = step(initial, [press(kind, initial.now)], { ...c, defenseStartup: 0, tick: 1 });
-    expect(result.events).toContainEqual({ kind: kind === 'secondary' ? 'catch' : 'parry', at: initial.now, player: 'p1', grade: 'just' });
+    expect(result.events).toContainEqual(expect.objectContaining({ kind: kind === 'secondary' ? 'catch' : 'parry', at: initial.now, player: 'p1', grade: 'just' }));
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
     expect(result.state.players[0].action?.kind).not.toBe('hitstun');
   });
@@ -125,7 +125,7 @@ describe('0009 hit knockback', () => {
     const initial = incoming(); const hit = run(initial, initial.now + F).state;
     hit.danger!.expiresAt = hit.now;
     const result = step(hit, [], { ...c, tick: 1 });
-    expect(result.events).toEqual([{ kind: 'explosion', at: hit.now, side: 'a' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: hit.now, side: 'a' })]);
     expect(result.state.players[0].position).toEqual(hit.players[0].position);
     expect(result.state.players[0].action).toBeNull(); expect(result.state.ball.mode).toBe('absent');
   });

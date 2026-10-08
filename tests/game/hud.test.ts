@@ -30,7 +30,7 @@ describe('Hud rounds', () => {
   it('names sides from the local player: own side is 味方陣, the other 敵陣', () => {
     const own = render([], (s) => { s.danger = { side: 'a', expiresAt: s.now + config.dangerDuration }; });
     expect(own).toContain('危険時計：味方陣 残り8秒');
-    const other = render([{ kind: 'explosion', at: 0, side: 'b' }]);
+    const other = render([{ kind: 'explosion', at: 0, side: 'b', position: { x: 0, y: 1, z: -8 } }]);
     expect(other).toContain('爆発！ 敵陣に30ダメージ');
   });
 

@@ -84,9 +84,11 @@ export type SimEvent =
   | { kind: 'round-end'; at: number; winner: Side | null; reason: 'ko' | 'time' }
   | { kind: 'round-start'; at: number; round: number; side: Side }
   | { kind: 'match-end'; at: number; winner: Side }
-  | { kind: 'catch' | 'parry'; at: number; player: PlayerId; grade: DefenseGrade }
+  | { kind: 'catch'; at: number; player: PlayerId; grade: DefenseGrade; position: Vec3 }
+  | { kind: 'parry'; at: number; player: PlayerId; grade: DefenseGrade; position: Vec3; rallySpeed: number }
   | { kind: 'whiff'; at: number; player: PlayerId }
-  | { kind: 'explosion' | 'spawn' | 'clock-start' | 'crossing'; at: number; side: Side }
+  | { kind: 'explosion' | 'crossing'; at: number; side: Side; position: Vec3 }
+  | { kind: 'spawn' | 'clock-start'; at: number; side: Side }
   | { kind: 'pickup' | 'release' | 'summon'; at: number; player: PlayerId }
   | { kind: 'step'; at: number; player: PlayerId; direction: StepDirection }
   | { kind: 'hit'; at: number; player: PlayerId; damage: number; position: Vec3; direction: Vec3; ko: boolean };

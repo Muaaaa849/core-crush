@@ -2,7 +2,7 @@ import type { Input } from '../game/runner';
 import { localMatch } from '../game/match';
 import { defaultConfig } from '../sim/config';
 import { createInitialState } from '../sim/sim';
-import type { Command, PlayerId, SimEvent, SimState } from '../sim/types';
+import type { Command, PlayerId, SimState } from '../sim/types';
 import { MemoryClient } from './client';
 import { MemoryHost } from './host';
 import { belongs, canonical, envelope, validCommand, validMessage } from './messages';
@@ -18,6 +18,8 @@ export class OnlineMatch {
   private host?: MemoryHost;
   private readonly slots: Record<string, PlayerId>;
   private eventIndex = 0;
+  presentationRevision = 0;
+  presentationHistoryThrough = 0;
   private lastPing = -Infinity;
   private lastSync = -Infinity;
   private offset = 0;
@@ -86,7 +88,7 @@ export class OnlineMatch {
       this.status = 'paused'; this.session.epoch = msg.epoch;
       this.frozenEvents = structuredClone(msg.events);
       this.client.restore(msg.state, msg.events, msg.epoch, at); this.previous = this.state;
-      this.eventIndex = this.client.events.length;
+      this.discardPresentationHistory();
       this.ack(); return;
     }
     if (from === 'host' && !this.host && msg.kind === 'resume' && this.status === 'paused' && msg.epoch === this.session.epoch + 1) {
@@ -122,6 +124,7 @@ export class OnlineMatch {
     const state = this.host?.freeze() ?? this.confirmed;
     this.frozenEvents = structuredClone(this.host?.events ?? this.client.events);
     this.client.restore(state, this.frozenEvents, this.session.epoch, at); this.previous = this.state;
+    this.discardPresentationHistory();
     if (this.host) this.sync();
   }
   private sync(force = false): void {
@@ -144,7 +147,7 @@ export class OnlineMatch {
     this.session.epoch = epoch; this.session.initial = structuredClone(state);
     this.client.restore(state, events, epoch, at); this.previous = this.state;
     this.offset = at - state.now; this.pausedAt = undefined; this.status = 'running'; this.lastPing = -Infinity;
-    this.eventIndex = Math.min(this.eventIndex, events.length);
+    this.discardPresentationHistory();
     for (const peer of this.lastReceived.keys()) this.lastReceived.set(peer, at);
   }
   private resume(at: number): void {
@@ -192,8 +195,12 @@ export class OnlineMatch {
     if (this.host) { this.host.advance(Math.max(now - this.offset, this.host.H)); this.flush(); }
     this.client.advance(Math.max(this.state.now, this.client.clock.hostTime(now)));
   }
-  drainEvents(): SimEvent[] {
-    const events = this.client.events.slice(this.eventIndex).map(e => e.event); this.eventIndex = this.client.events.length; return events;
+  private discardPresentationHistory(): void {
+    this.eventIndex = this.client.events.length;
+    this.presentationHistoryThrough = this.eventIndex; this.presentationRevision++;
+  }
+  drainEvents(): ConfirmedEvent[] {
+    const events = this.client.events.slice(this.eventIndex); this.eventIndex = this.client.events.length; return events;
   }
   async signature(): Promise<string> {
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(this.session)));

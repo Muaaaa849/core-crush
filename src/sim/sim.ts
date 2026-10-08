@@ -2,7 +2,7 @@ import { defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
 import { cycleTarget, initialTarget, inThrowArc } from './target';
-import type { Command, DefenseGrade, MatchOptions, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
+import type { BallState, Command, DefenseGrade, MatchOptions, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
 
 /** 参加構成は試合中固定。IDと陣を分け、同じ入力から同じ配置・HPを作る（0010）。 */
 export function createInitialState({ participants, firstBall }: MatchOptions, config: SimConfig = defaultConfig): SimState {
@@ -291,6 +291,7 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
   const offset = state.now - action.startsAt;
   const grade: DefenseGrade = offset < config.defenseJustDuration ? 'just'
     : offset < config.defenseJustDuration + config.defenseGoodDuration ? 'good' : 'so-so';
+  const position = ballContactPoint(ball.position, player.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop);
   if (action.kind === 'catch') {
     state.ball = { mode: 'held', owner: player.id };
     state.rally = { speed: 0, power: 0 };
@@ -305,12 +306,14 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
     state.rally.power = Math.min(config.rallyPowerCap, state.rally.power + gain.power);
     const elapsed = state.danger?.side === player.side
       ? (config.dangerDuration - (state.danger.expiresAt - state.now)) / config.timeUnitsPerSecond : 0;
-    const origin = ballContactPoint(ball.position, player.position, config.ballDiameter / 2, config.capsuleBottom, config.capsuleTop);
+    const origin = position;
     state.ball = launchBall(player, targeted ? receiver : null, state.now, elapsed, config, origin, state.rally);
     player.cost = Math.min(config.maxCost, player.cost + config.parryReward);
     player.action = { kind: 'recovery', endsAt: state.now + config.parryRecovery };
   }
-  events.push({ kind: action.kind, at: state.now, player: player.id, grade });
+  events.push(action.kind === 'parry'
+    ? { kind: 'parry', at: state.now, player: player.id, grade, position, rallySpeed: state.rally.speed }
+    : { kind: 'catch', at: state.now, player: player.id, grade, position });
   return true;
 }
 
@@ -423,6 +426,10 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
 
     // 同時刻の中央通過より爆発を先に確定する。
     if (state.danger && state.danger.expiresAt === at) {
+      const ball = state.ball;
+      const owner = ball.mode === 'held' ? state.players.find(p => p.id === ball.owner)! : undefined;
+      const position = owner ? { ...owner.position, y: owner.position.y + config.defenseHeight }
+        : { ...(ball as Extract<BallState, { mode: 'flight' | 'loose' }>).position };
       let side = state.danger.side;
       if (state.ball.mode === 'flight' || state.ball.mode === 'loose') {
         const z = state.ball.position.z;
@@ -438,7 +445,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       state.ball = { mode: 'absent', side: opposite(side), appearsAt: at + config.newBallAppearDelay };
       state.danger = null;
       state.rally = { speed: 0, power: 0 };
-      events.push({ kind: 'explosion', at, side });
+      events.push({ kind: 'explosion', at, side, position });
     }
 
     if (state.ball.mode === 'absent' && state.ball.appearsAt === at) {
@@ -493,7 +500,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     if (state.ball === incomingBall && state.ball.mode === 'flight' && crossing === at) {
       state.ball.side = opposite(state.ball.side);
       state.danger = { side: state.ball.side, expiresAt: at + config.dangerDuration };
-      events.push({ kind: 'crossing', at, side: state.ball.side });
+      events.push({ kind: 'crossing', at, side: state.ball.side, position: { ...state.ball.position, z: 0 } });
     }
     const contactingBall = state.ball;
     // 同時刻入力後の受付を再評価する。切り上げ前に成立した接触も同じ整数時刻へ残す。

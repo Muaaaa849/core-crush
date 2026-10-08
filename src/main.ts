@@ -10,10 +10,13 @@ import { Bot } from './game/bot';
 import { CameraBlend, cameraPlayerFor } from './game/camera';
 import { Controls } from './game/controls';
 import { coreFace, type CoreFace } from './game/coreface';
+import { createAudioOutput } from './game/audio';
 import { HitStop } from './game/hitstop';
 import { Hud, REMATCH_SECONDS } from './game/hud';
 import { localMatch } from './game/match';
+import { createPresentation, updatePresentation } from './game/presentation';
 import { SimRunner } from './game/runner';
+import { describeSound, warningSound } from './game/sound';
 import { TargetView } from './game/targetview';
 import { CameraOcclusion } from './occlusion';
 import { defaultConfig as config } from './sim/config';
@@ -123,6 +126,11 @@ let mode: MatchMode = '1v1';
 const bots: Bot[] = [];
 const newMatch = () => createInitialState(localMatch(mode, Math.random() < 0.5 ? 'a' : 'b'), config);
 const runner = new SimRunner(newMatch(), config, bots);
+// ローカルの確定イベントは試合ごとに連番を振り、再戦で演出の消費位置を初期化する（0012）。
+let localMatchNumber = 0, localSeq = 0;
+function restartLocal(state: SimState): void {
+  runner.restart(state); localMatchNumber++; localSeq = 0;
+}
 let onlineMatch: OnlineMatch | undefined;
 let connection: RoomConnection | undefined;
 let localPlayer: PlayerId = 'p1';
@@ -154,6 +162,25 @@ const targets = new TargetView(scene);
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
 const hitStop = new HitStop();
+const audio = createAudioOutput();
+let presentation = createPresentation('local:0');
+let presentedRevision = 0; // OnlineMatchが履歴を捨てた回数。変わったら過去分を鳴らさない
+const effects = { volume: 1, muted: false, shake: true };
+const audioStatus = document.querySelector<HTMLElement>('#audio-status')!;
+const volumeInput = document.querySelector<HTMLInputElement>('#effect-volume')!;
+const muteInput = document.querySelector<HTMLInputElement>('#effect-mute')!;
+const shakeInput = document.querySelector<HTMLInputElement>('#effect-shake')!;
+function applyEffects(): void {
+  effects.volume = Number(volumeInput.value) / 100; effects.muted = muteInput.checked; effects.shake = shakeInput.checked;
+  audio.setVolume(effects.volume, effects.muted);
+}
+for (const input of [volumeInput, muteInput, shakeInput]) input.addEventListener('input', applyEffects);
+applyEffects();
+async function startAudio(): Promise<void> {
+  await audio.start();
+  audioStatus.textContent = audio.status;
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) audio.stop(); });
 const lookTargets = [new THREE.Vector3(), new THREE.Vector3()]; // キャラの頭と胸
 
 /** 直前と最新のsim状態の間を補間した足元の位置。 */
@@ -225,7 +252,7 @@ function returnToLobby(): void {
   started = false; onlineMatch = undefined; rematchAt = null; controls.enabled = false;
   document.exitPointerLock(); overlay.hidden = false;
   localPlayer = 'p1'; controls.player = localPlayer;
-  runner.restart(createInitialState(localMatch(connection?.view?.mode ?? mode, 'a'), config));
+  restartLocal(createInitialState(localMatch(connection?.view?.mode ?? mode, 'a'), config));
   createAvatars(); controls.sync(); hud = new Hud(hudElement, config, localPlayer);
   confirmButton.hidden = true; startButton.hidden = true;
   cameraBlend.mode = 'tps'; cameraBlend.fps = 0; lastBall.mode = 'absent';
@@ -251,7 +278,7 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
       roomProgress.textContent = room.phase === 'lobby' ? '参加者がそろったらホストが開始します' : room.phase === 'connecting' ? '接続とロードを確認中（20秒以内）' : '全員ロード完了';
     },
     preparing: match => {
-      onlineMatch = match; localPlayer = match.player; controls.player = localPlayer;
+      onlineMatch = match; presentedRevision = match.presentationRevision; localPlayer = match.player; controls.player = localPlayer;
       controls.enabled = false; controls.sync(); started = false; rematchAt = null;
       bots.length = 0; createAvatars(); hud = new Hud(hudElement, config, localPlayer, true);
       startButton.hidden = true; document.exitPointerLock(); overlay.hidden = false;
@@ -283,9 +310,10 @@ startButton.textContent = 'プレイ開始';
 startButton.disabled = false;
 startButton.addEventListener('click', () => {
   if (connection && !connection.playing) return;
+  void startAudio();
   if (!started) {
     mode = document.querySelector<HTMLInputElement>('input[name="mode"]:checked')!.value as MatchMode;
-    runner.restart(newMatch());
+    restartLocal(newMatch());
     bots.length = 0;
     bots.push(...runner.state.players.filter(p => p.id !== 'p1').map(p => new Bot(p.id)));
     createAvatars(); controls.sync();
@@ -331,7 +359,21 @@ function step(dt: number): void {
     controls.update();
     if (!onlineMatch) runner.advance(dt * 1000);
   }
-  const events = onlineMatch?.drainEvents() ?? runner.drainEvents();
+  const drained = onlineMatch?.drainEvents() ?? runner.drainEvents().map(event => ({ seq: ++localSeq, event }));
+  let historyThrough: number | undefined;
+  if (onlineMatch && onlineMatch.presentationRevision !== presentedRevision) {
+    presentedRevision = onlineMatch.presentationRevision; historyThrough = onlineMatch.presentationHistoryThrough;
+  }
+  // 確定した結果だけを、表示中の時刻に達した最初の描画で一度だけ提示する（0012）。
+  const shownResults = updatePresentation(presentation, {
+    matchId: onlineMatch?.session.matchId ?? `local:${localMatchNumber}`, events: drained,
+    state: game.state, confirmed: onlineMatch?.confirmed,
+    viewSimAt: game.previous.now + game.alpha * (game.state.now - game.previous.now), displayNowMs: now,
+    visible: !document.hidden, running: onlineMatch ? onlineMatch.status === 'running' : started,
+    audioReady: audio.ready, muted: effects.muted || effects.volume === 0, historyThrough, config,
+  });
+  presentation = shownResults.state;
+  const events = shownResults.events;
   if (onlineMatch) {
     networkStatus.hidden = onlineMatch.status === 'running';
     networkStatus.textContent = onlineMatch.status === 'invalid' ? '無効試合'
@@ -351,14 +393,14 @@ function step(dt: number): void {
   if (!connection && events.some((e) => e.kind === 'match-end')) rematchAt = now + REMATCH_SECONDS * 1000;
   if (rematchAt !== null && now >= rematchAt) {
     rematchAt = null;
-    runner.restart(newMatch()); controls.sync();
+    restartLocal(newMatch()); controls.sync();
     cameraBlend.mode = 'tps'; cameraBlend.fps = 0;
     lastBall.mode = 'absent';
   }
   controls.syncRound();
   const state = game.state;
   if (events.some(e => e.kind === 'spawn')) lastBall.mode = 'absent';
-  hitStop.trigger(events, now);
+  hitStop.trigger(shownResults.effects.map(e => e.event), now);
   const shown = dt * hitStop.timeScale(now); // ヒットストップ中は見た目の動きだけ止める
   cameraBlend.update(state, localPlayer, dt * 1000);
   for (const player of state.players) {
@@ -377,8 +419,19 @@ function step(dt: number): void {
   const body = playerPosition(viewing, new THREE.Vector3());
   if (viewing === localPlayer) controls.placeCamera(camera, body, cameraBlend.fps);
   else controls.placeCamera(camera, body, 0, state.players.find(p => p.id === viewing)!.yaw, 0);
-  const shake = hitStop.shake(now);
-  camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
+  // 音の定位は揺れを混ぜない論理カメラから求める。
+  const listener = { player: localPlayer, players: state.players, position: camera.position.clone(),
+    right: new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), rallySpeedCap: config.rallySpeedCap };
+  for (const e of shownResults.sounds) {
+    const plan = describeSound(e, listener);
+    if (plan) audio.play(plan);
+  }
+  const localSide = state.players.find(p => p.id === localPlayer)!.side;
+  for (const w of shownResults.warnings) audio.play(warningSound(w.side, localSide));
+  if (effects.shake) {
+    const shake = hitStop.shake(now);
+    camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
+  }
   lookTargets[0].copy(body).setY(1.6);
   lookTargets[1].copy(body).setY(1.0);
   occlusion.update(camera, lookTargets, dt);

@@ -71,7 +71,7 @@ describe('R05 shared defense window', () => {
   }
   for (const kind of kinds) it.each([[F, 'just'], [3 * F, 'good'], [6 * F, 'so-so']] as const)(`${kind}: contact %s grades %s`, (at, grade) => {
     const result = run(incoming(at), at + 1, [press(kind)]);
-    expect(result.events).toContainEqual({ kind: kind === 'secondary' ? 'catch' : 'parry', at, player: 'p1', grade });
+    expect(result.events).toContainEqual(expect.objectContaining({ kind: kind === 'secondary' ? 'catch' : 'parry', at, player: 'p1', grade }));
     expect(result.events.some(e => e.kind === 'hit')).toBe(false);
     expect(result.state.players[0].hp).toBe(100);
   });
@@ -105,13 +105,13 @@ describe('R05 shared defense window', () => {
   });
   it.each(kinds)('%s measures a sub-tick press in time units', kind => {
     const result = run(incoming(1500), 1501, [press(kind, 500)]);
-    expect(result.events).toContainEqual({ kind: kind === 'secondary' ? 'catch' : 'parry', at: 1500, player: 'p1', grade: 'just' });
+    expect(result.events).toContainEqual(expect.objectContaining({ kind: kind === 'secondary' ? 'catch' : 'parry', at: 1500, player: 'p1', grade: 'just' }));
   });
   it.each(kinds)('explosion wins %s contact at the same time without reward', kind => {
     const state = incoming(); state.danger!.expiresAt = F;
     const result = run(state, F + 1, [press(kind)]);
     expect(result.events).toEqual([
-      { kind: 'explosion', at: F, side: 'a' },
+      expect.objectContaining({ kind: 'explosion', at: F, side: 'a' }),
     ]);
     expect(result.state.players[0].cost).toBe(4);
     expect(result.state.players[0].hp).toBe(70);
@@ -193,7 +193,7 @@ describe('parry return and rally', () => {
       state.players[0].hp = state.players[0].maxHp / 2;
       state.players[0].cost = 0;
       const result = run(state, at + 1, [press('primary')]);
-      expect(result.events).toContainEqual({ kind: 'parry', at, player: 'p1', grade });
+      expect(result.events).toContainEqual(expect.objectContaining({ kind: 'parry', at, player: 'p1', grade }));
       expect(result.state.players[0].cost).toBe(config.parryReward);
       expect(result.state.players[0].hp).toBe(state.players[0].hp);
       expect(result.state.rally).toEqual(config.rallyGain[grade]);

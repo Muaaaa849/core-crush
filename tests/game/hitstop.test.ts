@@ -4,7 +4,7 @@ import { HitStop } from '../../src/game/hitstop';
 import type { SimEvent } from '../../src/sim/types';
 
 const size = (v: { x: number; y: number }) => Math.hypot(v.x, v.y);
-const success = (kind: 'catch' | 'parry', grade: 'just' | 'good' | 'so-so'): SimEvent => ({ kind, at: 0, player: 'p1', grade });
+const success = (kind: 'catch' | 'parry', grade: 'just' | 'good' | 'so-so'): SimEvent => (kind === 'parry' ? { kind, at: 0, player: 'p1', grade, position: { x: 0, y: 1, z: 0 }, rallySpeed: 0 } : { kind, at: 0, player: 'p1', grade, position: { x: 0, y: 1, z: 0 } });
 
 describe('HitStop', () => {
   it('H1: stops display time for a grade-dependent duration, then resumes', () => {

@@ -76,11 +76,13 @@ export function validMessage(msg: Message): boolean {
       case 'match-end': return side(e.winner);
       case 'round-end': return (side(e.winner) || e.winner === null) && ['ko', 'time'].includes(e.reason);
       case 'round-start': return integer(e.round) && side(e.side);
-      case 'catch': case 'parry': return player(e.player) && ['just', 'good', 'so-so'].includes(e.grade);
+      case 'catch': return player(e.player) && ['just', 'good', 'so-so'].includes(e.grade) && vector(e.position);
+      case 'parry': return player(e.player) && ['just', 'good', 'so-so'].includes(e.grade) && vector(e.position) && Number.isFinite(e.rallySpeed) && e.rallySpeed >= 0;
       case 'whiff': case 'pickup': case 'release': case 'summon': return player(e.player);
       case 'step': return player(e.player) && ['forward', 'back', 'left', 'right'].includes(e.direction);
       case 'hit': return player(e.player) && Number.isFinite(e.damage) && vector(e.position) && vector(e.direction) && typeof e.ko === 'boolean';
-      case 'explosion': case 'spawn': case 'clock-start': case 'crossing': return side(e.side);
+      case 'explosion': case 'crossing': return side(e.side) && vector(e.position);
+      case 'spawn': case 'clock-start': return side(e.side);
       default: return false;
     }
   };

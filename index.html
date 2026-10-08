@@ -15,7 +15,14 @@
         <label><input type="radio" name="mode" value="1v2" /> 1v2（自分1人対ボット2人）</label>
         <label><input type="radio" name="mode" value="2v2" /> 2v2（味方ボット1人）</label>
       </fieldset>
+      <fieldset id="effects">
+        <legend>演出</legend>
+        <label>効果音 <input id="effect-volume" type="range" min="0" max="100" value="100" /></label>
+        <label><input id="effect-mute" type="checkbox" /> ミュート</label>
+        <label><input id="effect-shake" type="checkbox" checked /> 画面の揺れ</label>
+      </fieldset>
       <button id="start" disabled>読み込み中…</button>
+      <p id="audio-status" role="status"></p>
       <section id="online">
         <h2>オンライン対戦</h2>
         <p id="online-status" role="status">読み込み中…</p>

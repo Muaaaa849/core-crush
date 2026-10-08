@@ -4,6 +4,7 @@
 - 状態：実装前の設計。M3以降の出口・受け入れは未検証。本書で追加する数値はすべて調整用の初期案であり、実測値ではない
 - 背景：ユーザーは今は試遊できないため、設計書に沿って開発を続けるよう指示した。M1のR01〜R08は自動確認済み、M2①〜⑤は実装済み。人間の試遊・別端末／実回線・TURNの未確認を完了扱いにしない
 - 根拠：[rules.md](../design/rules.md)、[feel.md](../design/feel.md)、[characters.md](../design/characters.md)、[platform.md](../design/platform.md)、[現在地](../progress.md)、[0004](0004-m1-sim-architecture.md)、[0009](0009-hit-knockback-and-ball-bounce.md)、[0010](0010-m2-plan-and-team-sim.md)、[0011](0011-m2-netcode-options.md)
+- 詳細：[0013 M3のキャラ定義・ロスターと設定](0013-m3-roster-and-settings.md)。M3-2のローカル選択は本人4択＋Botの参加枠固定割当へ具体化し、C12の小項目とM3-6のS13を定める。工程順とM3-1の仕様は本書を維持する。
 
 ## 現状確認と今回の判断
 

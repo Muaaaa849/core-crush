@@ -212,7 +212,7 @@ describe('0009 recovery and event ordering', () => {
     if (kind === 'hit') initial = incoming('b', { x: 0, y: 0, z: -36.4 }, F);
     initial.danger = { side: 'a', expiresAt: F };
     const result = run(initial, F + 1, kind === 'summon' ? [press('summon', F, 'p2')] : []);
-    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'b' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: F, side: 'b' })]);
     expect(result.state.players.map(p => p.hp)).toEqual([100, 70]); expect(result.state.ball.mode).toBe('absent');
   });
 
@@ -225,10 +225,10 @@ describe('0009 recovery and event ordering', () => {
     initial.danger = { side: 'a', expiresAt: kind === 'expiry' ? F : S };
     const result = run(initial, F + 1);
     if (kind === 'expiry') {
-      expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'a' }]);
+      expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: F, side: 'a' })]);
       expect(result.state.ball.mode).toBe('absent');
     } else {
-      expect(result.events[0]).toEqual({ kind: 'crossing', at: F, side: 'b' });
+      expect(result.events[0]).toEqual(expect.objectContaining({ kind: 'crossing', at: F, side: 'b' }));
       expect(ballOf(result.state).position.z).toBe(-R);
       expect(result.state.danger).toEqual({ side: 'b', expiresAt: F + c.dangerDuration });
     }

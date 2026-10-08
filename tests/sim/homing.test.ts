@@ -277,7 +277,7 @@ describe('homing flight', () => {
         const result = step(state, [], cfg);
         if (result.events.some(e => e.kind === 'crossing')) {
           expected = crossing;
-          expect(result.events).toContainEqual({ kind: 'crossing', at: expected, side: 'b' });
+          expect(result.events).toContainEqual(expect.objectContaining({ kind: 'crossing', at: expected, side: 'b' }));
           break;
         }
         state = result.state;

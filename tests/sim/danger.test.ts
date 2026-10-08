@@ -38,7 +38,7 @@ describe('R01/R02 danger clock', () => {
     const before = advance(started.state, expiry - config.tick);
     expect(before.events.filter(e => e.kind === 'explosion')).toEqual([]);
     const result = advance(before.state, expiry);
-    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiry, side }]);
+    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([expect.objectContaining({ kind: 'explosion', at: expiry, side })]);
     expect(result.state.players.map(p => p.hp)).toEqual(side === 'a' ? [70, 100] : [100, 70]);
     expect(advance(result.state, expiry + S / 2).events.filter(e => e.kind === 'explosion')).toEqual([]);
   });
@@ -59,7 +59,7 @@ describe('R01/R02 danger clock', () => {
   it('release at 7.8s cannot save a ball crossing at 8.1s', () => {
     const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * 0.3);
     expect(result.events.filter(e => e.kind === 'release').map(e => e.at)).toEqual([S + 7.8 * S]);
-    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiry, side: 'a' }]);
+    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([expect.objectContaining({ kind: 'explosion', at: expiry, side: 'a' })]);
     expect(result.events.some(e => e.kind === 'crossing')).toBe(false);
     expect(result.state.players.map(p => p.hp)).toEqual([70, 100]);
   });
@@ -67,14 +67,14 @@ describe('R01/R02 danger clock', () => {
   it('crossing at 7.999s starts the receiver clock at that exact time', () => {
     const crossing = S + 7.999 * S;
     const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * (crossing - (S + 7.8 * S)) / S);
-    expect(result.events.filter(e => e.kind === 'crossing')).toEqual([{ kind: 'crossing', at: crossing, side: 'b' }]);
+    expect(result.events.filter(e => e.kind === 'crossing')).toEqual([expect.objectContaining({ kind: 'crossing', at: crossing, side: 'b' })]);
     expect(result.state.danger).toEqual({ side: 'b', expiresAt: crossing + 8 * S });
     expect(result.state.players.map(p => p.hp)).toEqual([100, 100]);
   });
 
   it('explosion wins a crossing exactly at expiry', () => {
     const result = throwAt(S + 7.8 * S, config.shotSpeed.straight * 0.2);
-    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiry, side: 'a' }]);
+    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([expect.objectContaining({ kind: 'explosion', at: expiry, side: 'a' })]);
     expect(result.events.some(e => e.kind === 'crossing')).toBe(false);
   });
 
@@ -91,7 +91,7 @@ describe('R01/R02 danger clock', () => {
     const crossed = throwAt(2 * S, 1);
     const expiresAt = Math.ceil(2 * S + S / config.shotSpeed.straight) + 8 * S;
     const result = advance(crossed.state, expiresAt + config.tick);
-    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([{ kind: 'explosion', at: expiresAt, side: 'b' }]);
+    expect(result.events.filter(e => e.kind === 'explosion')).toEqual([expect.objectContaining({ kind: 'explosion', at: expiresAt, side: 'b' })]);
     expect(result.state.players.map(p => p.hp)).toEqual([100, 70]);
   });
 
@@ -197,6 +197,6 @@ describe('R01/R02 danger clock', () => {
       { kind: 'primary', aim: true, player: 'p1', at: expiry, seq: 0 },
     ]);
     expect(result.state.ball.mode).toBe('absent');
-    expect(result.events).toEqual([{ kind: 'explosion', at: expiry, side: 'a' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: expiry, side: 'a' })]);
   });
 });

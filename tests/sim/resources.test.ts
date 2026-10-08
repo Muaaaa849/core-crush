@@ -188,7 +188,7 @@ describe('R08 recovery', () => {
     state.ball = { mode: 'flight', side: 'a', position: { x: 0, y: 1, z: 0.1 }, origin: { x: 0, y: 1, z: 0.1 }, segmentOrigin: { x: 0, y: 1, z: 0.1 }, releasedAt: 0, segmentAt: 0, attack: null, velocity: { x: 0, y: 0, z: -config.shotSpeed.straight } };
     const result = step(state, []);
     const crossing = Math.ceil(0.1 / config.shotSpeed.straight * S);
-    expect(result.events).toContainEqual({ kind: 'crossing', at: crossing, side: 'b' });
+    expect(result.events).toContainEqual(expect.objectContaining({ kind: 'crossing', at: crossing, side: 'b' }));
     expect(result.state.players[0].stepRecoveryProgress).toBe(config.tick - crossing);
     expect(result.state.players[1].stepRecoveryProgress).toBe(crossing);
   });

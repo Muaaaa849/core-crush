@@ -105,7 +105,7 @@ describe('slice one team simulation', () => {
     const result = step(state, []);
     expect(result.state.players.map(p => p.hp)).toEqual(state.players.map(p => p.hp - (p.side === 'a' ? 30 : 0)));
     expect(result.state.players.every(p => p.action === null)).toBe(true);
-    expect(result.events).toEqual([{ kind: 'explosion', at: state.now, side: 'a' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: state.now, side: 'a' })]);
     expect(result.state.ball).toEqual({ mode: 'absent', side: 'b', appearsAt: state.now + c.newBallAppearDelay });
     expect(run(result.state, state.now + c.newBallAppearDelay + 1).events.filter(e => e.kind === 'spawn')).toHaveLength(1);
   });
@@ -166,7 +166,7 @@ describe('slice one team simulation', () => {
     const state = active(); state.danger!.expiresAt = state.now;
     state.ball = createLooseBall(c.supply.a, state.now - c.frame, state.now, c); state.ball.nextPhysicsAt = state.now;
     const result = step(state, [summon('p1', state.now), summon('p2', state.now)]);
-    expect(result.events).toEqual([{ kind: 'explosion', at: state.now, side: 'a' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: state.now, side: 'a' })]);
     expect(result.state.players.map(p => p.cost)).toEqual([4, 4, 4, 4]);
   });
   it('T10-9: initial lock uses angle then distance then ID and does not follow yaw changes', () => {

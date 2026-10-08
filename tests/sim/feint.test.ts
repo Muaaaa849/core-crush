@@ -97,7 +97,7 @@ describe('S5-12..13 fresh windup and danger clock', () => {
   it('start, cancel and completion never change expiry; explosion still interrupts feint', () => {
     const initial = held(); initial.danger!.expiresAt = F;
     const result = run(initial, F + 1, [command('feint')]);
-    expect(result.events).toEqual([{ kind: 'explosion', at: F, side: 'a' }]);
+    expect(result.events).toEqual([expect.objectContaining({ kind: 'explosion', at: F, side: 'a' })]);
     expect(result.state.players[0].hp).toBe(initial.players[0].hp - c.explosionDamage);
     expect(result.state.players[0].action).toBeNull();
     const completed = run(held(), c.throwWindup + 1, [command('feint')]);
