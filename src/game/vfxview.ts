@@ -29,7 +29,7 @@ export class VfxView {
     scene.add(lines, this.flash);
   }
 
-  update(effects: readonly Effect[], now: number, camera: THREE.Camera): void {
+  update(effects: readonly Effect[], now: number, camera: THREE.Camera, flashScale: number): void {
     this.right.set(1, 0, 0).applyQuaternion(camera.quaternion);
     this.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
     const basis = { right: this.right, up: this.up };
@@ -39,10 +39,10 @@ export class VfxView {
       const age = now - e.startedAt;
       if (e.kind === 'flash') {
         const u = age / e.lifeMs;
-        this.flash.visible = true;
+        this.flash.visible = flashScale > 0;
         this.flash.position.set(e.position.x, e.position.y, e.position.z);
         this.flash.scale.setScalar(1 + 1.5 * u);
-        this.flash.material.color.set(e.color).multiplyScalar(1 - u);
+        this.flash.material.color.set(e.color).multiplyScalar((1 - u) * flashScale);
         continue;
       }
       const { segments, intensity } = effectSegments(e, age, basis, this.ballRadius);

@@ -10,6 +10,8 @@ import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
 import { CameraBlend, cameraPlayerFor } from './game/camera';
 import { Controls } from './game/controls';
+import { bindingLabel, loadSettings, type Settings } from './game/settings';
+import { effectiveVolume, hitEdgeOpacity, reticleStyle, scaleShake, settingsStorage, SettingsView, viewFov } from './game/settingsview';
 import { coreFace, type CoreFace } from './game/coreface';
 import { createAudioOutput } from './game/audio';
 import { HitStop } from './game/hitstop';
@@ -34,6 +36,10 @@ import './style.css';
 
 const CHARACTER_HEIGHT = 1.8; // m。モデルの寸法ではなくゲーム側の基準で決める
 const params = new URLSearchParams(location.search);
+const loadedSettings = loadSettings(settingsStorage());
+let settings = loadedSettings.settings;
+const settingsMessage = document.querySelector<HTMLElement>('#settings-message')!;
+settingsMessage.textContent = loadedSettings.message;
 
 const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.get('backend') === 'webgl' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -44,7 +50,7 @@ await renderer.init();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05060b);
-const camera = new THREE.PerspectiveCamera(90, innerWidth / innerHeight, 0.05, 500);
+const camera = new THREE.PerspectiveCamera(settings.fov, innerWidth / innerHeight, 0.05, 500);
 
 const stats = new StatsOverlay(renderer, gpuName(renderer), params.has('stats'));
 const overlay = document.querySelector<HTMLDivElement>('#overlay')!;
@@ -190,18 +196,16 @@ const hitStop = new HitStop();
 const audio = createAudioOutput();
 let presentation = createPresentation('local:0');
 let presentedRevision = 0; // OnlineMatchが履歴を捨てた回数。変わったら過去分を鳴らさない
-const effects = { volume: 1, muted: false, shake: true, flash: true };
 const audioStatus = document.querySelector<HTMLElement>('#audio-status')!;
-const volumeInput = document.querySelector<HTMLInputElement>('#effect-volume')!;
-const muteInput = document.querySelector<HTMLInputElement>('#effect-mute')!;
-const shakeInput = document.querySelector<HTMLInputElement>('#effect-shake')!;
-const flashInput = document.querySelector<HTMLInputElement>('#effect-flash')!;
-function applyEffects(): void {
-  effects.volume = Number(volumeInput.value) / 100; effects.muted = muteInput.checked; effects.shake = shakeInput.checked; effects.flash = flashInput.checked;
-  audio.setVolume(effects.volume, effects.muted);
+const reticle = document.querySelector<HTMLElement>('#reticle')!;
+function applySettings(value: Settings): void {
+  controls.releaseAll(); settings = value; controls.settings = settings;
+  audio.setVolume(settings.effects.volume, settings.effects.muted);
+  for (const [property, css] of Object.entries(reticleStyle(settings.reticle))) reticle.style.setProperty(property, css);
 }
-for (const input of [volumeInput, muteInput, shakeInput, flashInput]) input.addEventListener('input', applyEffects);
-applyEffects();
+applySettings(settings);
+const settingsView = new SettingsView(document.querySelector<HTMLDetailsElement>('#settings')!,
+  () => settings, applySettings, settingsStorage, () => controls.releaseAll(), settingsMessage);
 async function startAudio(): Promise<void> {
   await audio.start();
   audioStatus.textContent = audio.status;
@@ -284,7 +288,7 @@ else if (!import.meta.env.VITE_ROOM_URL) onlineStatus.textContent = 'オンラ�
 function returnToLobby(): void {
   networkStatus.hidden = true;
   started = false; onlineMatch = undefined; rematchAt = null; controls.enabled = false;
-  document.exitPointerLock(); overlay.hidden = false;
+  document.exitPointerLock(); showMenu();
   localPlayer = 'p1'; controls.player = localPlayer;
   localRosterValue = localRoster(connection?.view?.mode ?? mode, selectedCharacter());
   restartLocal(createInitialState(rosterMatch(localRosterValue, 'a'), config));
@@ -317,7 +321,7 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
       onlineMatch = match; presentedRevision = match.presentationRevision; localPlayer = match.player; controls.player = localPlayer;
       controls.enabled = false; controls.sync(); started = false; rematchAt = null;
       bots.length = 0; createAvatars(); hud = new Hud(hudElement, config, localPlayer, currentRoster(), true);
-      startButton.hidden = true; document.exitPointerLock(); overlay.hidden = false;
+      startButton.hidden = true; document.exitPointerLock(); showMenu();
     },
     lobby: returnToLobby,
     disconnected: leaveRoom,
@@ -355,6 +359,7 @@ startButton.textContent = 'プレイ開始';
 startButton.disabled = false;
 startButton.addEventListener('click', () => {
   if (connection && !connection.playing) return;
+  settingsView.close(); controls.releaseAll();
   void startAudio();
   if (!started) {
     mode = document.querySelector<HTMLInputElement>('input[name="mode"]:checked')!.value as MatchMode;
@@ -370,8 +375,10 @@ startButton.addEventListener('click', () => {
   canvas.requestPointerLock({ unadjustedMovement: true }).catch(() => canvas.requestPointerLock().catch(() => {}));
 });
 document.addEventListener('pointerlockchange', () => {
+  controls.releaseAll();
   overlay.hidden = controls.locked && started;
 });
+function showMenu(): void { controls.releaseAll(); overlay.hidden = false; }
 document.addEventListener('pointerlockerror', () => {
   startButton.textContent = 'マウスを捕捉できませんでした。もう一度クリック';
 });
@@ -415,7 +422,7 @@ function step(dt: number): void {
     state: game.state, confirmed: onlineMatch?.confirmed,
     viewSimAt: game.previous.now + game.alpha * (game.state.now - game.previous.now), displayNowMs: now,
     visible: !document.hidden, running: onlineMatch ? onlineMatch.status === 'running' : started,
-    audioReady: audio.ready, muted: effects.muted || effects.volume === 0, historyThrough, config,
+    audioReady: audio.ready, muted: effectiveVolume(settings.effects) === 0, historyThrough, config,
   });
   presentation = shownResults.state;
   const events = shownResults.events;
@@ -424,12 +431,12 @@ function step(dt: number): void {
     networkStatus.textContent = onlineMatch.status === 'invalid' ? '無効試合'
       : `通信が途切れました…再接続を待っています（残り${onlineMatch.remainingSeconds}秒）`;
     if (onlineMatch.status === 'invalid') {
-      controls.enabled = false; document.exitPointerLock(); overlay.hidden = false;
+      controls.enabled = false; document.exitPointerLock(); showMenu();
       startButton.hidden = true; roomProgress.textContent = '無効試合。部屋を退出してください';
     }
   }
   if (onlineMatch?.finished && confirmButton.hidden) {
-    controls.enabled = false; document.exitPointerLock(); overlay.hidden = false;
+    controls.enabled = false; document.exitPointerLock(); showMenu();
     confirmButton.hidden = false; confirmButton.disabled = false; startButton.hidden = true;
     const local = onlineMatch.confirmed.players.find(p => p.id === localPlayer)!;
     const result = onlineMatch.client.events.find(e => e.event.kind === 'match-end')!.event;
@@ -447,15 +454,18 @@ function step(dt: number): void {
   if (events.some(e => e.kind === 'spawn')) lastBall.mode = 'absent';
   hitStop.trigger(shownResults.effects.map(e => e.event), now);
   for (const { event, startedAtMs } of shownResults.effects) {
-    shownEffects = addEffects(liveEffects(shownEffects, now), effectsFor(event, startedAtMs, effects.flash));
+    shownEffects = addEffects(liveEffects(shownEffects, now), effectsFor(event, startedAtMs, settings.effects.flash > 0));
     const text = judgement(event, localPlayer, game.state.players);
     if (text && (text.self || !shownJudgement.self || now >= shownJudgement.until)) shownJudgement = { ...text, until: now + JUDGEMENT_MS };
-    if (event.kind === 'hit' && event.player === localPlayer && effects.flash) hitEdgeAt = now;
+    if (event.kind === 'hit' && event.player === localPlayer && settings.effects.flash > 0) hitEdgeAt = now;
   }
   judgementElement.textContent = now < shownJudgement.until ? shownJudgement.text : '';
-  hitEdge.style.opacity = String(0.25 * Math.max(0, 1 - (now - hitEdgeAt) / HIT_EDGE_MS));
+  hitEdge.style.opacity = String(hitEdgeOpacity(now - hitEdgeAt, HIT_EDGE_MS, settings.effects.flash));
   const shown = dt * hitStop.timeScale(now); // ヒットストップ中は見た目の動きだけ止める
   cameraBlend.update(state, localPlayer, dt * 1000);
+  controls.viewMode = cameraBlend.mode;
+  const fov = viewFov(settings.fov, controls.ads);
+  if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
   for (const player of state.players) {
     const yaw = player.id === localPlayer && player.hp > 0 ? controls.yaw : player.yaw;
     const avatar = avatars.get(player.id)!;
@@ -465,6 +475,7 @@ function step(dt: number): void {
   placeBall(state);
   updateCoreFace(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
+  hud.skillKeys = [bindingLabel(settings.bindings.skill1), bindingLabel(settings.bindings.skill2)];
   hud.update(onlineMatch?.finished ? onlineMatch.confirmed : state, events, now);
   targets.update(state, localPlayer, id => playerPosition(id, new THREE.Vector3()));
   stageMixer.update(dt);
@@ -475,17 +486,15 @@ function step(dt: number): void {
   // 音の定位は揺れを混ぜない論理カメラから求める。
   const listener = { player: localPlayer, players: state.players, position: camera.position.clone(),
     right: new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), rallySpeedCap: config.rallySpeedCap };
-  vfx.update(shownEffects, now, camera);
+  vfx.update(shownEffects, now, camera, settings.effects.flash);
   for (const e of shownResults.sounds) {
     const plan = describeSound(e, listener);
     if (plan) audio.play(plan);
   }
   const localSide = state.players.find(p => p.id === localPlayer)!.side;
   for (const w of shownResults.warnings) audio.play(warningSound(w.side, localSide));
-  if (effects.shake) {
-    const shake = hitStop.shake(now);
-    camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
-  }
+  const shake = scaleShake(hitStop.shake(now), settings.effects.shake);
+  camera.position.add(tmp.set(shake.x, shake.y, 0).applyQuaternion(camera.quaternion));
   lookTargets[0].copy(body).setY(1.6);
   lookTargets[1].copy(body).setY(1.0);
   occlusion.update(camera, lookTargets, dt);

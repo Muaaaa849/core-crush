@@ -1,8 +1,7 @@
 // キャラ定義（0013 M3-2、characters.md「初期ロスター案」）。HPは持たず、能力からsimの式で決める。
 // sim・通信・表示が同じ表を使う。three.js・DOMはimportしない。
-import type { PlayerId, Side, Stats } from '../sim/types';
+import type { PlayerId, Side, SkillId, Stats } from '../sim/types';
 
-export type SkillId = 'overcharge' | 'blink' | 'phantom' | 'boost-ring' | 'chain' | 'charge' | 'trap' | 'energy-bolt';
 export interface SkillDefinition { name: string; kind: 'active' | 'passive'; status: 'unimplemented'; plan?: string }
 export interface CharacterDefinition {
   name: string;
@@ -20,6 +19,7 @@ export const SKILLS: Record<SkillId, SkillDefinition> = {
   charge: { name: '蓄勢', kind: 'passive', status: 'unimplemented', plan: 'goodキャッチの獲得量増加' },
   trap: { name: 'スクラップ・トラップ', kind: 'active', status: 'unimplemented' },
   'energy-bolt': { name: 'エナジーボルト', kind: 'active', status: 'unimplemented' },
+  economy: { name: '省エネ', kind: 'passive', status: 'unimplemented', plan: '召喚コスト減少' },
 };
 
 export const CHARACTERS = {
@@ -45,10 +45,10 @@ export function playerLabel(roster: Roster, local: PlayerId, id: PlayerId): stri
   return `${relation} ${id.toUpperCase()} ${CHARACTERS[entry.characterId].name}`;
 }
 
-/** 2枠の表示。アクティブは既定キー、パッシブは常時。効果はまだないので未実装と明示する。 */
-export function skillLines(id: CharacterId): string[] {
+/** 2枠の表示。アクティブは割当キー（既定E/R）、パッシブは常時。効果はまだないので未実装と明示する。 */
+export function skillLines(id: CharacterId, keys: readonly [string, string] = ['E', 'R']): string[] {
   return CHARACTERS[id].skills.map((skill, slot) => {
     const s = SKILLS[skill];
-    return s.kind === 'active' ? `[${slot === 0 ? 'E' : 'R'}] ${s.name} — 未実装` : `常時：${s.name} — 未実装（${s.plan}）`;
+    return s.kind === 'active' ? `[${keys[slot]}] ${s.name} — 未実装` : `常時：${s.name} — 未実装（${s.plan}）`;
   });
 }

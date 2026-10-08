@@ -13,6 +13,8 @@ const REASON_LABEL = { ko: 'KO', time: '時間切れ' };
 export const REMATCH_SECONDS = 5;
 
 export class Hud {
+  /** 固有枠の割当キーの表示名（設定から）。 */
+  skillKeys: readonly [string, string] = ['E', 'R'];
   private message = '';
   private messageUntil = 0;
 
@@ -60,7 +62,7 @@ export class Hud {
     const lock = `\nロック：${target ? name(target.id) : 'なし'}${target && targetAngle(local, target) > this.config.throwArcDegrees / 2 * Math.PI / 180 + 1e-12 ? '（対象が正面外）' : ''}`;
     const flightTarget = state.ball.mode === 'flight' ? state.ball.attack?.target : null;
     const flight = state.ball.mode === 'flight' ? `\n飛行対象：${flightTarget ? name(flightTarget) : 'なし'}` : '';
-    const skills = `\n${skillLines(this.roster.find(e => e.id === this.local)!.characterId).join('　')}`;
+    const skills = `\n${skillLines(this.roster.find(e => e.id === this.local)!.characterId, this.skillKeys).join('　')}`;
     const message = now < this.messageUntil ? `\n${this.message}` : '';
     this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${flight}${skills}${message}`;
   }

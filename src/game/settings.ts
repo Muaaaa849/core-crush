@@ -127,3 +127,13 @@ export function loadSettings(storage: Pick<Storage, 'getItem'> | undefined): { s
 export function saveSettings(storage: Pick<Storage, 'setItem'> | undefined, settings: Settings): boolean {
   try { storage!.setItem(SETTINGS_KEY, JSON.stringify(settings)); return true; } catch { return false; }
 }
+
+const MOUSE_LABELS = ['左クリック', '中クリック', '右クリック', 'マウス4', 'マウス5'];
+/** 画面に出す入力名。KeyE→E、Mouse2→右クリック、ShiftLeft→左Shift。 */
+export function inputLabel(code: string): string {
+  if (code.startsWith('Mouse')) return MOUSE_LABELS[Number(code.slice(5))];
+  if (code.startsWith('Key') || code.startsWith('Digit')) return code.replace(/^(Key|Digit)/, '');
+  return code.replace(/^(.+)Left$/, '左$1').replace(/^(.+)Right$/, '右$1');
+}
+/** 行動の主副を「E / R」のように並べる。 */
+export const bindingLabel = (pair: readonly Binding[]): string => pair.filter((b): b is string => b !== null).map(inputLabel).join(' / ');
