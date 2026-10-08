@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-08",
+  "generator": "GPT Image / built-in image_gen",
+  "images": 32,
+  "accepted": 27,
+  "rejected": 5,
+  "uiScreens": 9,
+  "characterViews": 16,
+  "conceptSheets": 2,
+  "largestImageBytes": 407532,
+  "totalImageBytes": 5827552,
+  "checks": [
+    "all images decoded",
+    "all images <= 3000000 bytes",
+    "UI 1600x900",
+    "accepted character views 1024x1536",
+    "all 16 character directions",
+    "all reference paths exist",
+    "all images logged",
+    "UTF-8 and LF text",
+    "all assets visually reviewed"
+  ],
+  "errors": []
+}

@@ -1,0 +1,747 @@
+{
+  "date": "2026-10-08",
+  "generator": "GPT Image / built-in image_gen",
+  "assets": [
+    {
+      "id": "title",
+      "category": "ui",
+      "prompt": "Use case: ui-mockup. Create ONE 16:9 landscape title screen concept for Japanese PC game CORE-CRUSH. Reference image 1 is the existing arena mood and architecture; image 2 is the existing spherical core design, do not redesign it. Illegal cyber cage fighting in a junk city at night, wet dark metal floor, wire cage, restrained cyan and pink holographic signage. Production-friendly FLAT screen layout, no perspective panel mockup. Large condensed CORE-CRUSH title left upper third, a short Japanese subtitle 違法サイバー・ケージファイト, one rectangular 開始 button left lower third. Right third: the metal spherical core with yellow-black hazard plates and its cyan smiling LCD, rendered crisply, no extra balls. Dark graphite #0B1016 and #151D27, off-white #E8F0F2 typography, cyan #57C7FF and pink #FF718A as sparse accents. Lots of clean space, readable hierarchy, minimal panel ornament. This is a title screen not gameplay; no fake gameplay HUD, no betting interaction. Retain existing arena atmosphere but dim background detail beneath text. No watermark. Image text will be replaced by normal fonts in implementation.",
+      "references": [
+        "D:/T3test/arena/_preview/stage_wide.png",
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "source": "C:\\Users\\phant\\.codex\\generated_images\\01a118ea-8981-7951-b37e-20e81aacf3e5\\exec-1e4481aa-f3d0-4be8-a876-61c2d32f1ab8.png",
+      "output": "art/concepts/ui/title.webp",
+      "status": "採用",
+      "reason": "既存コアの金属外殻と液晶顔を維持し、入口の階層が明確である。",
+      "date": "2026-10-08",
+      "width": 1600,
+      "height": 900,
+      "bytes": 322868,
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "reviewDate": "2026-10-08",
+      "portableReferences": [
+        "D:/T3test/arena/_preview/stage_wide.png",
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "sha256": "4446aacd574ff5bc0fdcb858c7c1172073af868ddd84cdfed35e4e7fa7013808"
+    },
+    {
+      "id": "menu",
+      "category": "ui",
+      "output": "art/concepts/ui/main-menu.webp",
+      "references": [
+        "C:\\Users\\phant\\.codex\\generated_images\\01a118ea-8981-7951-b37e-20e81aacf3e5\\exec-1e4481aa-f3d0-4be8-a876-61c2d32f1ab8.png"
+      ],
+      "prompt": "Use case: ui-mockup. ONE flat 16:9 Japanese PC game screen, CORE-CRUSH illegal cyber cage fighting. Crisp rectangular panels, disciplined alignment and generous negative space, easy to reproduce with HTML/CSS. Dark graphite #0B1016 background, #151D27 panels, off-white #E8F0F2 plain sans-serif text. Sparse cyan #57C7FF and pink #FF718A edges. Wet metal and distant neon cage in background only, dim behind text. Do not obscure game objects. Team A uses cyan plus square A badge; Team B uses pink plus triangle B badge. Character color is separate. No ornate sci-fi cockpit framing, no illegible microscopic decoration, no watermark. Japanese text will be replaced in implementation. Reference 1 supplies the approved title aesthetic. Main menu: small CORE-CRUSH title upper left; left 40% a vertical stack of exactly three large equal-width buttons ローカル試遊 / オンライン / 設定. Local selected with clear pale border, not just color. Right 50% unobtrusive side view of the existing arena and the core, no additional competing focal point. Bottom note 中央通過から8秒。投げただけでは戻らない. Flat readable menu, restrained glow, ample margins.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118ea-8981-7951-b37e-20e81aacf3e5/exec-fec27cc4-341e-4e7f-9565-7921c0446dff.png",
+      "date": "2026-10-08",
+      "status": "採用",
+      "width": 1600,
+      "height": 900,
+      "bytes": 259448,
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "reason": "採用（配置・質感）。3ボタンの階層が明確である。メニュー内のA/Bバッジはチーム識別と混同するため中立アイコンへ置換する。",
+      "reviewDate": "2026-10-08",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "sha256": "590cffd0b0982cc9ad64a039ee10c20ecec05442185836888a491df2f822da21"
+    },
+    {
+      "id": "volt-front",
+      "category": "characters",
+      "output": "art/concepts/characters/volt/front.webp",
+      "references": [
+        "D:/T3test/arena/_preview/stage_wide.png",
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "prompt": "Use case: stylized-concept. Tripo AI reconstruction reference for CORE-CRUSH. ONE character, ONE direction per image, no multi-view sheet. Full body from head to soles with 8% margin, centered, neutral anatomical A-pose with arms 30 degrees away from torso, elbows straight, palms readable and five separated relaxed fingers, feet shoulder width, identical proportions to all other roster variants. Near-orthographic camera at mid-body height, no foreshortening or dramatic lens. Plain light gray #DDE0E2 background, even neutral studio lighting, minimal contact shadow, no ground environment. Adult androgynous lean athletic cyborg street-sport contestant with short dark hair, exposed face, accessible shoulders, fingerless sport gloves, patched sleeveless technical jacket over close-fitting charcoal sport base layer, articulated knee guards and sturdy trainers. Junk-city repaired sporting wear, restrained metal plating and tiny luminous seams, clean readable forms suitable for game modeling. All variants use SAME body and SAME skeletal proportions and same outfit construction. Distinction is color and small trim modules, not muscular size, sex, or giant equipment. Team marking strip on upper chest and ankles stays neutral charcoal for later A/B overlay. No blue/pink team coloring, weapons, balls, floating objects, capes, text, letters, numbers, logos, labels, border, or watermark. References show game material language ONLY, do not put the arena or core into the image. VOLT base mustard #D8A52A, tiny pale gold luminous trim #FFE27A. Small angular bevel pattern at wrists and calf cuffs. FRONT VIEW, perfectly straight toward camera, symmetric neutral pose, one figure only. This is the master design for the shared body and clothing.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118ea-8981-7951-b37e-20e81aacf3e5/exec-479b6e0e-91e4-4acc-a268-e8d91434ba9d.png",
+      "date": "2026-10-08",
+      "status": "採用",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 131470,
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "reason": "採用。全身・Aポーズ・明灰色背景であり、4体共通の体型と衣服の基準とする。",
+      "reviewDate": "2026-10-08",
+      "portableReferences": [
+        "D:/T3test/arena/_preview/stage_wide.png",
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "sha256": "cef98f55b315a52ce3eb6a8ed7eb5a806297749cfe7366cda510b1d9ef3f9bf5"
+    },
+    {
+      "id": "lobby",
+      "category": "ui",
+      "output": "art/concepts/ui/room-lobby.webp",
+      "references": [
+        "C:\\Users\\phant\\.codex\\generated_images\\01a118ea-8981-7951-b37e-20e81aacf3e5\\exec-1e4481aa-f3d0-4be8-a876-61c2d32f1ab8.png"
+      ],
+      "prompt": "Use case: ui-mockup. ONE flat 16:9 Japanese PC game screen, CORE-CRUSH illegal cyber cage fighting. Crisp rectangular panels, disciplined alignment and generous negative space, easy to reproduce with HTML/CSS. Dark graphite #0B1016 background, #151D27 panels, off-white #E8F0F2 plain sans-serif text. Sparse cyan #57C7FF and pink #FF718A edges. Wet metal and distant neon cage in background only, dim behind text. Do not obscure game objects. Team A uses cyan plus square A badge; Team B uses pink plus triangle B badge. Character color is separate. No ornate sci-fi cockpit framing, no illegible microscopic decoration, no watermark. Japanese text will be replaced in implementation. Room creation and lobby screen. Top breadcrumb オンライン / 部屋. Left narrow column contains form 対戦形式 with 1v1・1v2・2v2 segmented selector, 部屋を作る button and 招待コードで参加 input with 参加 button. Main center-right panel ロビー 2v2. A wide invite code field with 32 hex characters as four groups, example 01234567 89abcdef 01234567 89abcdef, adjacent コピー button, label 表示は4桁区切りでも内部は32桁. Four participant rows: P1 A VOLT ホスト ロード完了; P2 A ECHO 接続中; P3 B ANCHOR ロード完了; P4 B SWITCH 読込中. A square/cyan and B triangle/pink symbols. Bottom of main panel host button 全員で開始 visually disabled until ready; explanatory status 全員の接続を待っています. A small separate state preview strip shows 接続中 → 全員ロード完了 → 開始まで3 → 2 → 1. No matchmaking, chat, store, or betting controls. All figures and codes are dummy data.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118ea-8981-7951-b37e-20e81aacf3e5/exec-f597e16d-0ff2-46cf-821f-a7ecbac2661a.png",
+      "date": "2026-10-08",
+      "status": "採用",
+      "width": 1600,
+      "height": 900,
+      "bytes": 192186,
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "reason": "採用（配置・質感）。参加者と接続状態が読める。仮ロボット顔、形式の不一致、内部コード形式の説明は実装時に置換する。",
+      "reviewDate": "2026-10-08",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "sha256": "3b8ed868e337c2f8a6340da41bc608fbd28716d6918bab38f63f6d8d670f8afa"
+    },
+    {
+      "id": "settings",
+      "category": "ui",
+      "output": "art/concepts/ui/settings.webp",
+      "references": [
+        "C:\\Users\\phant\\.codex\\generated_images\\01a118ea-8981-7951-b37e-20e81aacf3e5\\exec-1e4481aa-f3d0-4be8-a876-61c2d32f1ab8.png"
+      ],
+      "prompt": "Use case: ui-mockup. ONE flat 16:9 Japanese PC game screen, CORE-CRUSH illegal cyber cage fighting. Crisp rectangular panels, disciplined alignment and generous negative space, easy to reproduce with HTML/CSS. Dark graphite #0B1016 background, #151D27 panels, off-white #E8F0F2 plain sans-serif text. Sparse cyan #57C7FF and pink #FF718A edges. Wet metal and distant neon cage in background only, dim behind text. Do not obscure game objects. Team A uses cyan plus square A badge; Team B uses pink plus triangle B badge. Character color is separate. No ornate sci-fi cockpit framing, no illegible microscopic decoration, no watermark. Japanese text will be replaced in implementation. Settings screen. Title 設定. Left 52% table 行動 / 主 / 副: 移動 前 W, 後 S, 左 A, 右 D; 投球・跳ね返し 左クリック; ADS・キャッチ 右クリック; ステップ Shift; ロック切替 Q; フリ F; 球召喚 C; 固有1 E; 固有2 R. Spare binding column shows 未設定. Right 42% grouped controls: 感度 FPS/TPS/ADS numeric sliders, 縦横倍率, Y反転; FOV slider 90; レティクル simple cross/dot preview with size/color; 演出 音量/ミュート/揺れ/閃光. Footer prominent 適用 and キャンセル and 既定値 buttons. Small warning row 競合を解消すると適用できる, no swap button. Footer オンライン試合は停止しない. Large readable labels, sparse clean separators, no huge visual ornaments.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118ea-8981-7951-b37e-20e81aacf3e5/exec-f7fa0a01-a877-4d67-b48e-87bb2c34151d.png",
+      "date": "2026-10-08",
+      "status": "採用",
+      "width": 1600,
+      "height": 900,
+      "bytes": 166726,
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "reason": "採用（配置・質感）。割当表と演出設定を分離できる。競合警告が出ているときは適用を無効にする。",
+      "reviewDate": "2026-10-08",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "sha256": "48cdcbfcaee432ab1bc73f259568d931ba053e27348017d43709b9254f5b5452"
+    },
+    {
+      "id": "echo-front",
+      "category": "characters",
+      "output": "art/concepts/characters/echo/front.webp",
+      "prompt": "Use case: stylized-concept. CORE-CRUSH Tripo AI 3D reconstruction reference. ONE full-body adult character, ONE view only. Reference image 1 is the exact approved master VOLT front: preserve the same face, hair, body proportions, height, limb lengths, shoulder width, sleeveless hooded vest, fitted dark inner top, cargo trousers, forearm guards, fingerless gloves, knee pads and trainers. Preserve anatomy and outfit construction. Neutral A-pose, arms 30 degrees out from torso, straight relaxed elbows, relaxed fingers, feet shoulder width. Near orthographic camera at mid-body level, no perspective distortion. Entire hair and both soles visible with comfortable 6 percent margins. Flat light gray #DDE0E2 seamless background, even studio light, faint contact shadow. No letters, numbers, logos, text, labels, weapons, balls, floating objects, team badges, dramatic effects or environment. Keep all team marking strips neutral charcoal. One figure, no inset or multi-view. Create ECHO FRONT VIEW, directly facing viewer. Change mustard cloth and yellow trim only to muted purple #8067B5 and subtle lavender light #CBB4FF. Small concentric seam detail on wrist plates instead of angled bevel motif, but no change to silhouette or equipment size. Same person, same body, same pose, same outfit as VOLT; a material variant.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-7e5e3cff-8b64-49d9-a0b2-69b9d6bbadc0.png",
+      "status": "採用",
+      "reason": "正面一体、全身、Aポーズ、無地背景を確認した。VOLT基準の配色・小装飾案として採用する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 114120,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "2954a91aedf216bfb50d6942c63693a34af2242b49d1e17c946aa476c9f82a5e"
+    },
+    {
+      "id": "anchor-front",
+      "category": "characters",
+      "output": "art/concepts/characters/anchor/front.webp",
+      "prompt": "Use case: stylized-concept. CORE-CRUSH Tripo AI 3D reconstruction reference. ONE full-body adult character, ONE view only. Reference image 1 is the exact approved master VOLT front: preserve the same face, hair, body proportions, height, limb lengths, shoulder width, sleeveless hooded vest, fitted dark inner top, cargo trousers, forearm guards, fingerless gloves, knee pads and trainers. Preserve anatomy and outfit construction. Neutral A-pose, arms 30 degrees out from torso, straight relaxed elbows, relaxed fingers, feet shoulder width. Near orthographic camera at mid-body level, no perspective distortion. Entire hair and both soles visible with comfortable 6 percent margins. Flat light gray #DDE0E2 seamless background, even studio light, faint contact shadow. No letters, numbers, logos, text, labels, weapons, balls, floating objects, team badges, dramatic effects or environment. Keep all team marking strips neutral charcoal. One figure, no inset or multi-view. Create ANCHOR FRONT VIEW, straight toward viewer. Change mustard cloth and yellow trims only to desaturated sage green #68856F and subtle pale green light #B4D6A0. Small nested rectangular engraving on wrist plates, no chain accessory, no silhouette or equipment-size change. Same person/body/pose/outfit, material variant.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-d510319b-8c1a-42ad-b6a8-4b60b9d5f746.png",
+      "status": "採用",
+      "reason": "正面一体、全身、Aポーズ、無地背景を確認した。VOLT基準の配色・小装飾案として採用する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 111356,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "2335853c73619cf12d392bf4e1ee5cfbde55b811de2442de7ef684c32faf0731"
+    },
+    {
+      "id": "switch-front",
+      "category": "characters",
+      "output": "art/concepts/characters/switch/front.webp",
+      "prompt": "Use case: stylized-concept. CORE-CRUSH Tripo AI 3D reconstruction reference. ONE full-body adult character, ONE view only. Reference image 1 is the exact approved master VOLT front: preserve the same face, hair, body proportions, height, limb lengths, shoulder width, sleeveless hooded vest, fitted dark inner top, cargo trousers, forearm guards, fingerless gloves, knee pads and trainers. Preserve anatomy and outfit construction. Neutral A-pose, arms 30 degrees out from torso, straight relaxed elbows, relaxed fingers, feet shoulder width. Near orthographic camera at mid-body level, no perspective distortion. Entire hair and both soles visible with comfortable 6 percent margins. Flat light gray #DDE0E2 seamless background, even studio light, faint contact shadow. No letters, numbers, logos, text, labels, weapons, balls, floating objects, team badges, dramatic effects or environment. Keep all team marking strips neutral charcoal. One figure, no inset or multi-view. Create SWITCH FRONT VIEW, straight toward viewer. Change mustard cloth and yellow trims only to muted copper #BB7657 and subtle pale peach light #FFD0A0. Small two offset rectangular engravings on wrist plates, no silhouette or equipment-size change. Same person/body/pose/outfit, material variant.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-68ae59de-8599-477f-a488-b958c2322fda.png",
+      "status": "採用",
+      "reason": "正面一体、全身、Aポーズ、無地背景を確認した。VOLT基準の配色・小装飾案として採用する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 115134,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "4d31c7c51ddc4714955df26af4db4f7393cb4e98f6fd8f3578addcd0a195c497"
+    },
+    {
+      "id": "volt-left",
+      "category": "characters",
+      "output": "art/concepts/characters/volt/left.webp",
+      "prompt": "Use case: stylized-concept. CORE-CRUSH Tripo AI 3D reconstruction reference. ONE full-body adult character, ONE view only. Reference image 1 is the exact approved master VOLT front: preserve the same face, hair, body proportions, height, limb lengths, shoulder width, sleeveless hooded vest, fitted dark inner top, cargo trousers, forearm guards, fingerless gloves, knee pads and trainers. Preserve anatomy and outfit construction. Neutral A-pose, arms 30 degrees out from torso, straight relaxed elbows, relaxed fingers, feet shoulder width. Near orthographic camera at mid-body level, no perspective distortion. Entire hair and both soles visible with comfortable 6 percent margins. Flat light gray #DDE0E2 seamless background, even studio light, faint contact shadow. No letters, numbers, logos, text, labels, weapons, balls, floating objects, team badges, dramatic effects or environment. Keep all team marking strips neutral charcoal. One figure, no inset or multi-view. VOLT exact same design and mustard #D8A52A / pale gold #FFE27A. Rotate CAMERA to see character's anatomical LEFT SIDE, pure 90-degree side profile, nose and shoes point toward IMAGE LEFT. Torso/hips/head all strictly side-on; no three-quarter view. Keep the SAME A-pose in 3D; do not rotate arms to face camera. Far arm may naturally be occluded. Preserve outfit thickness, hip pockets, low folded hood, knee pads, limb proportions. No backpack. Do not mirror the front design.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-49852319-499e-4fd1-815e-e53eb66f42d7.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 84362,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "5df5d280476ad31eb05d471e3bf8567c041ca02e3e799db5a1e82fd76607ac77"
+    },
+    {
+      "id": "volt-right",
+      "category": "characters",
+      "output": "art/concepts/characters/volt/right.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. VOLT palette #D8A52A / #FFE27A. Strict 90 degree RIGHT SIDE PROFILE, nose and both shoes point toward IMAGE RIGHT. Show character's anatomical right side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-c97c1775-838e-4108-b593-8584ae1f52a3.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 76256,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "e6ef7778cff9bf250b8554cbd0856ba5d747996dbc2796ff2f9427f6d5a1a6b4"
+    },
+    {
+      "id": "volt-back",
+      "category": "characters",
+      "output": "art/concepts/characters/volt/back.webp",
+      "references": [
+        "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-896a2b28-31fb-4012-8e35-044323806dcb.png",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "prompt": "Use case: precise-object-edit. Image 1 is an incorrect two-person sheet. DELETE the left figure completely. Keep ONLY the rear-facing figure from the right, enlarge and center this single figure on a portrait light gray #DDE0E2 canvas. Image 2 is identity and garment material reference only, do not copy its front-facing pose. Final output: exactly ONE person seen from BEHIND, one view, no inset, no second person, no text. Neutral A-pose, same proportions and outfit, full hair to soles with 6% margin, near orthographic camera. Do not redesign the surviving figure. Output a single centered BACK view only.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-8989c6df-b002-499f-b55c-88c43f594dd8.png",
+      "status": "採用",
+      "reason": "背面一体、全身、Aポーズ、無地背景を確認した。フードと装具の背面参考として採用する。縫い目・パネル割りの微差は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 117170,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/rejected/back-01.webp",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "8a1d49ad766db1e291213e6ec1f4e2ca1a8bb46ba386960d505747f25acbe86b"
+    },
+    {
+      "id": "echo-left",
+      "category": "characters",
+      "output": "art/concepts/characters/echo/left.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ECHO palette #8067B5 / #CBB4FF. Strict 90 degree LEFT SIDE PROFILE, nose and both shoes point toward IMAGE LEFT. Show character's anatomical left side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-e85afbae-09c7-4104-959c-ed95182d30e0.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 74332,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "dff15fef8d539d21cddc0a7d298fc6daa0bbe5baaa1082d4b4046a8cb87bed27"
+    },
+    {
+      "id": "echo-right",
+      "category": "characters",
+      "output": "art/concepts/characters/echo/right.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ECHO palette #8067B5 / #CBB4FF. Strict 90 degree RIGHT SIDE PROFILE, nose and both shoes point toward IMAGE RIGHT. Show character's anatomical right side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-fc8a8a29-eb40-4503-885f-3e4b7b121d4c.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 71194,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "cffeb716687d8ca9fa18f650f5ca1add8a00fb9a0e59642df383453e61adae3a"
+    },
+    {
+      "id": "echo-back",
+      "category": "characters",
+      "output": "art/concepts/characters/echo/back.webp",
+      "references": [
+        "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-e803f980-73b1-461a-ad59-f120bff34bb5.png",
+        "D:/corecrush/art/concepts/characters/echo/front.webp"
+      ],
+      "prompt": "Use case: precise-object-edit. Image 1 is an incorrect two-person sheet. DELETE the left figure completely. Keep ONLY the rear-facing figure from the right, enlarge and center this single figure on a portrait light gray #DDE0E2 canvas. Image 2 is identity and garment material reference only, do not copy its front-facing pose. Final output: exactly ONE person seen from BEHIND, one view, no inset, no second person, no text. Neutral A-pose, same proportions and outfit, full hair to soles with 6% margin, near orthographic camera. Do not redesign the surviving figure. Output a single centered BACK view only.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-904cd33f-8af4-409a-9c37-a3826fbbd4a4.png",
+      "status": "採用",
+      "reason": "背面一体、全身、Aポーズ、無地背景を確認した。フードと装具の背面参考として採用する。縫い目・パネル割りの微差は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 102636,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/echo/rejected/back-01.webp",
+        "D:/corecrush/art/concepts/characters/echo/front.webp"
+      ],
+      "sha256": "14a45cac78f495fdc8cb72fd4a116cfe607625b2d66247654997aa1538105b52"
+    },
+    {
+      "id": "anchor-left",
+      "category": "characters",
+      "output": "art/concepts/characters/anchor/left.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ANCHOR palette #68856F / #B4D6A0. Strict 90 degree LEFT SIDE PROFILE, nose and both shoes point toward IMAGE LEFT. Show character's anatomical left side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-88aaa8d6-90ea-487c-a676-f3bfcaa35a8b.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 69898,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "d55fe5d34e64924c313fecb93c0116306fcc2a0a006912ad23cda919736532b4"
+    },
+    {
+      "id": "anchor-back",
+      "category": "characters",
+      "output": "art/concepts/characters/anchor/back.webp",
+      "prompt": "Use case: identity-preserve. Rotate the SOLE existing figure in image 1 in place to face directly AWAY from viewer. Output only one person from behind, no comparison, no inset, no front figure. Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ANCHOR palette #68856F / #B4D6A0. BACK VIEW: exactly 180 degrees from front, back of head and clothing, no face visible. Same symmetrical A-pose, show back seam construction and folded hood, no backpack. FINAL CHECK: exactly ONE centered figure, only BACK of head visible.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-5c3b9ee5-3300-4b07-8c77-8dd38a0dd21c.png",
+      "status": "採用",
+      "reason": "背面一体、全身、Aポーズ、無地背景を確認した。フードと装具の背面参考として採用する。縫い目・パネル割りの微差は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 101618,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp"
+      ],
+      "sha256": "dc8c7fe6bf2a507174aa6b0c5ba3bc9d3365fa9cc9cc91e58943b270d0895e83"
+    },
+    {
+      "id": "anchor-right",
+      "category": "characters",
+      "output": "art/concepts/characters/anchor/right.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ANCHOR palette #68856F / #B4D6A0. Strict 90 degree RIGHT SIDE PROFILE, nose and both shoes point toward IMAGE RIGHT. Show character's anatomical right side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-213604b1-ed7b-452a-9f48-31089cc61927.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 66614,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "21890f05d649f700aaaffcb170b4f38b4554237c1d9b2a6386a9499980f32e07"
+    },
+    {
+      "id": "switch-left",
+      "category": "characters",
+      "output": "art/concepts/characters/switch/left.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. SWITCH palette #BB7657 / #FFD0A0. Strict 90 degree LEFT SIDE PROFILE, nose and both shoes point toward IMAGE LEFT. Show character's anatomical left side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-762c709d-276c-41d0-a8c3-35bb280956eb.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 70120,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "74d1ccbe31ae732beb1801ff80dbb22aa582290901e2087eaf49a8273e53e72a"
+    },
+    {
+      "id": "switch-back",
+      "category": "characters",
+      "output": "art/concepts/characters/switch/back.webp",
+      "prompt": "Use case: identity-preserve. Rotate the SOLE existing figure in image 1 in place to face directly AWAY from viewer. Output only one person from behind, no comparison, no inset, no front figure. Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. SWITCH palette #BB7657 / #FFD0A0. BACK VIEW: exactly 180 degrees from front, back of head and clothing, no face visible. Same symmetrical A-pose, show back seam construction and folded hood, no backpack. FINAL CHECK: exactly ONE centered figure, only BACK of head visible.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-72185dba-b1ec-4a59-93b7-ff58e45bade4.png",
+      "status": "採用",
+      "reason": "背面一体、全身、Aポーズ、無地背景を確認した。フードと装具の背面参考として採用する。縫い目・パネル割りの微差は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 111180,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp"
+      ],
+      "sha256": "db7f00920a0a69752f4ba03d4475ec37ee743cd2af003feda4d3b9cfc40f2769"
+    },
+    {
+      "id": "switch-right",
+      "category": "characters",
+      "output": "art/concepts/characters/switch/right.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. SWITCH palette #BB7657 / #FFD0A0. Strict 90 degree RIGHT SIDE PROFILE, nose and both shoes point toward IMAGE RIGHT. Show character's anatomical right side. Torso, pelvis and head all side-on, no three-quarter. Far arm can be occluded. Camera rotation only, no pose change.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-acca5c85-a8aa-407c-b149-5dbf9591634b.png",
+      "status": "採用",
+      "reason": "側面一体、全身、指定方向、無地背景を確認した。遠側の手足の重なりは正面Aポーズと併用し、細部は共通モデルへ統合する。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 72180,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/switch/front.webp",
+        "D:/corecrush/art/concepts/characters/volt/left.webp"
+      ],
+      "sha256": "f9d1977db4661dbe6778fb1f4ff27e7f8d53a1bda4a9edd7b19f828fb1d92406"
+    },
+    {
+      "id": "character-select",
+      "category": "ui",
+      "output": "art/concepts/ui/character-select.webp",
+      "references": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/corecrush/art/concepts/characters/volt/front.webp",
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/switch/front.webp"
+      ],
+      "prompt": "Use case: ui-mockup. ONE polished flat 16:9 Japanese PC game CORE-CRUSH screen, not an angled physical monitor. Use approved title image for visual language: illegal junk-city cyber cage sport, wet steel, distant neon cyan/pink, restrained grime, readable industrial typography. HTML/CSS reproducible rectangular panels #151D27 on #0B1016, text #E8F0F2, secondary #A9BBC8, selected border 2px. Keep decoration behind text, no cockpit clutter. Team A cyan #57C7FF with SQUARE A badge, Team B pink #FF718A with TRIANGLE B badge. Never use team badges as unrelated menu icons. One screen only, no explanatory collage. Image lettering will be replaced with normal fonts in implementation. Format and character selection. Header 対戦準備, format selector 1v1 / 1v2 / 2v2 with 2v2 selected by outline and check. Four equally sized cards in a single row, portraits EXACTLY matching supplied shared-body material variants (no helmets). VOLT mustard, ECHO purple, ANCHOR sage, SWITCH copper. Each card has three clearly named stats 攻撃 / 防御 / 敏捷: VOLT 7/4/4, ECHO 4/6/5, ANCHOR 4/7/4, SWITCH 5/4/6. Exactly two skill rows each: VOLT オーバーチャージ / ブリンク; ECHO ファントム / ブーストリング; ANCHOR チェーン / 蓄勢（常時）; SWITCH トラップ / エナジーボルト. Small common notice 固有スキルは未実装. VOLT selected with white border and 選択中 label. Bottom strip P1 square A VOLT; P2 square A ECHO; P3 triangle B ANCHOR; P4 triangle B SWITCH, then 戻る and 準備完了 buttons. No extra card, no stats omitted.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-2ab927e3-c6ba-423e-a041-19890e84d25d.png",
+      "status": "採用",
+      "reason": "採用（配置・質感）。4カード、能力3値、固有2枠を確認した。能力バーは数値から再描画し、Bバッジの向きとB文字、スキルの表記を統一する。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 364900,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/corecrush/art/concepts/characters/volt/front.webp",
+        "D:/corecrush/art/concepts/characters/echo/front.webp",
+        "D:/corecrush/art/concepts/characters/anchor/front.webp",
+        "D:/corecrush/art/concepts/characters/switch/front.webp"
+      ],
+      "sha256": "c340abdac254a4383a1d9368d686f2adc94cd8a36bf96fd9abcb3cee003d8d9f"
+    },
+    {
+      "id": "hud-tps",
+      "category": "ui",
+      "output": "art/concepts/ui/hud-tps.webp",
+      "references": [
+        "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-fd8ec974-e74d-4ae3-b41e-ac492717e18c.png"
+      ],
+      "prompt": "Use case: precise-object-edit. Refine this existing CORE-CRUSH TPS HUD concept. Preserve composition, ball location and all necessary HUD labels. Correct top score by removing ALL tiny square win pips on both sides; display just square A 1, ROUND 2, 02:14, 0 triangle B. COST is 3.25/5: draw exactly five boxes, three completely filled, fourth one-quarter filled, fifth empty. HP 76/94 bar filled to 81 percent. Danger clock remains 爆発まで 4秒 with amber worried face. Make danger panel border amber instead of red. Reduce fence electric lines and background sign brightness by 65% so opponent is clear beyond transparent fence. Reticle half current size. Keep one core with visible center and edge, no lens flare. Flat 16:9.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-c1d7ff05-e4b9-46c7-8961-85cd59afc406.png",
+      "status": "採用",
+      "reason": "採用（修正版の配置）。勝利印を除き数値へ統一し、球・時計・資源を分離した。コストの部分充填と危険文字色は定義から再描画し、判定文字は0012の固定枠へ移す。敵の仮姿は正式ECHOへ置換する。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 348570,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/rejected/hud-tps-01.webp"
+      ],
+      "sha256": "b9d2d339325d58506a1d68f6ac331562ca7b9f7461fa33b6967300fb93cb7a0f"
+    },
+    {
+      "id": "hud-fps",
+      "category": "ui",
+      "output": "art/concepts/ui/hud-fps-holding.webp",
+      "references": [
+        "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-f42ec18c-44c0-4138-b97b-ffcfd2efa02e.png"
+      ],
+      "prompt": "Use case: precise-object-edit. Refine this existing CORE-CRUSH FPS HUD concept, preserve overall design and all UI. Change these items only: shrink the held core AND both hands to 65% of current size and move them up/right so ENTIRE sphere including its bottom edge is visible with at least 40 pixels of clear space above bottom HUD. Place core center near x80% y63%, do not cover center target or reticle. Keep one sphere only. Remove the text RAGE 7.2 from danger clock; retain red angry face and 爆発まで 0.8秒 only. Remove large decorative CORE-CRUSH logo at top-left during gameplay. Reduce electric fence and background sign brightness by 60%, keep frame bars and visible opponent. Reduce JUST callout to half current size, no sparks around text. Keep typography crisp and bottom values unchanged. Flat 16:9.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-6eece9d3-1f64-423e-b533-6459d6993e8f.png",
+      "status": "採用",
+      "reason": "採用（修正版の配置）。保持球の全周とHUDの間に余白を確保し、残り0.8秒とrage顔を分離表示した。ステップ回復進捗を追加し、判定文字と敵の仮姿を現行仕様へ揃える。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 351860,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/rejected/hud-fps-holding-01.webp"
+      ],
+      "sha256": "4d49c530286e7866f02b5bcd3fcc9eb928859e44077ca9815372729395ef96ee"
+    },
+    {
+      "id": "round-result",
+      "category": "ui",
+      "output": "art/concepts/ui/round-result.webp",
+      "references": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "prompt": "Use case: ui-mockup. ONE polished flat 16:9 Japanese PC game CORE-CRUSH screen, not an angled physical monitor. Use approved title image for visual language: illegal junk-city cyber cage sport, wet steel, distant neon cyan/pink, restrained grime, readable industrial typography. HTML/CSS reproducible rectangular panels #151D27 on #0B1016, text #E8F0F2, secondary #A9BBC8, selected border 2px. Keep decoration behind text, no cockpit clutter. Team A cyan #57C7FF with SQUARE A badge, Team B pink #FF718A with TRIANGLE B badge. Never use team badges as unrelated menu icons. One screen only, no explanatory collage. Image lettering will be replaced with normal fonts in implementation. ROUND RESULT overlay on dim frozen arena. Header ROUND 1 COMPLETE, main small-medium center panel square A ラウンド勝利, score A 1 — 0 B. Three concise lines 決着 相手全員KO; 最高ラリー 12; JUST 4. Below 次ラウンドまで 3, subdued note 次の球はB陣から. This is a timed 3-second pause, no continue or restart buttons, no match victory trophy. Court visible around panel.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-a1bf8c61-510f-44c8-a15b-9128d021fc58.png",
+      "status": "採用",
+      "reason": "採用。1-0のラウンド勝利と3秒の自動遷移が読め、継続ボタンがない。球供給側と統計は実状態から表示する。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 339634,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "sha256": "182743653c3cc6c3d3f21fef7437e10c648f20d240066822570e601f14d86ded"
+    },
+    {
+      "id": "match-result",
+      "category": "ui",
+      "output": "art/concepts/ui/match-result.webp",
+      "references": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "prompt": "Use case: ui-mockup. ONE polished flat 16:9 Japanese PC game CORE-CRUSH screen, not an angled physical monitor. Use approved title image for visual language: illegal junk-city cyber cage sport, wet steel, distant neon cyan/pink, restrained grime, readable industrial typography. HTML/CSS reproducible rectangular panels #151D27 on #0B1016, text #E8F0F2, secondary #A9BBC8, selected border 2px. Keep decoration behind text, no cockpit clutter. Team A cyan #57C7FF with SQUARE A badge, Team B pink #FF718A with TRIANGLE B badge. Never use team badges as unrelated menu icons. One screen only, no explanatory collage. Image lettering will be replaced with normal fonts in implementation. MATCH RESULT full screen. Headline 試合結果, square A 勝利, score A 2 — 1 B (first to 2). 2v2 team summary and a compact table of five metrics with clearly dummy example values: 最高ラリー 18; JUST 9; フェイント成立 3; 危険時計による失点 1; 受け方向ミス 2. Two team panels show P1 VOLT / P2 ECHO and P3 ANCHOR / P4 SWITCH as names only, no unrelated robot portraits. Footer large 再戦, チーム交替, ロビーへ buttons. Restrained victory glow, no fireworks obscuring data, no ranking points, currency or loot.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-b6071b12-e533-43c4-bbf3-9901692eb080.png",
+      "status": "採用",
+      "reason": "採用。2-1の試合結果、参加者、振り返り5項目と3操作が分離されている。数値はダミーであり実装済み集計ではない。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 286498,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp"
+      ],
+      "sha256": "3220ec48595349e0c68494166b9c23b43ec60aa188a982704c7d42b346700c61"
+    },
+    {
+      "id": "vfx-contact-sheet",
+      "category": "vfx",
+      "output": "art/concepts/vfx/contact-sheet.webp",
+      "references": [
+        "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-408a6fc7-4dd8-44df-aac2-15b8de97fb86.png"
+      ],
+      "prompt": "Use case: precise-object-edit. Preserve this CORE-CRUSH seven-effect concept sheet, its layout and cells 1 through 6. Correct cell 7 FENCE only: remove the horizontal Saturn-like rings that touch the sphere. Replace with ONE circular expanding segmented cyan ripple lying in the VERTICAL fence plane, behind and OUTSIDE the core silhouette, with a clearly empty dark gap all around the core edge; radius about 1.35 times ball radius. No line crosses or touches sphere. Dim hex mesh directly behind sphere. In timing legend change white FLASH star to AMBER #FFA040 and label LOCAL FLASH 80 ms. No full-screen white flash, no white filled disk. Keep the explosion center dark and empty. Concept board, no other redesign.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-2b29f243-e689-444f-963d-4c17ecce142e.png",
+      "status": "採用",
+      "reason": "採用（修正版の形）。7種類を区別でき、球の中心・外縁を空け、爆発中心を空にし、フェンス波紋を垂直面へ修正した。枝火花・小破片の総数は画像から数えず仕様の本数上限を使う。",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 229916,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/vfx/rejected/contact-sheet-01.webp"
+      ],
+      "sha256": "4e4adb800ca02041955264aa014fd37b0ed6821d50fab1da9d248e531b774a2d"
+    },
+    {
+      "id": "skill-icons-sheet",
+      "category": "icons",
+      "output": "art/concepts/icons/skill-icons-sheet.webp",
+      "references": [],
+      "prompt": "Use case: stylized-concept. ONE production concept sheet of exactly EIGHT distinct game skill icon designs for CORE-CRUSH, arranged a precise 4 columns x 2 rows equal grid, all on flat dark graphite #0B1016. Each cell one simple bold ivory symbol with one restrained colored accent, consistent optical size and heavy stroke, generous padding, no border, NO TEXT NO LETTERS NO NUMBERS anywhere. Flat clean stencil pictograms, not detailed illustrations, readable at 32px, no smoke/glare/small ornament. Row 1 left-to-right: OVERCHARGE = one compact ball with a large angular lightning charging motif, gold #FFE27A; BLINK = two simple humanoid silhouettes joined by a short horizontal displacement arrow, gold #FFE27A; PHANTOM = one solid small ball and two hollow offset echoes, lavender #CBB4FF; BOOST RING = a ball path entering a large ring and exiting at an angle with an arrow, lavender #CBB4FF. Row 2 left-to-right: CHAIN HAND = two thick interlocked chain links terminating in a simple open grabbing hand, pale sage #B4D6A0; PASSIVE CHARGE = a cupped hand under three stacked short energy bars, pale sage #B4D6A0; SCRAP TRAP = angular open floor jaws with a downward foot trigger, peach #FFD0A0; ENERGY BOLT = one sharp pointed energy projectile with two short trailing lines, peach #FFD0A0. Do not include backline blockade or economy. Exactly 8 icons, clean equal spacing. Concept board background is intentionally opaque.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-ef07acd7-92b1-42c3-8232-f6b03d518158.png",
+      "status": "採用",
+      "reason": "採用（形のコンセプト）。正式ロスター8種が文字なしで区別できる。背景は不透明であり配信用透過アイコンではない。32px検証と必要な単純化は別記する。",
+      "width": 1774,
+      "height": 887,
+      "bytes": 71338,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [],
+      "sha256": "df93c85e0257b128f68cc38cd627cc42ca0cd1d1c923c3ca1bdfe39da92baab8"
+    },
+    {
+      "id": "volt-back-rejected-01",
+      "category": "characters",
+      "output": "art/concepts/characters/volt/rejected/back-01.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. VOLT palette #D8A52A / #FFE27A. BACK VIEW: exactly 180 degrees from front, back of head and clothing, no face visible. Same symmetrical A-pose, show back seam construction and folded hood, no backpack.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-896a2b28-31fb-4012-8e35-044323806dcb.png",
+      "status": "不採用",
+      "reason": "正面と背面の二体があり、一枚一方向の条件を満たさない。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 195868,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "676ad324b1b1af1bbaf0f49f1e5f965ec034cb41decca63c1b7aad71cf78dfe3"
+    },
+    {
+      "id": "echo-back-rejected-01",
+      "category": "characters",
+      "output": "art/concepts/characters/echo/rejected/back-01.webp",
+      "prompt": "Use case: stylized-concept. ONE full-body character, ONE direction only, Tripo modeling reference. Image 1 is this character's approved front and identity/material master. Any additional image is the common outfit geometry reference only. Preserve EXACT same adult face, short hair, lean body, limb proportions, hooded sleeveless vest, inner top, cargo pockets, forearm plates, gloves, knee guards and trainers. A-pose in 3D with arms 30 degrees away from torso, straight relaxed elbows, feet shoulder width; do not change pose to expose hidden limbs. Camera nearly orthographic at mid-body level. Entire hair and soles inside frame, 6% clear margin. Uniform light gray #DDE0E2 background, soft even studio light, faint contact shadow. No text, logo, symbols resembling letters, weapons, ball, props, backpack or floating objects. Team strips charcoal. ECHO palette #8067B5 / #CBB4FF. BACK VIEW: exactly 180 degrees from front, back of head and clothing, no face visible. Same symmetrical A-pose, show back seam construction and folded hood, no backpack.",
+      "references": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp"
+      ],
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-e803f980-73b1-461a-ad59-f120bff34bb5.png",
+      "status": "不採用",
+      "reason": "正面と背面の二体があり、一枚一方向の条件を満たさない。",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 164080,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/characters/echo/front.webp"
+      ],
+      "sha256": "0d3d1bb1067ff5f0dd4f9f3bdccd5e595dac9381cb3871ab66db04f1339bd625"
+    },
+    {
+      "id": "hud-fps-rejected-01",
+      "category": "ui",
+      "output": "art/concepts/ui/rejected/hud-fps-holding-01.webp",
+      "references": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/T3test/arena/_preview/stage_tps_south.png",
+        "D:/T3test/core_ball/output/renders/state_2_rage.png",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "prompt": "Use case: ui-mockup. ONE polished flat 16:9 Japanese PC game CORE-CRUSH screen, not an angled physical monitor. Use approved title image for visual language: illegal junk-city cyber cage sport, wet steel, distant neon cyan/pink, restrained grime, readable industrial typography. HTML/CSS reproducible rectangular panels #151D27 on #0B1016, text #E8F0F2, secondary #A9BBC8, selected border 2px. Keep decoration behind text, no cockpit clutter. Team A cyan #57C7FF with SQUARE A badge, Team B pink #FF718A with TRIANGLE B badge. Never use team badges as unrelated menu icons. One screen only, no explanatory collage. Image lettering will be replaced with normal fonts in implementation. Gameplay HUD: small top-center strip ROUND 2, square A wins 1 vs triangle B wins 0, match remaining time 02:14. Separate top-right danger clock clearly labeled 爆発まで and remaining seconds plus existing core LCD face stage. Bottom-left HP numeric and bar 76 / 94 for VOLT. Bottom middle-left COST 3.25 / 5 as exactly five segmented cells including quarter fill, STEP 1 / 2 as exactly two cells with refill-progress line. Bottom center-right two compact skill slots E オーバーチャージ and R ブリンク, visually marked 未実装 for current concept integration. Central fine cross reticle, lock name 敵 P2 ECHO slightly below. A small transient judgement placed left of reticle, never over ball. Large center clear of panels. Do not add minimap, weapons, ammo, chat or duplicate cores. Gameplay is 1v1. FIRST PERSON holding exactly one existing metallic core in gloved VOLT hands at lower-right x77% y68%. Preserve complete spherical silhouette, angry red LCD face, yellow hazard shell. Core does not overlap bottom panels or center reticle. No player torso, no weapon. Opposing purple ECHO visible beyond transparent fence. Danger clock 爆発まで 0.8秒 and red RAGE/cracked face (elapsed 7.2 sec). Small transient JUST left of center fading after catch. A short low-left hint 保持しても時計は進む. Keep large clear aiming corridor from center to target.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-f42ec18c-44c0-4138-b97b-ffcfd2efa02e.png",
+      "status": "不採用",
+      "reason": "保持球の下端がHUDに隠れ、経過秒が危険時計へ混在したため修正する。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 407532,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/T3test/arena/_preview/stage_tps_south.png",
+        "D:/T3test/core_ball/output/renders/state_2_rage.png",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "305fb46927174986d56595e92ba9bd0ecb0d404ea94300cd7572a72fcf422aa7"
+    },
+    {
+      "id": "hud-tps-rejected-01",
+      "category": "ui",
+      "output": "art/concepts/ui/rejected/hud-tps-01.webp",
+      "references": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/T3test/arena/_preview/stage_tps_south.png",
+        "D:/T3test/core_ball/output/renders/state_1_panic.png",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "prompt": "Use case: ui-mockup. ONE polished flat 16:9 Japanese PC game CORE-CRUSH screen, not an angled physical monitor. Use approved title image for visual language: illegal junk-city cyber cage sport, wet steel, distant neon cyan/pink, restrained grime, readable industrial typography. HTML/CSS reproducible rectangular panels #151D27 on #0B1016, text #E8F0F2, secondary #A9BBC8, selected border 2px. Keep decoration behind text, no cockpit clutter. Team A cyan #57C7FF with SQUARE A badge, Team B pink #FF718A with TRIANGLE B badge. Never use team badges as unrelated menu icons. One screen only, no explanatory collage. Image lettering will be replaced with normal fonts in implementation. Gameplay HUD: small top-center strip ROUND 2, square A wins 1 vs triangle B wins 0, match remaining time 02:14. Separate top-right danger clock clearly labeled 爆発まで and remaining seconds plus existing core LCD face stage. Bottom-left HP numeric and bar 76 / 94 for VOLT. Bottom middle-left COST 3.25 / 5 as exactly five segmented cells including quarter fill, STEP 1 / 2 as exactly two cells with refill-progress line. Bottom center-right two compact skill slots E オーバーチャージ and R ブリンク, visually marked 未実装 for current concept integration. Central fine cross reticle, lock name 敵 P2 ECHO slightly below. A small transient judgement placed left of reticle, never over ball. Large center clear of panels. Do not add minimap, weapons, ammo, chat or duplicate cores. Gameplay is 1v1. Third-person over shoulder gameplay. VOLT at lower-left (back visible) receiving one small incoming metal core near x60% y46%; ball completely visible against dark court with no glare over face. Opposing purple ECHO beyond central semi-transparent plasma fence. Danger clock 爆発まで 4秒, worried PANIC face (elapsed four seconds). Judgement GOOD left of center. Transparent fence and subdued background. UI remains in top 12% and bottom 14%, central 70% free. Wide arena eye-height camera, not aerial.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-fd8ec974-e74d-4ae3-b41e-ac492717e18c.png",
+      "status": "不採用",
+      "reason": "勝利印・HP・コストの塗りが数値と不一致であり、フェンスの発光も強いため修正する。",
+      "width": 1600,
+      "height": 900,
+      "bytes": 401052,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/corecrush/art/concepts/ui/title.webp",
+        "D:/T3test/arena/_preview/stage_tps_south.png",
+        "D:/T3test/core_ball/output/renders/state_1_panic.png",
+        "D:/corecrush/art/concepts/characters/volt/front.webp"
+      ],
+      "sha256": "e738703018057dc78fb0adff34b774a5961e14c0a54be47e46e335b3b461474c"
+    },
+    {
+      "id": "vfx-contact-sheet-rejected-01",
+      "category": "vfx",
+      "output": "art/concepts/vfx/rejected/contact-sheet-01.webp",
+      "references": [
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "prompt": "Use case: stylized-concept. CORE-CRUSH game VFX art direction sheet, landscape wide 2 rows x 4 columns on dark graphite #0B1016. Exactly seven numbered/labeled effect cells and one timing legend cell. Core reference image defines metallic hazard shell and LCD; repeated spheres are separate diagrams not simultaneous gameplay. Each core must have CLEAR FACE, CLEAR SPHERICAL EDGE, and a completely empty dark annular gap of about 15% ball radius before any VFX starts. All effects OUTSIDE ball silhouette, no glow veil or full-screen flash. Top row: SO-SO: three short pale blue #7FC8FF outward sparks plus faint thin open ring; GOOD: five bright cyan #19E6FF sparks plus thin open ring; JUST: eight short white #FFFFFF sparks with cyan halo confined to spark tips and two broken arcs, no white fill; CATCH: gold #FFD84A segmented ring contracting toward but stopping outside core edge. Bottom row: HIT: four red-orange #FF5533 angular splinters on outer side, core unobscured; EXPLOSION: core disappears, empty DARK center surrounded by twelve amber #FF7A2A shell chips and a thin expanding broken ring, small amber local rim glow only, no fireball; FENCE: transparent vertical faint hex mesh with cyan #19E6FF localized expanding ripple around a passing core, core and edge clear; final cell simple timeline legend sparks 120ms / ring 160ms / flash 80ms / debris 220ms / ripple 180ms. Sober production concept board, large effect shapes, tidy labels outside cells. No white screen, no dense fog, no lens flare over sphere. Single sheet.",
+      "source": "C:/Users/phant/.codex/generated_images/01a118f3-d970-7cf0-86f9-8aac5605cd3e/exec-408a6fc7-4dd8-44df-aac2-15b8de97fb86.png",
+      "status": "不採用",
+      "reason": "フェンス波紋が水平で球外縁に接触し、閃光凡例が白のため修正する。",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 235436,
+      "date": "2026-10-08",
+      "reviewDate": "2026-10-08",
+      "manualEdits": "手描き修正なし。GPT Imageで生成・修正し、sharpでWebP品質90へ変換。UIのみ余白保持で1600×900へ整形。",
+      "portableReferences": [
+        "D:/T3test/core_ball/output/renders/state_0_calm.png"
+      ],
+      "sha256": "cb9254e6d4ab8295a63290fcb014cc6dffc200d94611be8f32db84a92a4cb377"
+    }
+  ],
+  "review": "全画像を目視し採否を記録した。採用はコンセプトとしての採用であり、実装・3D生成の検証ではない。"
+}
