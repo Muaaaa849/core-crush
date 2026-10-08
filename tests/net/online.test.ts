@@ -3,7 +3,7 @@ import { OnlineMatch } from '../../src/net/online';
 import { DataChannelDelivery } from '../../src/net/webrtc';
 import { RoomLogic } from '../../worker/logic';
 import { MemoryDelivery } from '../../src/net/memory';
-import type { MatchMode } from '../../src/sim/types';
+import type { MatchMode, SimState } from '../../src/sim/types';
 import { envelope } from '../../src/net/messages';
 
 it('T10-29 runs host input through prediction and waits for confirmed results without automatic rematch', () => {
@@ -65,4 +65,24 @@ it('C12-3b builds the session from the room roster, and a different character ch
   expect(await match(structuredClone(view)).signature()).toBe(await a.signature());
   const other = structuredClone(view); other.players[1].characterId = 'switch';
   expect(await match(other).signature()).not.toBe(await a.signature());
+});
+
+it('C12-4c rejects host states whose participants, stats or maxHp differ from the start roster', () => {
+  const room = new RoomLogic('1v1', 'build', 0);
+  const host = room.join('build', 'anchor', 0); room.join('build', 'echo', 0);
+  room.begin(host.id, 0, ['p1', 'p3']);
+  const view = room.public();
+  const hostMatch = new OnlineMatch(view, 'p1', new DataChannelDelivery('host', () => 0), () => 0);
+  const snapshot = () => (hostMatch as unknown as { host: { snapshot(): { confirmed: SimState; provisional: SimState } } }).host.snapshot();
+  const deliver = (edit: (s: SimState) => void) => {
+    const client = new OnlineMatch(view, 'p3', new DataChannelDelivery('p3', () => 0), () => 0);
+    const packet = snapshot(); edit(packet.confirmed); edit(packet.provisional);
+    (client as unknown as { receive(from: string, msg: unknown, at: number): void }).receive('host', packet, 0);
+    return client.status;
+  };
+  expect(deliver(() => {})).toBe('running');
+  expect(deliver(s => { s.players[1].stats.attack = 10; })).toBe('invalid');
+  expect(deliver(s => { s.players[0].maxHp = 200; })).toBe('invalid');
+  expect(deliver(s => { s.players[1].side = 'a'; })).toBe('invalid');
+  expect(deliver(s => { s.players[0].hp = 10; })).toBe('running');
 });

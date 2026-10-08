@@ -10,6 +10,9 @@ import type { ConfirmedEvent, Delivery, HeldInput, Message, Session, SyncAckPack
 import { PROTOCOL } from './room-protocol';
 import type { RoomView } from './room-protocol';
 
+/** 試合中に変わらない参加枠の値（ID・陣・能力・最大HP）。開始ロスターとの照合に使う（0013 C12-4）。 */
+const lineup = (state: SimState) => JSON.stringify(state.players.map(p => [p.id, p.side, p.stats, p.maxHp]));
+
 // 壁時計で通信を監視し、停止時間をsim時計から差し引く。simの規則は変えない。
 export class OnlineMatch {
   readonly session: Session;
@@ -29,11 +32,13 @@ export class OnlineMatch {
   private syncAcks = new Map<string, SyncAckPacket>();
   private held: HeldInput = { move: { x: 0, z: 0 }, keys: { forward: 0, right: 0 } };
   previous: SimState;
+  private readonly lineup: string;
   constructor(room: RoomView, readonly player: PlayerId, private readonly delivery: Delivery, private readonly now: () => number) {
     // 部屋が開始時に固定した構成から、全端末が同じ変換で初期状態を作る（0013）。
     const roster = room.players.map(p => ({ id: p.id, side: p.side, characterId: p.characterId })).sort((a, b) => a.id.localeCompare(b.id));
     this.session = { matchId: room.matchId, epoch: 1, protocol: PROTOCOL, build: room.build, config: defaultConfig, roster,
       initial: createInitialState(rosterMatch(roster, room.firstBall), defaultConfig) };
+    this.lineup = lineup(this.session.initial);
     this.client = new MemoryClient(this.session, player); this.previous = this.client.state;
     this.slots = Object.fromEntries(room.players.map(p => [p.id === 'p1' ? 'host' : p.id, p.id]));
     for (const peer of player === 'p1' ? Object.keys(this.slots) : ['host']) this.lastReceived.set(peer, now());
@@ -68,6 +73,10 @@ export class OnlineMatch {
   }
   private receive(from: string, msg: Message, at: number): void {
     if (this.status === 'invalid' || !validMessage(msg) || msg.matchId !== this.session.matchId) return;
+    // 開始ロスターと食い違う状態は復帰・同期に使わず、無効試合にする。
+    const states = msg.kind === 'state' ? [msg.confirmed, msg.provisional] : msg.kind === 'sync' ? [msg.state]
+      : msg.kind === 'resume' || msg.kind === 'complete' ? [msg.snapshot.confirmed, msg.snapshot.provisional] : [];
+    if (from === 'host' && states.some(state => lineup(state) !== this.lineup)) { this.invalidate(); return; }
     if (this.status === 'running' && belongs(this.session, msg) && from !== this.peer
       && this.lastReceived.has(from) && at - this.lastReceived.get(from)! >= 2 * this.second) {
       this.pause(this.lastReceived.get(from)! + 2 * this.second);
