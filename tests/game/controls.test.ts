@@ -4,8 +4,68 @@ import { localRoster, rosterMatch } from '../../src/game/match';
 import { SimRunner } from '../../src/game/runner';
 import { createInitialState } from '../../src/sim/sim';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../../src/game/settings';
+import { aimPitchLimit } from '../../src/sim/config';
 
 afterEach(() => vi.unstubAllGlobals());
+describe('vertical aim input', () => {
+  function setup() {
+    const canvas = {} as HTMLCanvasElement;
+    const listeners = new Map<string, (e: Record<string, unknown>) => void>();
+    vi.stubGlobal('document', { pointerLockElement: canvas,
+      addEventListener: (type: string, fn: (e: Record<string, unknown>) => void) => listeners.set(type, fn) });
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const runner = new SimRunner(createInitialState(rosterMatch(localRoster('1v1', 'volt'), 'a')));
+    const controls = new Controls(canvas, runner, 'p1');
+    const mouse = (y: number) => listeners.get('mousemove')!({ movementX: 0, movementY: y });
+    return { controls, runner, mouse, listeners };
+  }
+  it('V15-3: sends pitch only when changed; looking alone does not trigger an action', () => {
+    const { controls, runner, mouse } = setup();
+    controls.update(); runner.pending.length = 0;
+    mouse(-100); controls.update(); controls.update();
+    expect(runner.pending).toEqual([expect.objectContaining({ kind: 'pitch', pitch: controls.pitchAngle })]);
+    expect(controls.pitchAngle).toBeGreaterThan(0);
+    runner.advance(20);
+    expect(runner.state.players[0].pitch).toBe(controls.pitchAngle);
+    expect(runner.state.players[0].action).toBeNull();
+  });
+  it('V15-3: clamps to the same sim limit and does not resend the unchanged endpoint', () => {
+    const { controls, runner, mouse } = setup();
+    mouse(-100000); controls.update(); mouse(-100000); controls.update();
+    mouse(100000); controls.update();
+    expect(runner.pending.filter(c => c.kind === 'pitch').map(c => c.pitch)).toEqual([aimPitchLimit, -aimPitchLimit]);
+  });
+  it('V15-20: sync restores confirmed yaw/pitch and invalidates both sent values', () => {
+    const { controls, runner, mouse } = setup();
+    mouse(-100); controls.update(); runner.pending.length = 0;
+    runner.state.players[0].yaw = 0.7; runner.state.players[0].pitch = -0.4;
+    controls.sync();
+    expect(controls.yaw).toBe(0.7); expect(controls.pitchAngle).toBe(-0.4);
+    controls.update(); runner.pending.length = 0;
+    controls.sync(); controls.update();
+    expect(runner.pending).toContainEqual(expect.objectContaining({ kind: 'yaw', yaw: 0.7 }));
+    expect(runner.pending).toContainEqual(expect.objectContaining({ kind: 'pitch', pitch: -0.4 }));
+    runner.pending.length = 0;
+    runner.state.match.roundStartsAt += 240000; runner.state.players[0].pitch = 0;
+    controls.update(); expect(controls.pitchAngle).toBe(0);
+    expect(runner.pending).toContainEqual(expect.objectContaining({ kind: 'pitch', pitch: 0 }));
+  });
+  it('V15-19: sends current axes, yaw and pitch before an action in the same frame', () => {
+    const { controls, runner, mouse, listeners } = setup();
+    controls.update(); runner.pending.length = 0;
+    listeners.get('keydown')!({ code: 'KeyW' });
+    controls.yaw = 0.3; mouse(100);
+    listeners.get('mousedown')!({ button: 0 });
+    const action = runner.pending.findIndex(c => c.kind === 'primary');
+    expect(action).toBeGreaterThan(0);
+    expect(runner.pending.slice(0, action)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'keys', forward: 1 }),
+      expect.objectContaining({ kind: 'move' }),
+      expect.objectContaining({ kind: 'yaw', yaw: 0.3 }),
+      expect.objectContaining({ kind: 'pitch', pitch: controls.pitchAngle }),
+    ]));
+  });
+});
 describe('K14-2 skill input', () => {
   function setup() {
     const canvas = {} as HTMLCanvasElement;

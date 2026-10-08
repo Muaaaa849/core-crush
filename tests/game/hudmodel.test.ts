@@ -26,7 +26,8 @@ describe('HUD display model', () => {
     const s = state(); s.match.wins = { a: 1, b: 2 };
     s.players[1].lockTarget = 'p1'; s.ball = { mode: 'held', owner: 'p3' };
     const m = hudModel(s, config, 'p3', roster);
-    expect(m.round).toContain('A 1 − 2 B'); expect(m.lock).toContain('敵 P1 VOLT');
+    expect(m.round).toBe('ラウンド1　残り 3:00'); expect(m.wins).toEqual({ a: 1, b: 2 });
+    expect(m.lock).toContain('敵 P1 VOLT');
     expect(m.others.join(' ')).toContain('味方 P4');
   });
 });

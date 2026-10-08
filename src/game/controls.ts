@@ -1,17 +1,13 @@
 // ローカルプレイヤーの入力を設定の割当どおりにsimコマンドへ変換し、カメラを動かす（feel.md「入力設定」、0013 M3-6）。
-// 視点の回転は即座に画面へ反映し、simへは向き（yaw）として渡す。
+// 視点の回転は即座に画面へ反映し、simへはyaw/pitchとして渡す。
 import * as THREE from 'three/webgpu';
-import type { PlayerId, SimState } from '../sim/types';
+import { aimPitchLimit, type SimConfig } from '../sim/config';
+import type { PlayerId, SimState, Vec3 } from '../sim/types';
 import type { DistributiveOmit, Input } from './runner';
 import { ACTIONS, DEFAULT_SETTINGS, type ActionId, type Settings } from './settings';
+import { aimCameraPose } from './camera';
 
 const MOUSE_RAD_PER_COUNT = THREE.MathUtils.degToRad(0.022 * 2);
-const PITCH_LIMIT = 1.2;
-// TPSの肩越し位置（初期案）
-const EYE_HEIGHT = 1.6;
-const CAMERA_BACK = 2.2;
-const CAMERA_RIGHT = 0.5;
-const CAMERA_UP = 0.35;
 
 export class Controls {
   yaw = 0; // 0で-z（中央）を向く。P1の初期向き
@@ -24,6 +20,7 @@ export class Controls {
   private sentMove = { x: 0, z: 0 };
   private sentKeys = { forward: 0, right: 0 };
   private sentYaw = NaN;
+  private sentPitch = NaN;
   private roundStartsAt: number;
 
   constructor(
@@ -37,7 +34,7 @@ export class Controls {
       const { sensitivity: s, invertY } = this.settings;
       const scale = MOUSE_RAD_PER_COUNT * s[this.ads ? 'ads' : this.viewMode];
       this.yaw -= e.movementX * scale * s.x;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * scale * s.y * (invertY ? -1 : 1), -PITCH_LIMIT, PITCH_LIMIT);
+      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * scale * s.y * (invertY ? -1 : 1), -aimPitchLimit, aimPitchLimit);
     });
     document.addEventListener('mousedown', (e) => this.press(`Mouse${e.button}`));
     document.addEventListener('mouseup', (e) => this.release(`Mouse${e.button}`));
@@ -106,12 +103,15 @@ export class Controls {
     if (action === 'skill1' || action === 'skill2') this.send({ kind: 'skill', slot: action === 'skill1' ? 1 : 2 });
   }
 
-  /** 次ラウンド・再戦ではsimの初期yawへ戻し、押下状態を新たに送る（0010）。 */
+  /** ラウンド・復帰でstateのyaw/pitchへ戻し、方向入力を新たに送る（0015）。 */
   sync(): void {
-    this.yaw = this.runner.state.players.find(p => p.id === this.player)!.yaw;
+    const player = this.runner.state.players.find(p => p.id === this.player)!;
+    this.yaw = player.yaw;
+    this.pitch = player.pitch;
     this.roundStartsAt = this.runner.state.match.roundStartsAt;
     this.adsOn = false;
     this.sentYaw = NaN;
+    this.sentPitch = NaN;
     this.sentMove = { x: NaN, z: NaN };
     this.sentKeys = { forward: NaN, right: NaN };
   }
@@ -155,23 +155,18 @@ export class Controls {
       this.sentYaw = this.yaw;
       this.send({ kind: 'yaw', yaw: this.yaw });
     }
+    if (this.pitch !== this.sentPitch) {
+      this.sentPitch = this.pitch;
+      this.send({ kind: 'pitch', pitch: this.pitch });
+    }
   }
 
-  /** 表示上のキャラ位置に合わせてカメラを置く。fps は0（TPSの肩越し）〜1（目の位置）。向きは変えない。 */
-  placeCamera(camera: THREE.PerspectiveCamera, body: THREE.Vector3, fps: number, yaw = this.yaw, pitch = this.pitch): void {
-    const look = new THREE.Vector3(
-      -Math.sin(yaw) * Math.cos(pitch),
-      Math.sin(pitch),
-      -Math.cos(yaw) * Math.cos(pitch),
-    );
-    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    camera.position
-      .copy(body)
-      .add(new THREE.Vector3(0, EYE_HEIGHT + CAMERA_UP, 0))
-      .addScaledVector(right, CAMERA_RIGHT * (1 - fps))
-      .addScaledVector(look, -CAMERA_BACK * (1 - fps));
-    camera.position.y -= CAMERA_UP * fps;
-    camera.lookAt(camera.position.clone().add(look));
+  /** 表示位置で置いたカメラを共通照準点へ向ける。補正後のforwardは入力に戻さない。 */
+  placeCamera(camera: THREE.PerspectiveCamera, body: Vec3, fps: number, target: Vec3, config: SimConfig,
+    yaw = this.yaw, pitch = this.pitch): void {
+    const pose = aimCameraPose(body, yaw, pitch, fps, target, config);
+    camera.position.set(pose.position.x, pose.position.y, pose.position.z);
+    camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
   }
 
   private send(input: DistributiveOmit<Input, 'player'>): void {

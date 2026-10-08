@@ -46,7 +46,9 @@ describe('slice one local teams', () => {
     expect(el.textContent).toContain('ラウンド勝利'); expect(el.textContent).toContain('味方 P2');
     expect(el.textContent).toContain('敵 P3'); expect(el.textContent).toContain('敵 P4');
     expect(el.textContent).toContain('KO'); expect(el.textContent).toContain('観戦');
-    expect(el.textContent).toContain('A 1 − 0 B');
+    expect(el.querySelector('[data-hud="round"]')!.textContent).toBe('ラウンド1　残り 3:00');
+    expect(el.querySelector('[data-hud="wins-a"]')!.textContent).toBe('1');
+    expect(el.querySelector('[data-hud="wins-b"]')!.textContent).toBe('0');
   });
   it('T10-11: friendly possession stays TPS; KO follows a living teammate in TPS and returns next round', () => {
     const state = createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a'), c); state.ball = { mode: 'held', owner: 'p2' };

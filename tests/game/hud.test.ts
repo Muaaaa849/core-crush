@@ -41,7 +41,7 @@ describe('Hud rounds', () => {
       s.match.wins = { a: 1, b: 0 };
       s.now = s.match.roundEndsAt - 75 * config.timeUnitsPerSecond;
     });
-    expect(text).toContain('ラウンド2　A 1 − 0 B　残り 1:15');
+    expect(text).toContain('ラウンド2　残り 1:15');
   });
 
   it('U2: round results with the reason', () => {

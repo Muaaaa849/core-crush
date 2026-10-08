@@ -25,7 +25,7 @@ export function hudModel(state: SimState, config: SimConfig, localId: PlayerId, 
   const target = state.players.find(p => p.id === local.lockTarget);
   const flight = state.ball.mode === 'flight' ? state.ball.attack?.target : null;
   return {
-    round: `ラウンド${state.match.round}　A ${state.match.wins.a} − ${state.match.wins.b} B　残り ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`,
+    round: `ラウンド${state.match.round}　残り ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`,
     wins: state.match.wins,
     clock: state.danger ? `危険時計：${state.danger.side === local.side ? '味方陣' : '敵陣'} 残り${dangerSeconds}秒（${face}／${faceLabel}）` : '危険時計：待機中',
     dangerSeconds, face, hp: player(local), hpRatio: clamp(local.hp / local.maxHp),

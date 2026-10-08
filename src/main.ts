@@ -8,7 +8,8 @@ import { addMarkers, Avatar } from './game/avatar';
 import { CHARACTERS, playerLabel, TEAM_COLORS, type CharacterId, type Roster } from './game/characters';
 import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
-import { CameraBlend, cameraPlayerFor } from './game/camera';
+import { CameraBlend, cameraPlayerFor, heldFpsPose } from './game/camera';
+import { aimLine } from './sim/aim';
 import { Controls } from './game/controls';
 import { bindingLabel, loadSettings, type Settings } from './game/settings';
 import { effectiveVolume, hitEdgeOpacity, reticleStyle, scaleShake, settingsStorage, SettingsView, viewFov } from './game/settingsview';
@@ -231,26 +232,31 @@ function playerPosition(id: PlayerId, out: THREE.Vector3): THREE.Vector3 {
   return out.set(position.x, 0, position.z);
 }
 
-// 保持中の球の表示位置（キャラの向き基準）。FPSでは画面右下へ寄せ、正面の視界を空ける（feel.md）。
+// TPS保持球はキャラ基準、FPSはカメラ基準で右下へ。表示位置・寸法はsimの射線へ使わない。
 const HELD = { forward: 0.45, right: 0, height: 1.2 };
-const HELD_FPS = { forward: 1.1, right: 0.6, height: 0.95 };
 let lastBall: { mode: SimState['ball']['mode']; position: Vec3 } = { mode: 'absent', position: { x: 0, y: 0, z: 0 } };
 const rollQuaternion = new THREE.Quaternion();
 function placeBall(state: SimState): void {
   const b = state.ball;
   ball.scene.visible = started && b.mode !== 'absent';
+  ball.scene.scale.setScalar(config.ballDiameter / BALL_MODEL_DIAMETER);
   if (b.mode === 'held') {
     const holder = state.players.find((p) => p.id === b.owner)!;
     const at = playerPosition(holder.id, new THREE.Vector3());
     const yaw = holder.id === localPlayer ? controls.yaw : holder.yaw;
     const t = holder.id === localPlayer ? cameraBlend.fps : 0;
-    const forward = THREE.MathUtils.lerp(HELD.forward, HELD_FPS.forward, t);
-    const right = THREE.MathUtils.lerp(HELD.right, HELD_FPS.right, t);
     ball.scene.position.set(
-      at.x - Math.sin(yaw) * forward + Math.cos(yaw) * right,
-      THREE.MathUtils.lerp(HELD.height, HELD_FPS.height, t),
-      at.z - Math.cos(yaw) * forward - Math.sin(yaw) * right,
+      at.x - Math.sin(yaw) * HELD.forward + Math.cos(yaw) * HELD.right,
+      at.y + HELD.height,
+      at.z - Math.cos(yaw) * HELD.forward - Math.sin(yaw) * HELD.right,
     );
+    if (t > 0) {
+      const fps = heldFpsPose(camera.fov, camera.aspect, config.ballDiameter / 2);
+      const position = new THREE.Vector3(fps.position.x, fps.position.y, fps.position.z)
+        .applyQuaternion(camera.quaternion).add(camera.position);
+      ball.scene.position.lerp(position, t);
+      ball.scene.scale.multiplyScalar(THREE.MathUtils.lerp(1, fps.scale, t));
+    }
   } else if (b.mode === 'loose' || b.mode === 'flight') {
     // simの確定位置（落球は1Fごと）の間を補間する。状態が切り替わった直後は最新位置へ。
     const a = game.previous.ball;
@@ -489,6 +495,14 @@ function step(dt: number): void {
     avatarMarkers.get(player.id)!.update(overchargeVisible(player, state.now), settings.effects.flash);
     avatar.root.visible = player.hp > 0 && (player.id !== localPlayer || cameraBlend.fps < 0.5);
   }
+  const viewing = cameraPlayerFor(state, localPlayer);
+  const displayed = state.players.map(player => ({ ...player, position: playerPosition(player.id, new THREE.Vector3()) }));
+  const viewed = displayed.find(player => player.id === viewing)!;
+  const body = viewed.position;
+  const yaw = viewing === localPlayer ? controls.yaw : viewed.yaw;
+  const pitch = viewing === localPlayer ? controls.pitchAngle : 0; // KO後の味方観戦は従来の水平TPS。
+  const aim = aimLine({ ...viewed, yaw, pitch }, displayed, config);
+  controls.placeCamera(camera, body, viewing === localPlayer ? cameraBlend.fps : 0, aim.target, config, yaw, pitch);
   placeBall(state);
   updateCoreFace(state);
   if (state.ball.mode !== 'loose') ball.scene.rotation.y += shown * 0.6;
@@ -497,10 +511,6 @@ function step(dt: number): void {
   hud.update(onlineMatch?.finished ? onlineMatch.confirmed : state, events, now);
   targets.update(state, localPlayer, id => playerPosition(id, new THREE.Vector3()));
   stageMixer.update(dt);
-  const viewing = cameraPlayerFor(state, localPlayer);
-  const body = playerPosition(viewing, new THREE.Vector3());
-  if (viewing === localPlayer) controls.placeCamera(camera, body, cameraBlend.fps);
-  else controls.placeCamera(camera, body, 0, state.players.find(p => p.id === viewing)!.yaw, 0);
   skillMarkers.update(state, localPlayer, controls.yaw,
     started && overlay.hidden && controls.enabled && !document.hidden && (!onlineMatch || onlineMatch.status === 'running'),
     ball.scene.visible, ball.scene.position, camera);

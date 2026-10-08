@@ -1,9 +1,32 @@
 // FPS／TPSの切替（R07、feel.md「FPSとTPSを、視線を失わずつなぐ」）。表示だけでsimの判定には使わない。
-import type { PlayerId, SimState } from '../sim/types';
+import type { SimConfig } from '../sim/config';
+import type { PlayerId, SimState, Vec3 } from '../sim/types';
 
 export type CameraMode = 'fps' | 'tps';
 
 const BLEND_MS = 100;
+const CAMERA_BACK = 2.2, CAMERA_RIGHT = 0.5, CAMERA_UP = 0.35;
+
+/** 肩位置は論理視線Dで決め、補間中も同じ照準点Tを見る（0015 V15-8）。 */
+export function aimCameraPose(body: Vec3, yaw: number, pitch: number, fps: number, target: Vec3, config: SimConfig): {
+  position: Vec3; target: Vec3;
+} {
+  const tps = 1 - fps;
+  const back = CAMERA_BACK * tps;
+  return { position: {
+    x: body.x + Math.cos(yaw) * CAMERA_RIGHT * tps + Math.sin(yaw) * Math.cos(pitch) * back,
+    y: body.y + config.aimEyeHeight + CAMERA_UP * tps - Math.sin(pitch) * back,
+    z: body.z - Math.sin(yaw) * CAMERA_RIGHT * tps + Math.cos(yaw) * Math.cos(pitch) * back,
+  }, target };
+}
+
+/** FPS保持球だけの表示姿勢。カメラ座標で画面中心78.5%/66.5%へ置き、全周をHUDから離す。 */
+export function heldFpsPose(fov: number, aspect: number, radius: number): { position: Vec3; scale: number } {
+  const depth = 1.1;
+  const halfHeight = depth * Math.tan(fov * Math.PI / 360);
+  return { position: { x: (0.785 * 2 - 1) * halfHeight * aspect, y: (1 - 0.665 * 2) * halfHeight, z: -depth },
+    scale: halfHeight * 0.075 / radius };
+}
 
 /**
  * 所持中はFPS。ただしキャッチ全体動作中はTPS。投球後の硬直はFPSのまま（直前がFPSだったときだけ）。
