@@ -1,6 +1,7 @@
 import type { Roster } from '../game/characters';
 import type { SimConfig } from '../sim/config';
 import { step } from '../sim/sim';
+import { skillKind, validSkills } from '../sim/skills';
 import type { Command, PlayerId, SimEvent, SimState } from '../sim/types';
 
 export interface Session {
@@ -82,6 +83,8 @@ export function validMessage(msg: Message): boolean {
       case 'parry': return player(e.player) && ['just', 'good', 'so-so'].includes(e.grade) && vector(e.position) && Number.isFinite(e.rallySpeed) && e.rallySpeed >= 0;
       case 'whiff': case 'pickup': case 'release': case 'summon': return player(e.player);
       case 'step': return player(e.player) && ['forward', 'back', 'left', 'right'].includes(e.direction);
+      case 'skill-rejected': return player(e.player) && (e.slot === 1 || e.slot === 2)
+        && ['unimplemented', 'phase', 'ko', 'busy', 'cooldown', 'reserved', 'cost', 'destination', 'priority'].includes(e.reason);
       case 'hit': return player(e.player) && Number.isFinite(e.damage) && vector(e.position) && vector(e.direction) && typeof e.ko === 'boolean';
       case 'explosion': case 'crossing': return side(e.side) && vector(e.position);
       case 'spawn': case 'clock-start': return side(e.side);
@@ -94,6 +97,12 @@ export function validMessage(msg: Message): boolean {
       && Number.isFinite(p.hp) && Number.isFinite(p.maxHp) && vector(p.position) && side(p.side)
       && p.move && p.keys && Number.isFinite(p.yaw) && p.stats
       && [p.stats.attack, p.stats.defense, p.stats.agility, p.cost, p.stepPoints, p.stepRecoveryProgress].every(Number.isFinite)
+      && validSkills(p.skills) && Array.isArray(p.skillReadyAt) && p.skillReadyAt.length === 2
+      && [p.skillReadyAt[0], p.skillReadyAt[1]].every((at, i) => integer(at) && (skillKind(p.skills[i]) === 'active' || at === 0))
+      && (p.overcharge === null || p.overcharge && (p.overcharge.slot === 1 || p.overcharge.slot === 2)
+        && integer(p.overcharge.expiresAt) && Object.keys(p.overcharge).every(k => ['slot', 'expiresAt'].includes(k))
+        && p.skills[p.overcharge.slot - 1] === 'overcharge' && p.skillReadyAt[p.overcharge.slot - 1] <= s.now
+        && p.hp > 0 && s.match?.phase === 'play')
       && validCommand({ kind: 'move', player: p.id, at: 0, seq: 0, x: p.move.x, z: p.move.z })
       && validCommand({ kind: 'keys', player: p.id, at: 0, seq: 0, forward: p.keys.forward, right: p.keys.right }))
     && s.match && ['play', 'result', 'over'].includes(s.match.phase) && s.match.wins
@@ -132,7 +141,7 @@ export function ordered(commands: Command[]): Command[] {
 }
 export function validCommand(command: Command): boolean {
   if (!command || !Number.isSafeInteger(command.at) || command.at < 0
-    || !Number.isSafeInteger(command.seq) || command.seq < 0) return false;
+    || !Number.isSafeInteger(command.seq) || command.seq < 0 || !['p1', 'p2', 'p3', 'p4'].includes(command.player)) return false;
   const fields = ['at', 'seq', 'player', 'kind'];
   const unit = (v: number) => Number.isFinite(v) && Math.abs(v) <= 1;
   switch (command.kind) {
@@ -149,6 +158,9 @@ export function validCommand(command: Command): boolean {
       break;
     case 'primary':
       fields.push('aim'); if (command.aim !== undefined && typeof command.aim !== 'boolean') return false;
+      break;
+    case 'skill':
+      fields.push('slot'); if (command.slot !== 1 && command.slot !== 2) return false;
       break;
     case 'secondary': case 'step': case 'feint': case 'summon': case 'cycle-target': break;
     default: return false;

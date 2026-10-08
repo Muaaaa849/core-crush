@@ -157,9 +157,9 @@ describe('0009 recovery and event ordering', () => {
   it.each([false, true])('K9-10: chooses nearest then fixed player ID regardless of array order (tie=%s)', tie => {
     const initial = moving({ x: 0, y: R, z: 4 }, { x: 0, y: 0, z: 0 });
     initial.players = createInitialState({ participants: [
-      { id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } },
-      { id: 'p2', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } },
-      { id: 'p3', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } },
+      { id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] },
+      { id: 'p2', side: 'a', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] },
+      { id: 'p3', side: 'b', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] },
     ], firstBall: 'a' }).players;
     initial.players[0].position = { x: 1, y: 0, z: 4 };
     initial.players[1].position = { x: tie ? -1 : 0.5, y: 0, z: 4 };

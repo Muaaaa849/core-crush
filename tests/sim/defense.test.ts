@@ -14,7 +14,7 @@ function press(kind: typeof kinds[number] | 'step' | 'summon', at = 0, seq = 0):
   return { kind, player: 'p1', at, seq };
 }
 function incoming(contact = F, defense = 5): SimState {
-  const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: 5, defense, agility: 5 } }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } }], firstBall: 'a' }, config);
+  const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: 5, defense, agility: 5 }, skills: ['overcharge', 'blink'] }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] }], firstBall: 'a' }, config);
   state.danger = { side: 'a', expiresAt: 8 * S };
   const origin = { x: 0, y: config.defenseHeight, z: state.players[0].position.z - contactRadius - incomingSpeed * contact / S };
   state.ball = { mode: 'flight', position: { ...origin }, origin, segmentOrigin: { ...origin },

@@ -1,3 +1,4 @@
+import { PROTOCOL } from '../../src/net/room-protocol';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '../../src/game/bot';
 import { evenMatch, rosterOf } from '../fixtures';
@@ -13,7 +14,7 @@ import { active, command, defense, incoming } from '../sim/cover-helpers';
 
 export function session(initial: SimState = active()): Session {
   initial.players[0].lockTarget = 'p3';
-  return { matchId: 'm2', epoch: 1, build: 'ed315f6-net', protocol: 1, config: c, roster: rosterOf(initial), initial };
+  return { matchId: 'm2', epoch: 1, build: 'ed315f6-net', protocol: PROTOCOL, config: c, roster: rosterOf(initial), initial };
 }
 export function host(s = session(), bots: Bot[] = []) {
   const slots = Object.fromEntries(s.initial.players.filter(p => !bots.some(b => b.player === p.id))

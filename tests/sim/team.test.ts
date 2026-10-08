@@ -5,7 +5,7 @@ import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, Participant, PlayerId, Side, SimState } from '../../src/sim/types';
 
 const stats = { attack: 5, defense: 5, agility: 5 };
-const participant = (id: PlayerId, side: Side, defense = 5): Participant => ({ id, side, stats: { ...stats, defense } });
+const participant = (id: PlayerId, side: Side, defense = 5): Participant => ({ id, side, stats: { ...stats, defense }, skills: ['overcharge', 'blink'] });
 const teams = {
   '1v1': [participant('p1', 'a'), participant('p3', 'b')],
   '1v2': [participant('p1', 'a'), participant('p3', 'b'), participant('p4', 'b')],

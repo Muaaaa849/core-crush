@@ -71,6 +71,16 @@ export interface SimConfig {
   maxCost: number;
   initialCost: number;
   summonCost: number;
+  overchargeCost: number;
+  overchargeCooldown: number;
+  overchargeDuration: number;
+  overchargeSpeedMultiplier: number;
+  overchargePowerMultiplier: number;
+  blinkCost: number;
+  blinkCooldown: number;
+  blinkDistance: number;
+  chargeGoodReward: number;
+  economySummonCost: number;
   maxStepPoints: number;
   stepDistance: number;
   stepMoveDuration: number;
@@ -167,6 +177,16 @@ export const defaultConfig: SimConfig = {
   maxCost: 20,
   initialCost: 4,
   summonCost: 4,
+  overchargeCost: 6,
+  overchargeCooldown: 8 * SECOND,
+  overchargeDuration: 8 * SECOND,
+  overchargeSpeedMultiplier: 1.10,
+  overchargePowerMultiplier: 1.25,
+  blinkCost: 6,
+  blinkCooldown: 9 * SECOND,
+  blinkDistance: 4,
+  chargeGoodReward: 3,
+  economySummonCost: 3,
   maxStepPoints: 2,
   stepDistance: 2.8,
   stepMoveDuration: 12 * FRAME,

@@ -49,16 +49,16 @@ function guide(position: Vec3, feet: Vec3, shot: Shot, length: number, traveled:
     y: (point.y - position.y) / distance, z: (point.z - position.z) / distance }, pure: pure || traveled >= config.curveEndFraction * length };
 }
 
-export function rawLaunchSpeed(shot: Shot, attack: number, elapsedSeconds: number, config: SimConfig, rallySpeed = 0): number {
+export function rawLaunchSpeed(shot: Shot, attack: number, elapsedSeconds: number, config: SimConfig, rallySpeed = 0, multiplier = 1): number {
   const base = config.shotSpeed[shot];
   const danger = elapsedSeconds / (config.dangerDuration / config.timeUnitsPerSecond);
   return Math.min(base * (1 + config.attackSpeedCoefficient * (attack - config.defaultStat))
-    * (1 + config.dangerSpeedCoefficient * danger ** 2) * (1 + rallySpeed), config.speedCapMultiplier * base);
+    * (1 + config.dangerSpeedCoefficient * danger ** 2) * (1 + rallySpeed) * multiplier, config.speedCapMultiplier * base);
 }
 
-export function launchDamage(elapsedSeconds: number, config: SimConfig, rallyPower = 0): number {
+export function launchDamage(elapsedSeconds: number, config: SimConfig, rallyPower = 0, multiplier = 1): number {
   const danger = elapsedSeconds / (config.dangerDuration / config.timeUnitsPerSecond);
-  return config.hitDamage * Math.min((1 + config.dangerPowerCoefficient * danger ** 2) * (1 + rallyPower), config.powerCapMultiplier);
+  return config.hitDamage * Math.min((1 + config.dangerPowerCoefficient * danger ** 2) * (1 + rallyPower) * multiplier, config.powerCapMultiplier);
 }
 
 /** 静止受け手までの軌道長。実飛行と同じ誘導・接触・整数時刻を使う。 */
@@ -79,9 +79,9 @@ function stationaryPathLength(origin: Vec3, feet: Vec3, shot: Shot, side: Side, 
 }
 
 export function launchBall(player: PlayerState, receiver: PlayerState | null, at: number, elapsedSeconds: number, config: SimConfig,
-  origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }): Flight {
+  origin: Vec3 = { ...player.position, y: player.position.y + config.defenseHeight }, rally: Rally = { speed: 0, power: 0 }, overcharge = false): Flight {
   const shot = receiver ? selectShot(player) : 'straight';
-  const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config, rally.speed);
+  const raw = rawLaunchSpeed(shot, player.stats.attack, elapsedSeconds, config, rally.speed, overcharge ? config.overchargeSpeedMultiplier : 1);
   let speed = Math.max(config.minimumBallSpeed, raw);
   if (receiver) {
     // 丸めが速度へ与える微小な差も、同じ誘導で再評価する。
@@ -93,7 +93,7 @@ export function launchBall(player: PlayerState, receiver: PlayerState | null, at
   const ball: Flight = { mode: 'flight', position: { ...origin }, origin, releasedAt: at, side: player.side,
     segmentOrigin: { ...origin }, segmentAt: at,
     velocity: { x: -Math.sin(player.yaw) * speed, y: 0, z: -Math.cos(player.yaw) * speed },
-    attack: { target: receiver?.id ?? null, shot, damage: launchDamage(elapsedSeconds, config, rally.power), speed,
+    attack: { target: receiver?.id ?? null, shot, damage: launchDamage(elapsedSeconds, config, rally.power, overcharge ? config.overchargePowerMultiplier : 1), speed,
       homing: receiver !== null, pure: false, launchDistance: receiver ? Math.hypot(receiver.position.x - origin.x,
         receiver.position.y + config.defenseHeight - origin.y, receiver.position.z - origin.z) : 0, throwerSide: player.side, guidanceIndex: 1 } };
   if (receiver) updateGuidance(ball, receiver, at, config);

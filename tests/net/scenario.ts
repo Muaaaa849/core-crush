@@ -1,3 +1,4 @@
+import { PROTOCOL } from '../../src/net/room-protocol';
 import { Bot } from '../../src/game/bot';
 import { evenMatch, rosterOf } from '../fixtures';
 import { defaultConfig } from '../../src/sim/config';
@@ -11,7 +12,7 @@ import { canonical, type Session } from '../../src/net/messages';
 export interface ScenarioOptions { mode: MatchMode; rttMs: number; jitterMs: number; loss: number; seconds: number; seed: number }
 export function runScenario(options: ScenarioOptions) {
   const config = defaultConfig;
-  const session: Session = { matchId: 'netbench', epoch: 1, build: 'm2-memory', protocol: 1, config, roster: [],
+  const session: Session = { matchId: 'netbench', epoch: 1, build: 'm2-memory', protocol: PROTOCOL, config, roster: [],
     initial: createInitialState(evenMatch(options.mode, 'a'), config) };
   session.roster = rosterOf(session.initial);
   const ids = session.initial.players.map(p => p.id);

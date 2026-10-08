@@ -10,8 +10,8 @@ import type { ConfirmedEvent, Delivery, HeldInput, Message, Session, SyncAckPack
 import { PROTOCOL } from './room-protocol';
 import type { RoomView } from './room-protocol';
 
-/** 試合中に変わらない参加枠の値（ID・陣・能力・最大HP）。開始ロスターとの照合に使う（0013 C12-4）。 */
-const lineup = (state: SimState) => JSON.stringify(state.players.map(p => [p.id, p.side, p.stats, p.maxHp]));
+/** 試合中に変わらないID・陣・能力・最大HP・スキルを開始ロスターと照合する（0014 K14-24）。 */
+const lineup = (state: SimState) => canonical(state.players.map(p => [p.id, p.side, p.stats, p.maxHp, p.skills]));
 
 // 壁時計で通信を監視し、停止時間をsim時計から差し引く。simの規則は変えない。
 export class OnlineMatch {

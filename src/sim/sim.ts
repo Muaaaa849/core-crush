@@ -2,7 +2,8 @@ import { defaultConfig, type SimConfig } from './config';
 import { attackLossAt, centerCrossingAt, createLooseBall, dropBall, flightPosition, guidanceAt, launchBall, opposite, updateGuidance, updateLooseBall } from './ball';
 import { ballContactPoint, sweptCapsuleContact } from './contact';
 import { cycleTarget, initialTarget, inThrowArc } from './target';
-import type { BallState, Command, DefenseGrade, MatchOptions, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
+import { blinkDestination, skillKind, skillRejection, validSkills } from './skills';
+import type { BallState, Command, DefenseGrade, MatchOptions, PlayerId, PlayerState, Side, SimEvent, SimState, Vec3 } from './types';
 
 /** 参加構成は試合中固定。IDと陣を分け、同じ入力から同じ配置・HPを作る（0010）。 */
 export function createInitialState({ participants, firstBall }: MatchOptions, config: SimConfig = defaultConfig): SimState {
@@ -13,6 +14,7 @@ export function createInitialState({ participants, firstBall }: MatchOptions, co
     if (!['p1', 'p2', 'p3', 'p4'].includes(p.id) || ids.has(p.id)) throw new Error('参加者IDが不正');
     if (p.side !== 'a' && p.side !== 'b') throw new Error('陣が不正');
     if (!p.stats || ![p.stats.attack, p.stats.defense, p.stats.agility].every(n => Number.isInteger(n) && n >= 1 && n <= 10)) throw new Error('能力値が不正');
+    if (!validSkills(p.skills)) throw new Error('スキル構成が不正');
     ids.add(p.id); counts[p.side]++;
   }
   if (counts.a < 1 || counts.a > 2 || counts.b < 1 || counts.b > 2) throw new Error('各陣は1〜2人');
@@ -21,7 +23,7 @@ export function createInitialState({ participants, firstBall }: MatchOptions, co
     const stats = { ...p.stats };
     const multiplier = counts[p.side] === 1 && counts[opposite(p.side)] === 2 ? config.singletonHpMultiplier : 1;
     const maxHp = (config.baseHp + config.defenseHpCoefficient * (stats.defense - config.defaultStat)) * multiplier;
-    return { id: p.id, side: p.side, hp: maxHp, maxHp, stats, cost: config.initialCost,
+    return { id: p.id, side: p.side, hp: maxHp, maxHp, stats, skills: [...p.skills], skillReadyAt: [0, 0], overcharge: null, cost: config.initialCost,
       stepPoints: config.maxStepPoints, stepRecoveryProgress: 0, position: { ...config.supply[p.side], y: 0 },
       keys: { forward: 0, right: 0 }, yaw: p.side === 'a' ? 0 : Math.PI, lockTarget: null, move: { x: 0, z: 0 }, action: null };
   });
@@ -189,6 +191,26 @@ function advancePositions(state: SimState, at: number, config: SimConfig) {
 function applyCommand(state: SimState, command: Command, config: SimConfig, events: SimEvent[]): boolean {
   const player = state.players.find(p => p.id === command.player);
   if (!player || state.match.phase === 'over') return false;
+  if (command.kind === 'skill') {
+    if (skillKind(player.skills[command.slot - 1]) === 'passive') return false;
+    const reason = skillRejection(state, player, command.slot, config);
+    if (reason) {
+      events.push({ kind: 'skill-rejected', at: state.now, player: player.id, slot: command.slot, reason });
+      return false;
+    }
+    player.action = null;
+    if (player.skills[command.slot - 1] === 'overcharge') {
+      player.overcharge = { slot: command.slot, expiresAt: state.now + config.overchargeDuration };
+    } else {
+      const holding = state.ball.mode === 'held' && state.ball.owner === player.id;
+      player.position = blinkDestination(player, config);
+      player.cost -= config.blinkCost;
+      player.skillReadyAt[command.slot - 1] = state.now + config.blinkCooldown;
+      const ball = state.ball;
+      if (!holding && ball.mode === 'flight' && ball.attack?.homing && ball.attack.target === player.id && state.now > ball.releasedAt) ball.attack.homing = false;
+    }
+    return true;
+  }
   // 入力状態は開始待機・結果表示・KO中も記録し、次ラウンドまで保持する。
   const stateInput = command.kind === 'move' || command.kind === 'yaw' || command.kind === 'keys';
   if (!stateInput && (player.hp <= 0 || state.match.phase !== 'play')) return false;
@@ -260,17 +282,42 @@ function applyCommand(state: SimState, command: Command, config: SimConfig, even
         return true;
       }
       break;
-    case 'summon':
-      if (!player.action && player.cost >= config.summonCost && state.ball.mode === 'loose'
+    case 'summon': {
+      const cost = player.skills.includes('economy') ? config.economySummonCost : config.summonCost;
+      if (!player.action && player.cost >= cost && state.ball.mode === 'loose'
         && (state.ball.position.z > 0 ? 'a' : 'b') === player.side) {
-        player.cost -= config.summonCost;
+        player.cost -= cost;
         state.ball = { mode: 'held', owner: player.id };
         events.push({ kind: 'summon', at: state.now, player: player.id });
         return true;
       }
       break;
+    }
   }
   return false;
+}
+
+/** 同時入力は全員の行動後にリリース・接触を解決する。瞬間移動者だけ旧接触を捨てる。 */
+function applyCommands(state: SimState, simultaneous: Command[], config: SimConfig, events: SimEvent[]): Set<PlayerId> {
+  const blinked = new Set<PlayerId>();
+  for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
+  for (const command of simultaneous.filter(c => c.kind === 'cycle-target')) applyCommand(state, command, config, events);
+  for (const player of state.players) {
+    let succeeded = false;
+    for (const kind of ['step', 'secondary', 'primary', 'skill1', 'skill2', 'feint', 'summon'] as const) {
+      const commands = simultaneous.filter(c => c.player === player.id
+        && (kind === 'skill1' || kind === 'skill2' ? c.kind === 'skill' && c.slot === (kind === 'skill1' ? 1 : 2) : c.kind === kind));
+      for (const command of kind === 'skill1' || kind === 'skill2' ? commands.slice(0, 1) : commands) {
+        if (!succeeded) {
+          succeeded = applyCommand(state, command, config, events);
+          if (succeeded && command.kind === 'skill' && player.skills[command.slot - 1] === 'blink') blinked.add(player.id);
+        } else if (command.kind === 'skill' && skillKind(player.skills[command.slot - 1]) !== 'passive') {
+          events.push({ kind: 'skill-rejected', at: state.now, player: player.id, slot: command.slot, reason: 'priority' });
+        }
+      }
+    }
+  }
+  return blinked;
 }
 
 /** 接触時の水平入射方向を論理yawの正面160度で評価する。 */
@@ -295,10 +342,12 @@ function defend(state: SimState, player: PlayerState, config: SimConfig, events:
   if (action.kind === 'catch') {
     state.ball = { mode: 'held', owner: player.id };
     state.rally = { speed: 0, power: 0 };
-    player.cost = Math.min(config.maxCost, player.cost + config.catchReward[grade]);
+    const reward = grade === 'good' && player.skills.includes('charge') ? config.chargeGoodReward : config.catchReward[grade];
+    player.cost = Math.min(config.maxCost, player.cost + reward);
     if (grade === 'just') player.hp = Math.min(player.maxHp, player.hp + player.maxHp * config.catchHealFraction);
     player.action = { kind: 'catch-recovery', endsAt: action.pressedAt + config.catchDuration };
   } else {
+    player.overcharge = null;
     const receiver = lockReceiver(player, state);
     const targeted = receiver && inThrowArc(player, receiver, config);
     const gain = config.rallyGain[grade];
@@ -336,6 +385,7 @@ function decideRound(state: SimState, config: SimConfig, events: SimEvent[]): bo
   events.push({ kind: 'round-end', at: state.now, winner, reason: ko ? 'ko' : 'time' });
   if (winner) state.match.wins[winner]++;
   state.danger = null;
+  for (const player of state.players) player.overcharge = null;
   if (winner && state.match.wins[winner] >= config.roundsToWin) {
     state.match.phase = 'over';
     state.match.nextRoundAt = null;
@@ -363,6 +413,8 @@ function startNextRound(state: SimState, config: SimConfig, events: SimEvent[]):
     player.stepPoints = config.maxStepPoints;
     player.stepRecoveryProgress = 0;
     player.action = null;
+    player.skillReadyAt = [0, 0];
+    player.overcharge = null;
   }
   placePlayers(state.players, config);
   for (const p of state.players) p.lockTarget = initialTarget(p, state.players);
@@ -391,7 +443,9 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       const at = Math.min(end, state.match.nextRoundAt!, ordered[index]?.at ?? Infinity);
       state.now = at; // 結果表示では球・行動・回復も進めない。
       if (at === state.match.nextRoundAt) startNextRound(state, config, events);
-      while (ordered[index]?.at === at) applyCommand(state, ordered[index++], config, events);
+      const simultaneous: Command[] = [];
+      while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
+      applyCommands(state, simultaneous, config, events);
       if (at === end) break;
       continue;
     }
@@ -418,11 +472,15 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       && p.action.startsAt > state.now ? p.action.startsAt : Infinity));
     const actionAt = Math.min(...state.players.map(p => (p.action?.kind === 'step' || p.action?.kind === 'hitstun') && p.action.moveEndsAt > state.now
       ? p.action.moveEndsAt : p.action?.endsAt ?? Infinity));
+    const reservationAt = Math.min(...state.players.map(p => p.overcharge ? Math.max(state.now, p.overcharge.expiresAt) : Infinity));
     const at = Math.min(end, cleanupAt, state.danger?.expiresAt ?? Infinity, ordered[index]?.at ?? Infinity,
       !state.players.some(p => p.side === 'a' && p.hp > 0) || !state.players.some(p => p.side === 'b' && p.hp > 0) ? state.now : state.match.roundEndsAt,
-      appearsAt, startsAt, actionAt, defenseStartAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
+      appearsAt, startsAt, actionAt, defenseStartAt, reservationAt, crossing, guidance, hit, loss, physicsAt, movementBoundaryAt(state, config));
     advancePositions(state, at, config);
     cleanupAt = Infinity;
+    for (const player of state.players) {
+      if (player.overcharge && (player.overcharge.expiresAt <= at || player.hp <= 0)) player.overcharge = null;
+    }
 
     // 同時刻の中央通過より爆発を先に確定する。
     if (state.danger && state.danger.expiresAt === at) {
@@ -441,6 +499,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
       for (const player of state.players) {
         if (player.side === side && player.hp > 0) player.hp = Math.max(0, player.hp - config.explosionDamage);
         player.action = null;
+        if (player.hp <= 0) player.overcharge = null;
       }
       state.ball = { mode: 'absent', side: opposite(side), appearsAt: at + config.newBallAppearDelay };
       state.danger = null;
@@ -472,17 +531,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     }
     const simultaneous: Command[] = [];
     while (ordered[index]?.at === at) simultaneous.push(ordered[index++]);
-    for (const command of simultaneous.filter(c => c.kind === 'move' || c.kind === 'yaw' || c.kind === 'keys')) applyCommand(state, command, config, events);
-    for (const command of simultaneous.filter(c => c.kind === 'cycle-target')) applyCommand(state, command, config, events);
-    // 行動の優先順位は入力のseqに依存させない。
-    for (const player of state.players) {
-      let succeeded = false;
-      for (const kind of ['step', 'secondary', 'primary', 'feint', 'summon'] as const) {
-        for (const command of simultaneous.filter(c => c.player === player.id && c.kind === kind)) {
-          if (!succeeded) succeeded = applyCommand(state, command, config, events);
-        }
-      }
-    }
+    const blinked = applyCommands(state, simultaneous, config, events);
     for (const player of state.players) {
       // 行動境界は同時刻の入力が必要なので、終了境界なら次のtickで解決する。
       if (at === end || player.action?.endsAt !== at) continue;
@@ -492,7 +541,16 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
         if (!aim && (!receiver || !inThrowArc(player, receiver, config))) { player.action = null; continue; }
         const elapsed = state.danger?.side === player.side
           ? (config.dangerDuration - (state.danger.expiresAt - at)) / config.timeUnitsPerSecond : 0;
-        state.ball = launchBall(player, aim ? null : receiver!, at, elapsed, config);
+        const reservation = player.overcharge;
+        const boosted = reservation !== null && player.cost >= config.overchargeCost;
+        if (reservation) {
+          if (boosted) {
+            player.cost -= config.overchargeCost;
+            player.skillReadyAt[reservation.slot - 1] = at + config.overchargeCooldown;
+          } else events.push({ kind: 'skill-rejected', at, player: player.id, slot: reservation.slot, reason: 'cost' });
+          player.overcharge = null;
+        }
+        state.ball = launchBall(player, aim ? null : receiver!, at, elapsed, config, undefined, undefined, boosted);
         player.action = { kind: 'recovery', endsAt: at + config.throwRecovery };
         events.push({ kind: 'release', at, player: player.id });
       } else player.action = null;
@@ -505,7 +563,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
     const contactingBall = state.ball;
     // 同時刻入力後の受付を再評価する。切り上げ前に成立した接触も同じ整数時刻へ残す。
     const current = contacts(state, config).filter(c => c.at === at);
-    const due = state.ball === incomingBall ? [...candidates.filter(c => c.at === at), ...current] : current;
+    const due = state.ball === incomingBall ? [...candidates.filter(c => c.at === at && !blinked.has(c.player.id)), ...current] : current;
     const pendingContact = due.length > 0;
     // 終了境界の接触は次tickへ渡し、同時刻の向き・移動入力を先に反映する。
     if (at !== end && state.ball.mode === 'flight' && state.ball.attack && pendingContact) {
@@ -526,6 +584,7 @@ export function step(input: SimState, commands: readonly Command[], config: SimC
         const direction = horizontal <= config.hitDirectionEpsilon ? { x: 0, y: 0, z: receiver.side === 'a' ? 1 : -1 }
           : { x: ball.velocity.x / horizontal, y: 0, z: ball.velocity.z / horizontal };
         const ko = receiver.hp === 0;
+        if (ko) receiver.overcharge = null;
         const speed = config.hitKnockbackDistance / config.hitKnockbackMoveDuration * config.timeUnitsPerSecond;
         receiver.action = ko ? null : { kind: 'hitstun', startedAt: at, moveEndsAt: at + config.hitKnockbackMoveDuration,
           endsAt: at + config.hitstunDuration, velocity: { x: direction.x * speed, z: direction.z * speed } };

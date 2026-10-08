@@ -63,7 +63,7 @@ describe('0008 rounds and match result', () => {
   });
 
   it.each([[0.5, 0.8, 'b'], [0.5, 0.5, null], [0.8, 0.5, 'a']] as const)('M8-3: timeout compares HP fractions %s/%s => %s', (p1, p2, winner) => {
-    const initial = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } }, { id: 'p2', side: 'b', stats: { attack: c.defaultStat, defense: 10, agility: c.defaultStat } }], firstBall: 'a' }, c);
+    const initial = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] }, { id: 'p2', side: 'b', stats: { attack: c.defaultStat, defense: 10, agility: c.defaultStat }, skills: ['overcharge', 'blink'] }], firstBall: 'a' }, c);
     // Start close to the configured deadline with a safe flight that cannot hit/cross/explode.
     expect(c.roundDuration).toBe(180 * S);
     initial.now = c.ballStartDelay + c.roundDuration - F;

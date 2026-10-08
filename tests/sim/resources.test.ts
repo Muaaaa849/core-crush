@@ -45,7 +45,7 @@ describe('stats and resources', () => {
   });
 
   it.each([1, 5, 10])('derives HP, walking and recovery from stats (%s)', value => {
-    const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: value, defense: value, agility: value } }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } }], firstBall: 'a' }, config);
+    const state = createInitialState({ participants: [{ id: 'p1', side: 'a', stats: { attack: value, defense: value, agility: value }, skills: ['overcharge', 'blink'] }, { id: 'p2', side: 'b', stats: { attack: 5, defense: 5, agility: 5 }, skills: ['overcharge', 'blink'] }], firstBall: 'a' }, config);
     state.danger = { side: 'b', expiresAt: 8 * S };
     state.ball = { mode: 'held', owner: 'p2' };
     const player = state.players[0];

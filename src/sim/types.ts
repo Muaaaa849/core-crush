@@ -1,9 +1,12 @@
 export type Side = 'a' | 'b';
 export type PlayerId = 'p1' | 'p2' | 'p3' | 'p4';
 export type MatchMode = '1v1' | '1v2' | '2v2';
+export type SkillId = 'overcharge' | 'blink' | 'phantom' | 'boost-ring' | 'chain' | 'charge' | 'trap' | 'energy-bolt' | 'economy';
+export type SkillSlot = 1 | 2;
+export type SkillRejectReason = 'unimplemented' | 'phase' | 'ko' | 'busy' | 'cooldown' | 'reserved' | 'cost' | 'destination' | 'priority';
 export interface Vec3 { x: number; y: number; z: number }
 export interface Stats { attack: number; defense: number; agility: number }
-export interface Participant { id: PlayerId; side: Side; stats: Stats }
+export interface Participant { id: PlayerId; side: Side; stats: Stats; skills: readonly [SkillId, SkillId] }
 export interface MatchOptions { participants: readonly Participant[]; firstBall: Side }
 export type StepDirection = 'forward' | 'back' | 'left' | 'right';
 export type Shot = 'straight' | 'left' | 'right' | 'upper';
@@ -27,6 +30,9 @@ export interface PlayerState {
   hp: number;
   maxHp: number;
   stats: Stats;
+  skills: readonly [SkillId, SkillId];
+  skillReadyAt: [number, number];
+  overcharge: { slot: SkillSlot; expiresAt: number } | null;
   cost: number;
   stepPoints: number;
   stepRecoveryProgress: number;
@@ -77,10 +83,12 @@ export type Command = InputTime & (
   | { kind: 'yaw'; yaw: number }
   | { kind: 'keys'; forward: number; right: number }
   | { kind: 'primary'; aim?: boolean }
+  | { kind: 'skill'; slot: SkillSlot }
   | { kind: 'secondary' | 'step' | 'feint' | 'summon' | 'cycle-target' }
 );
 
 export type SimEvent =
+  | { kind: 'skill-rejected'; at: number; player: PlayerId; slot: SkillSlot; reason: SkillRejectReason }
   | { kind: 'round-end'; at: number; winner: Side | null; reason: 'ko' | 'time' }
   | { kind: 'round-start'; at: number; round: number; side: Side }
   | { kind: 'match-end'; at: number; winner: Side }
