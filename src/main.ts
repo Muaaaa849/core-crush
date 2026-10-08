@@ -5,7 +5,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { addMarkers, Avatar } from './game/avatar';
-import { CHARACTERS, playerLabel, skillLines, TEAM_COLORS, type CharacterId, type Roster } from './game/characters';
+import { CHARACTERS, playerLabel, TEAM_COLORS, type CharacterId, type Roster } from './game/characters';
 import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
 import { CameraBlend, cameraPlayerFor } from './game/camera';
@@ -34,6 +34,8 @@ import { StatsOverlay } from './stats';
 import { RoomConnection, roomUrl } from './net/room';
 import type { OnlineMatch } from './net/online';
 import type { Input } from './game/runner';
+import { Screens } from './ui/screens';
+import { characterCards, renderLocalRoster, renderRoomRoster } from './ui/roster';
 import './style.css';
 
 const CHARACTER_HEIGHT = 1.8; // m。モデルの寸法ではなくゲーム側の基準で決める
@@ -138,11 +140,7 @@ const bots: Bot[] = [];
 // 自分のキャラ（0013）。開始画面の4択から選び、Botは参加枠固定。
 const characterPicker = document.querySelector<HTMLFieldSetElement>('#character')!;
 const rosterPreview = document.querySelector<HTMLElement>('#roster-preview')!;
-characterPicker.append(...Object.entries(CHARACTERS).map(([id, c], i) => {
-  const label = document.createElement('label');
-  label.innerHTML = `<input type="radio" name="character" value="${id}"${i === 0 ? ' checked' : ''} /> <b>${c.name}</b> 攻${c.stats.attack}／防${c.stats.defense}／敏${c.stats.agility}<br><small>${skillLines(id as CharacterId).join('<br>')}</small>`;
-  return label;
-}));
+characterPicker.append(...characterCards());
 const selectedCharacter = () => document.querySelector<HTMLInputElement>('input[name="character"]:checked')!.value as CharacterId;
 let localRosterValue: Roster = localRoster(mode, selectedCharacter());
 const currentRoster = (): Roster => onlineMatch?.session.roster ?? localRosterValue;
@@ -153,7 +151,8 @@ function newMatch() {
 function previewRoster(): void {
   const selected = document.querySelector<HTMLInputElement>('input[name="mode"]:checked')!.value as MatchMode;
   const roster = localRoster(selected, selectedCharacter());
-  rosterPreview.textContent = roster.map(e => `${e.side.toUpperCase()}陣 ${playerLabel(roster, 'p1', e.id)}${e.id === 'p1' ? '' : '（Bot）'}`).join('　');
+  renderLocalRoster(rosterPreview, roster);
+  document.querySelector('#online-character-name')!.textContent = CHARACTERS[selectedCharacter()].name;
 }
 const runner = new SimRunner(newMatch(), config, bots);
 // ローカルの確定イベントは試合ごとに連番を振り、再戦で演出の消費位置を初期化する（0012）。
@@ -282,6 +281,7 @@ const beginButton = document.querySelector<HTMLButtonElement>('#room-begin')!;
 const confirmButton = document.querySelector<HTMLButtonElement>('#room-confirm')!;
 const createButton = document.querySelector<HTMLButtonElement>('#room-create')!;
 const joinForm = document.querySelector<HTMLFormElement>('#room-join')!;
+const screens = new Screens(overlay, () => settingsView.close(), () => controls.releaseAll());
 let roomOrigin: string | undefined;
 try { roomOrigin = roomUrl(import.meta.env.VITE_ROOM_URL); }
 catch (error) { onlineStatus.textContent = (error as Error).message; }
@@ -302,7 +302,8 @@ function returnToLobby(): void {
 function leaveRoom(): void {
   connection?.close(); connection = undefined; returnToLobby();
   onlineLobby.hidden = true; onlineEntry.hidden = !roomOrigin;
-  modeSelector.disabled = false; startButton.hidden = false; controls.enabled = true;
+  modeSelector.disabled = false; characterPicker.disabled = false; startButton.hidden = false; controls.enabled = true;
+  screens.show('online');
   startButton.textContent = 'ローカル試遊を開始';
 }
 async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
@@ -313,9 +314,13 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
   const next = new RoomConnection(roomOrigin, __BUILD_ID__, {
     status: text => { onlineStatus.textContent = text; },
     view: (room, invite, player) => {
+      const entering = onlineLobby.hidden;
       onlineEntry.hidden = true; onlineLobby.hidden = false; modeSelector.disabled = true;
       document.querySelector<HTMLInputElement>('#room-code')!.value = invite;
-      roster.textContent = `${room.mode}・あなたは${player.toUpperCase()}\n` + room.players.map(p => `${p.id === 'p1' ? 'ホスト ' : ''}${p.id.toUpperCase()} ${CHARACTERS[p.characterId].name} / ${p.side.toUpperCase()}陣${p.loaded ? ' / ロード済み' : ''}${p.confirmed ? ' / 結果確認済み' : ''}`).join('\n');
+      if (entering) { screens.show('online'); onlineStatus.textContent = '部屋に接続しました'; }
+      document.querySelector('#lobby-heading')!.textContent = `ロビー ${room.mode} / ${room.players.length}人`;
+      renderRoomRoster(roster, room.players, player);
+      characterPicker.disabled = room.phase !== 'lobby';
       beginButton.hidden = player !== 'p1' || room.phase !== 'lobby';
       beginButton.disabled = room.players.length !== (room.mode === '2v2' ? 4 : room.mode === '1v2' ? 3 : 2);
       roomProgress.textContent = room.phase === 'lobby' ? '参加者がそろったらホストが開始します' : room.phase === 'connecting' ? '接続とロードを確認中（20秒以内）' : '全員ロード完了';
@@ -360,8 +365,10 @@ if (roomOrigin) {
 
 startButton.textContent = 'プレイ開始';
 startButton.disabled = false;
+const POINTER_LOCK_ERROR = 'マウスを捕捉できませんでした。開始／再開をもう一度クリックしてください';
 startButton.addEventListener('click', () => {
   if (connection && !connection.playing) return;
+  if (settingsMessage.textContent === POINTER_LOCK_ERROR) settingsMessage.textContent = '';
   settingsView.close(); controls.releaseAll();
   void startAudio();
   if (!started) {
@@ -373,17 +380,22 @@ startButton.addEventListener('click', () => {
     started = true; modeSelector.disabled = true; characterPicker.disabled = true;
     onlineEntry.hidden = true;
   }
+  showMenu();
   const canvas = renderer.domElement;
   // 生入力（OSのマウス加速なし）に非対応の環境では通常の捕捉にする。失敗はpointerlockerrorで案内する。
   canvas.requestPointerLock({ unadjustedMovement: true }).catch(() => canvas.requestPointerLock().catch(() => {}));
 });
 document.addEventListener('pointerlockchange', () => {
   controls.releaseAll();
-  overlay.hidden = controls.locked && started;
+  if (controls.locked && started) overlay.hidden = true;
+  else showMenu();
 });
-function showMenu(): void { controls.releaseAll(); overlay.hidden = false; }
+function showMenu(): void {
+  screens.show(connection && (!started || onlineMatch?.finished || onlineMatch?.status === 'invalid') ? 'online' : started ? 'pause' : 'menu');
+  startButton.textContent = started ? (onlineMatch ? '操作する' : '再開') : 'プレイ開始';
+}
 document.addEventListener('pointerlockerror', () => {
-  startButton.textContent = 'マウスを捕捉できませんでした。もう一度クリック';
+  settingsMessage.textContent = POINTER_LOCK_ERROR;
 });
 
 addEventListener('resize', () => {

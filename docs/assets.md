@@ -26,6 +26,7 @@
 | `stage.glb` | 原本の部材GLB＋複製した生成スクリプト（`scripts/assets/arena/`）で床・中央フェンス・トラスを拡大寸法で再生成し、Blenderで再組立（`.cache/arena/`、決定0006） | 競技エリア内の展示用コアを除去 → 重複除去・未使用削除 → テクスチャをWebP化 → meshopt圧縮 |
 | `core_ball.glb` | `core_ball/output/core_ball.glb` | テクスチャをWebP化 → meshopt圧縮 |
 | `lcd_0_calm_mask.webp` / `lcd_1_panic_mask.webp` / `lcd_2_rage_mask.webp` | `core_ball/output/faces/` の同名PNG | 48×30のR（顔）・G（亀裂）を保持するlossless WebP化 |
+| `portrait_<id>.webp`（volt / echo / anchor / switch） | `art/concepts/characters/<id>/front.webp` | sharpで高さ512px・品質82。`node scripts/assets/build.mjs --portraits`で単独生成。ハッシュ付きURLで配信 |
 | `character.glb` | `art/kenney-protagonists`（characterMedium.fbx + cyborgFemaleA.png + idle/run/jump） | Blender 5.2でGLB化（アニメーション名 idle / run / jump） |
 
 ### 取り込み時の注意（確認済）
@@ -53,3 +54,15 @@ Blenderの場所は `BLENDER`（既定 `C:/Program Files/Blender Foundation/Blen
 ## クレジット
 
 Characters by Kenney (CC0)。
+
+## DOM画面とHUDの受け入れ条件（2026-10-08）
+
+タイトル→メニュー→ローカル準備／オンライン／設定を戻る操作付きで分ける。3D背景と既存の試合・通信・設定の挙動を維持する。試合中は再開・設定を表示し、オンラインの結果確認・退出は既存の部屋画面を使う。カードは立ち絵・名前・3能力バー・定義から固有2枠、ロビーはP1〜P4・チーム形状・立ち絵・ホスト・ロード状態を表示する。
+
+HUDは上中央のラウンド・A/B勝ち数・時間、右上の危険秒とcalm/panic/rage、下端のHP・コスト5セル・ステップ2セルと回復・固有2枠へ分ける。中央30〜70%×20〜75%に通常HUDパネルを置かず、ロック名は小文字、判定は#judgementを維持する。HPは生存時0に丸めず、コストは0.25刻み、危険時計は最終1秒を切り捨て小数1桁。結果だけ中央の小パネルで3秒の遷移／5秒の再戦／オンライン確認を示し、未集計統計は出さない。表示モデルと素材を先にRed確認し、Vite 5183で各画面を確認する。
+
+### 確認済みと未確認（2026-10-08）
+
+4枚の立ち絵を生成し、高さ512px・100KiB未満・WebP・内容ハッシュを検証した。表示モデル6件、戻る操作1件、素材4件は実装前に未実装／素材なしでRedを確認。Vite 5183のWebGLプレビューでタイトル、メニュー、形式・キャラ選択、オンライン入口、P1〜P4ロビー、設定と割当競合、試合中メニュー、TPS、FPS保持、危険時計calm/panic、ラウンド結果、試合結果を画像保存した（`.cache/ui/report.md`）。HUD・結果は`__debug.step`で状態とフレームを固定して確認し、架空の統計は表示していない。ローカルWorkerで部屋作成・別タブ参加・キャラ申告・退出を確認した。4人ロビー画像の追加枠はHTTPで参加させた検証用の席。
+
+関連7ファイル63テスト、全体68ファイル1,214テスト、型検査、ビルド、差分の空白検査が成功。入力の実際のマウス捕捉／Esc解除はプレビューが捕捉を拒否するため未確認で、再開ボタンと設定からの戻り、捕捉失敗の案内を確認した。全参加者でのオンライン開始〜結果確認、狭い端末での手動操作は未確認。FPS保持球は既存の3D配置を維持し、下端のクリップとHUDとの重なりが残る。

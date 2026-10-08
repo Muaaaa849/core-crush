@@ -1,3 +1,4 @@
+import { hudElement } from './hud-element';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '../../src/game/bot';
 import { Hud } from '../../src/game/hud';
@@ -40,7 +41,7 @@ describe('M2 cover bot and target display', () => {
     expect(bot.think(s)).toContainEqual(expect.objectContaining({ kind: 'move', x: 0, z: 0 }));
   });
   it('T10-23: HUD separates selection from self, teammate and untargeted flights', () => {
-    const s = incoming(), el = { textContent: '' } as HTMLElement;
+    const s = incoming(), el = hudElement();
     const hud = new Hud(el, c, 'p1', rosterOf(s)); s.players[0].lockTarget = 'p4';
     hud.update(s, [], 0); expect(el.textContent).toContain('ロック：敵 P4'); expect(el.textContent).toContain('飛行対象：あなた');
     flight(s).attack!.target = 'p2'; hud.update(s, [], 0); expect(el.textContent).toContain('飛行対象：味方 P2');

@@ -1,3 +1,4 @@
+import { hudElement } from './hud-element';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '../../src/game/bot';
 import { cameraModeFor, cameraPlayerFor } from '../../src/game/camera';
@@ -39,13 +40,13 @@ describe('slice one local teams', () => {
     expect(bot.think(after)).toMatchObject([{ kind: 'move', x: 0, z: 0 }]);
   });
   it('T10-11: HUD scores by local side, names teammates and enemies, and shows KO spectating', () => {
-    const state = createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a'), c), el = { textContent: '' } as HTMLElement;
+    const state = createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a'), c), el = hudElement();
     state.players[0].hp = 0; state.match.wins.a = 1;
     new Hud(el, c, 'p1', rosterOf(state)).update(state, [{ kind: 'round-end', at: 0, winner: 'a', reason: 'ko' }], 0);
     expect(el.textContent).toContain('ラウンド勝利'); expect(el.textContent).toContain('味方 P2');
     expect(el.textContent).toContain('敵 P3'); expect(el.textContent).toContain('敵 P4');
     expect(el.textContent).toContain('KO'); expect(el.textContent).toContain('観戦');
-    expect(el.textContent).toContain('味方 1 − 0 敵');
+    expect(el.textContent).toContain('A 1 − 0 B');
   });
   it('T10-11: friendly possession stays TPS; KO follows a living teammate in TPS and returns next round', () => {
     const state = createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a'), c); state.ball = { mode: 'held', owner: 'p2' };

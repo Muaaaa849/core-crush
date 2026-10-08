@@ -102,3 +102,15 @@ describe('asset contents', () => {
     expect(cage.length).toBe(42); // 短辺7×2＋長辺12×2＋角4
   });
 });
+
+describe.each(['volt', 'echo', 'anchor', 'switch'])('portrait %s', id => {
+  it('is a hashed, 512px high delivery WebP under 100KiB', async () => {
+    const name = `portrait_${id}`, file = new URL(`${name}.webp`, dir);
+    expect(existsSync(file)).toBe(true);
+    expect(statSync(file).size).toBeLessThan(100 * 1024);
+    expect(assetVersions(fileURLToPath(dir))[name]).toMatch(/^[0-9a-f]{12}$/);
+    const metadata = await sharp(readFileSync(file)).metadata();
+    expect(metadata.format).toBe('webp'); expect(metadata.height).toBe(512);
+    expect(metadata.width).toBeGreaterThan(100);
+  });
+});

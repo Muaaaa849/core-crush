@@ -46,6 +46,10 @@ mkdirSync(OUT, { recursive: true });
 mkdirSync(root('.cache'), { recursive: true });
 
 const jobs = [
+  ...['volt', 'echo', 'anchor', 'switch'].map(id => [
+    `portrait_${id}.webp`, () => sharp(root(`art/concepts/characters/${id}/front.webp`))
+      .resize({ height: 512 }).webp({ quality: 82 }).toFile(`${OUT}/portrait_${id}.webp`),
+  ]),
   ['stage.glb', async () => {
     for (const asset of ['arena_floor', 'plasma_fence', 'light_truss', 'arena_stage']) {
       execFileSync(BLENDER, ['-b', '--factory-startup', '--python-exit-code', '1',
@@ -69,6 +73,7 @@ const jobs = [
 ];
 
 for (const [name, job] of jobs) {
+  if (process.argv.includes('--portraits') && !name.startsWith('portrait_')) continue;
   const started = performance.now();
   await job();
   const mib = statSync(`${OUT}/${name}`).size / 2 ** 20;

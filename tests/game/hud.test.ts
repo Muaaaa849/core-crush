@@ -1,3 +1,4 @@
+import { hudElement } from './hud-element';
 import { duelParticipants, rosterOf } from '../fixtures';
 // HUDのラウンド表示（progress.md U1・U2、0008）。
 import { describe, expect, it } from 'vitest';
@@ -6,7 +7,7 @@ import { defaultConfig as config } from '../../src/sim/config';
 import { createInitialState } from '../../src/sim/sim';
 
 function render(events: Parameters<Hud['update']>[1], edit?: (s: ReturnType<typeof createInitialState>) => void) {
-  const el = { textContent: '' } as HTMLElement;
+  const el = hudElement();
   const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
   edit?.(state);
   new Hud(el, config, 'p1', rosterOf(state)).update(state, events, 0);
@@ -15,7 +16,7 @@ function render(events: Parameters<Hud['update']>[1], edit?: (s: ReturnType<type
 
 describe('Hud rounds', () => {
   it('T10-29 shows online confirmation instead of a five second rematch', () => {
-    const el = { textContent: '' } as HTMLElement;
+    const el = hudElement();
     const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
     new Hud(el, config, 'p1', rosterOf(state), true).update(state, [{ kind: 'match-end', at: 0, winner: 'a' }], 0);
     expect(el.textContent).toContain('結果を確認');
@@ -40,7 +41,7 @@ describe('Hud rounds', () => {
       s.match.wins = { a: 1, b: 0 };
       s.now = s.match.roundEndsAt - 75 * config.timeUnitsPerSecond;
     });
-    expect(text).toContain('ラウンド2　味方 1 − 0 敵　残り 1:15');
+    expect(text).toContain('ラウンド2　A 1 − 0 B　残り 1:15');
   });
 
   it('U2: round results with the reason', () => {
@@ -50,7 +51,20 @@ describe('Hud rounds', () => {
   });
 
   it('U2: match result and rematch notice', () => {
-    expect(render([{ kind: 'match-end', at: 0, winner: 'a' }])).toContain('試合終了：あなたの勝ち！　5秒後に再戦');
-    expect(render([{ kind: 'match-end', at: 0, winner: 'b' }])).toContain('試合終了：あなたの負け　5秒後に再戦');
+    expect(render([{ kind: 'match-end', at: 0, winner: 'a' }])).toContain('試合終了：あなたの勝ち！');
+    expect(render([{ kind: 'match-end', at: 0, winner: 'a' }])).toContain('5秒後に再戦');
+    expect(render([{ kind: 'match-end', at: 0, winner: 'b' }])).toContain('試合終了：あなたの負け');
+  });
+
+  it('counts down results without a hit hiding them, then hides the panel at the deadline', () => {
+    const el = hudElement(), state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
+    const hud = new Hud(el, config, 'p1', rosterOf(state));
+    hud.update(state, [{ kind: 'match-end', at: 0, winner: 'a' }], 100);
+    hud.update(state, [{ kind: 'hit', at: 0, player: 'p1', damage: 10, ko: false, position: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: 0, z: 1 } }], 2100);
+    expect(el.querySelector('[data-hud="result-countdown"]')!.textContent).toBe('3秒後に再戦');
+    expect(el.querySelector('[data-hud="result-text"]')!.textContent).toBe('試合終了：あなたの勝ち！');
+    expect(el.querySelector<HTMLElement>('[data-hud="result"]')!.hidden).toBe(false);
+    hud.update(state, [], 5100);
+    expect(el.querySelector<HTMLElement>('[data-hud="result"]')!.hidden).toBe(true);
   });
 });
