@@ -8,6 +8,9 @@ canvas { display: block; }
 #match-mode { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; border: 1px solid rgb(25 230 255 / 0.4); padding: 14px; }
 #match-mode label { cursor: pointer; }
 #match-mode:disabled { opacity: 0.65; }
+#character { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; border: 1px solid rgb(25 230 255 / 0.4); padding: 10px 14px; text-align: left; }
+#character label { cursor: pointer; max-width: 210px; }
+#character:disabled { opacity: 0.65; }
 #effects { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; border: 1px solid rgb(25 230 255 / 0.4); padding: 8px 14px; }
 #judgement { position: fixed; left: 50%; top: calc(50% + 28px); transform: translateX(-50%); margin: 0; font: 600 15px/1.2 system-ui, sans-serif; letter-spacing: 0.08em; text-shadow: 0 0 4px #000; pointer-events: none; }
 #hit-edge { position: fixed; inset: 0; opacity: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 76%, rgb(255 60 40 / 1) 100%); }

@@ -1,6 +1,7 @@
+import type { CharacterId } from '../game/characters';
 import type { MatchMode, PlayerId, Side } from '../sim/types';
 
-export interface RoomPlayer { id: PlayerId; side: Side; loaded: boolean; confirmed: boolean }
+export interface RoomPlayer { id: PlayerId; side: Side; characterId: CharacterId; loaded: boolean; confirmed: boolean }
 export interface RoomView {
   mode: MatchMode; build: string; players: RoomPlayer[];
   phase: 'lobby' | 'connecting' | 'countdown'; expiresAt: number;
@@ -16,5 +17,5 @@ export type RoomReply = { kind: 'room'; room: RoomView; serverNow: number }
   | { kind: 'repair'; from: PlayerId; matchId: string }
   | { kind: 'host-left'; matchId: string }
   | { kind: 'error' | 'aborted'; reason: string };
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 export interface Admission { code: string; token: string; player: PlayerId; room: RoomView }

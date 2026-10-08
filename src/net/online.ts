@@ -1,5 +1,5 @@
 import type { Input } from '../game/runner';
-import { localMatch } from '../game/match';
+import { rosterMatch } from '../game/match';
 import { defaultConfig } from '../sim/config';
 import { createInitialState } from '../sim/sim';
 import type { Command, PlayerId, SimState } from '../sim/types';
@@ -30,8 +30,10 @@ export class OnlineMatch {
   private held: HeldInput = { move: { x: 0, z: 0 }, keys: { forward: 0, right: 0 } };
   previous: SimState;
   constructor(room: RoomView, readonly player: PlayerId, private readonly delivery: Delivery, private readonly now: () => number) {
-    this.session = { matchId: room.matchId, epoch: 1, protocol: PROTOCOL, build: room.build, config: defaultConfig,
-      initial: createInitialState(localMatch(room.mode, room.firstBall), defaultConfig) };
+    // 部屋が開始時に固定した構成から、全端末が同じ変換で初期状態を作る（0013）。
+    const roster = room.players.map(p => ({ id: p.id, side: p.side, characterId: p.characterId })).sort((a, b) => a.id.localeCompare(b.id));
+    this.session = { matchId: room.matchId, epoch: 1, protocol: PROTOCOL, build: room.build, config: defaultConfig, roster,
+      initial: createInitialState(rosterMatch(roster, room.firstBall), defaultConfig) };
     this.client = new MemoryClient(this.session, player); this.previous = this.client.state;
     this.slots = Object.fromEntries(room.players.map(p => [p.id === 'p1' ? 'host' : p.id, p.id]));
     for (const peer of player === 'p1' ? Object.keys(this.slots) : ['host']) this.lastReceived.set(peer, now());

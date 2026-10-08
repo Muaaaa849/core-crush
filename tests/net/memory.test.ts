@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Bot } from '../../src/game/bot';
-import { localMatch } from '../../src/game/match';
+import { evenMatch, rosterOf } from '../fixtures';
 import { defaultConfig as c } from '../../src/sim/config';
 import { createInitialState } from '../../src/sim/sim';
 import type { Command, SimState } from '../../src/sim/types';
@@ -13,7 +13,7 @@ import { active, command, defense, incoming } from '../sim/cover-helpers';
 
 export function session(initial: SimState = active()): Session {
   initial.players[0].lockTarget = 'p3';
-  return { matchId: 'm2', epoch: 1, build: 'ed315f6-net', protocol: 1, config: c, initial };
+  return { matchId: 'm2', epoch: 1, build: 'ed315f6-net', protocol: 1, config: c, roster: rosterOf(initial), initial };
 }
 export function host(s = session(), bots: Bot[] = []) {
   const slots = Object.fromEntries(s.initial.players.filter(p => !bots.some(b => b.player === p.id))
@@ -72,7 +72,7 @@ describe('M2 memory synchronization', () => {
   });
 
   it('T10-26: rollback regenerates Bot memory and commands instead of retaining its old decisions', () => {
-    const s = session(createInitialState(localMatch('2v2', 'a'))), at = s.initial.now;
+    const s = session(createInitialState(evenMatch('2v2', 'a'))), at = s.initial.now;
     const early = host(s, [new Bot('p2'), new Bot('p3'), new Bot('p4')]);
     const late = host(s, [new Bot('p2'), new Bot('p3'), new Bot('p4')]);
     const move: Command = { kind: 'move', player: 'p1', at, seq: 0, x: 1, z: 0 };
@@ -205,7 +205,7 @@ describe('M2 memory synchronization', () => {
   });
 
   it('T10-27: eight delivered ping/pong samples estimate a shifted monotonic clock', () => {
-    const s = session(createInitialState(localMatch('1v1', 'a'))), h = host(s), cl = new MemoryClient(s, 'p3');
+    const s = session(createInitialState(evenMatch('1v1', 'a'))), h = host(s), cl = new MemoryClient(s, 'p3');
     const d = new MemoryDelivery({ rttMs: 40, jitterMs: 0, loss: 0, seed: 1 });
     d.bind('host', (from, msg, at) => {
       h.receive(from, msg, at);

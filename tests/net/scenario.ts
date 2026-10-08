@@ -1,5 +1,5 @@
 import { Bot } from '../../src/game/bot';
-import { localMatch } from '../../src/game/match';
+import { evenMatch, rosterOf } from '../fixtures';
 import { defaultConfig } from '../../src/sim/config';
 import { createInitialState } from '../../src/sim/sim';
 import type { MatchMode, PlayerId, SimState } from '../../src/sim/types';
@@ -11,8 +11,9 @@ import { canonical, type Session } from '../../src/net/messages';
 export interface ScenarioOptions { mode: MatchMode; rttMs: number; jitterMs: number; loss: number; seconds: number; seed: number }
 export function runScenario(options: ScenarioOptions) {
   const config = defaultConfig;
-  const session: Session = { matchId: 'netbench', epoch: 1, build: 'm2-memory', protocol: 1, config,
-    initial: createInitialState(localMatch(options.mode, 'a'), config) };
+  const session: Session = { matchId: 'netbench', epoch: 1, build: 'm2-memory', protocol: 1, config, roster: [],
+    initial: createInitialState(evenMatch(options.mode, 'a'), config) };
+  session.roster = rosterOf(session.initial);
   const ids = session.initial.players.map(p => p.id);
   const host = new MemoryHost(session, Object.fromEntries(ids.map(id => [id, id])));
   const clients = ids.filter(id => id !== 'p1').map(id => new MemoryClient(session, id));

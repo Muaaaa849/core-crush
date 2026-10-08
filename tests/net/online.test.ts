@@ -8,7 +8,7 @@ import { envelope } from '../../src/net/messages';
 
 it('T10-29 runs host input through prediction and waits for confirmed results without automatic rematch', () => {
   const room = new RoomLogic('1v1', 'build', 0);
-  const a = room.join('build', 0), b = room.join('build', 0);
+  const a = room.join('build', 'volt', 0), b = room.join('build', 'volt', 0);
   room.begin(a.id, 0, [a.id, b.id]);
   let now = 0;
   const delivery = new DataChannelDelivery('host', () => now);
@@ -26,7 +26,7 @@ it('T10-29 runs host input through prediction and waits for confirmed results wi
 it.each(['1v1', '1v2', '2v2'] as MatchMode[])('T10-29 connects all %s participants through the delivery contract', mode => {
   const room = new RoomLogic(mode, 'build', 0);
   const count = mode === '2v2' ? 4 : mode === '1v2' ? 3 : 2;
-  const slots = Array.from({ length: count }, () => room.join('build', 0));
+  const slots = Array.from({ length: count }, () => room.join('build', 'volt', 0));
   room.begin('p1', 0, slots.map(s => s.id));
   let now = 0;
   const delivery = new MemoryDelivery({ rttMs: 0, jitterMs: 0, loss: 0, seed: 1 });
@@ -40,7 +40,7 @@ it.each(['1v1', '1v2', '2v2'] as MatchMode[])('T10-29 connects all %s participan
 
 it('T10-29 gates result confirmation on both final state and the confirmed match event', () => {
   const room = new RoomLogic('1v1', 'build', 0);
-  room.join('build', 0); room.join('build', 0); room.begin('p1', 0, ['p1', 'p3']);
+  room.join('build', 'volt', 0); room.join('build', 'volt', 0); room.begin('p1', 0, ['p1', 'p3']);
   const delivery = new MemoryDelivery({ rttMs: 0, jitterMs: 0, loss: 0, seed: 1 });
   let now = 0;
   const match = new OnlineMatch(room.public(), 'p3', delivery, () => now);
@@ -51,4 +51,18 @@ it('T10-29 gates result confirmation on both final state and the confirmed match
   delivery.advance(now); expect(match.finished).toBe(true);
   now = 300_000; match.advance();
   expect(match.finished).toBe(true); expect(match.state.match.phase).toBe('over');
+});
+
+it('C12-3b builds the session from the room roster, and a different character changes the start signature', async () => {
+  const room = new RoomLogic('1v2', 'build', 0);
+  const host = room.join('build', 'volt', 0); room.join('build', 'echo', 0); room.join('build', 'anchor', 0);
+  room.begin(host.id, 0, ['p1', 'p3', 'p4']);
+  const view = room.public();
+  const match = (v: typeof view) => new OnlineMatch(v, 'p3', new DataChannelDelivery('p3', () => 0), () => 0);
+  const a = match(view);
+  expect(a.session.roster).toEqual([{ id: 'p1', side: 'a', characterId: 'volt' }, { id: 'p3', side: 'b', characterId: 'echo' }, { id: 'p4', side: 'b', characterId: 'anchor' }]);
+  expect(a.session.initial.players.map(p => p.maxHp)).toEqual([94 * 1.6, 106, 112].map(v => expect.closeTo(v)));
+  expect(await match(structuredClone(view)).signature()).toBe(await a.signature());
+  const other = structuredClone(view); other.players[1].characterId = 'switch';
+  expect(await match(other).signature()).not.toBe(await a.signature());
 });

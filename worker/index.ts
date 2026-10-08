@@ -1,3 +1,4 @@
+import { isCharacterId } from '../src/game/characters';
 import { issueIce, Quotas, randomCode, Rejection, RoomLogic } from './logic';
 import type { PlayerId } from '../src/sim/types';
 import type { Signal } from '../src/net/room-protocol';
@@ -46,6 +47,7 @@ export default {
         const input = await body(request);
         // 不正な形式で部屋作成枠を消費しない。
         new RoomLogic(input.mode, input.build, Date.now());
+        if (!isCharacterId(input.characterId)) reject('invalid character');
         const code = randomCode(); await quota(env, 'create', code);
         response = await env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://internal/init', {
           method: 'POST', body: JSON.stringify({ ...input, code }),
@@ -112,17 +114,19 @@ export class Room {
   async fetch(request: Request): Promise<Response> {
     try {
       const action = new URL(request.url).pathname, now = Date.now();
+      let created: Record<string, string> | undefined;
       if (action === '/init') {
         if (this.logic) reject('room exists', 409);
-        const input = await body(request); this.code = input.code; this.logic = new RoomLogic(input.mode, input.build, now);
+        const input = created = await body(request); this.code = input.code; this.logic = new RoomLogic(input.mode, input.build, now);
         await this.ctx.storage.setAlarm(now + 2 * 60 * 60 * 1000);
       }
       if (!this.logic) reject('room missing', 404);
       const room = this.logic;
       if (action === '/init' || action === '/join') {
-        const input = action === '/init' ? { build: room.public().build } : await body(request);
+        const input = created ?? await body(request);
         const token = request.headers.get('Authorization')?.replace(/^Bearer /, '');
-        const slot = token ? room.rejoin(input.build, token, now) : room.join(input.build, now); await this.save(); this.broadcast();
+        const slot = token ? room.rejoin(input.build, input.characterId, token, now) : room.join(input.build, input.characterId, now);
+        await this.save(); this.broadcast();
         return json({ code: this.code, token: slot.token, player: slot.id, room: room.public() });
       }
       if (action === '/ice') {
@@ -158,6 +162,10 @@ export class Room {
       if (msg.kind === 'begin') {
         room.begin(info.id, now, this.sockets().map(s => s.deserializeAttachment<SocketInfo>().id));
         await this.ctx.storage.setAlarm(room.public().deadline);
+      } else if (msg.kind === 'select-character') {
+        // 送信者は認証済みの接続から取り、ID・陣・能力などの申告は受けない。
+        if (Object.keys(msg).some(key => key !== 'kind' && key !== 'characterId')) reject('invalid message');
+        room.select(info.id, msg.characterId, now);
       } else if (msg.kind === 'signal') {
         const signal = room.relay(info.id, msg as Signal, now);
         const target = this.sockets().find(s => s.deserializeAttachment<SocketInfo>().id === signal.to);

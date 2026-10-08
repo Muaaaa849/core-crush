@@ -2,6 +2,7 @@
 import type { SimConfig } from '../sim/config';
 import { targetAngle } from '../sim/target';
 import type { PlayerId, Side, SimEvent, SimState } from '../sim/types';
+import { playerLabel, skillLines, type Roster } from './characters';
 
 const FACE = [
   { until: 3, label: 'スマイル' },
@@ -15,12 +16,13 @@ export class Hud {
   private message = '';
   private messageUntil = 0;
 
-  constructor(private readonly el: HTMLElement, private readonly config: SimConfig, private readonly local: PlayerId, private readonly online = false) {}
+  constructor(private readonly el: HTMLElement, private readonly config: SimConfig, private readonly local: PlayerId,
+    private readonly roster: Roster, private readonly online = false) {}
 
   update(state: SimState, events: readonly SimEvent[], now: number): void {
     const local = state.players.find(p => p.id === this.local)!;
     const sideName = (side: Side) => side === local.side ? '味方陣' : '敵陣';
-    const name = (id: PlayerId) => id === this.local ? 'あなた' : `${state.players.find(p => p.id === id)!.side === local.side ? '味方' : '敵'} ${id.toUpperCase()}`;
+    const name = (id: PlayerId) => playerLabel(this.roster, this.local, id);
     for (const e of events) {
       if (e.kind === 'round-end') {
         const result = e.winner === null ? '引き分け' : e.winner === local.side ? 'ラウンド勝利' : 'ラウンド敗北';
@@ -58,8 +60,9 @@ export class Hud {
     const lock = `\nロック：${target ? name(target.id) : 'なし'}${target && targetAngle(local, target) > this.config.throwArcDegrees / 2 * Math.PI / 180 + 1e-12 ? '（対象が正面外）' : ''}`;
     const flightTarget = state.ball.mode === 'flight' ? state.ball.attack?.target : null;
     const flight = state.ball.mode === 'flight' ? `\n飛行対象：${flightTarget ? name(flightTarget) : 'なし'}` : '';
+    const skills = `\n${skillLines(this.roster.find(e => e.id === this.local)!.characterId).join('　')}`;
     const message = now < this.messageUntil ? `\n${this.message}` : '';
-    this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${flight}${message}`;
+    this.el.textContent = `${round}\n${clock}\n${players}${spectating}${lock}${flight}${skills}${message}`;
   }
 
   private flash(text: string, now: number, durationMs = 1500): void {

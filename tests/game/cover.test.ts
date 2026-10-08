@@ -4,6 +4,7 @@ import { Hud } from '../../src/game/hud';
 import { defaultConfig as c } from '../../src/sim/config';
 import { step } from '../../src/sim/sim';
 import { flight, incoming, F } from '../sim/cover-helpers';
+import { rosterOf } from '../fixtures';
 
 describe('M2 cover bot and target display', () => {
   it('T10-23: non-target bot walks two metres ball-side of its teammate using only commands', () => {
@@ -40,7 +41,7 @@ describe('M2 cover bot and target display', () => {
   });
   it('T10-23: HUD separates selection from self, teammate and untargeted flights', () => {
     const s = incoming(), el = { textContent: '' } as HTMLElement;
-    const hud = new Hud(el, c, 'p1'); s.players[0].lockTarget = 'p4';
+    const hud = new Hud(el, c, 'p1', rosterOf(s)); s.players[0].lockTarget = 'p4';
     hud.update(s, [], 0); expect(el.textContent).toContain('ロック：敵 P4'); expect(el.textContent).toContain('飛行対象：あなた');
     flight(s).attack!.target = 'p2'; hud.update(s, [], 0); expect(el.textContent).toContain('飛行対象：味方 P2');
     flight(s).attack!.target = null; hud.update(s, [], 0); expect(el.textContent).toContain('飛行対象：なし');

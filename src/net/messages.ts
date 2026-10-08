@@ -1,3 +1,4 @@
+import type { Roster } from '../game/characters';
 import type { SimConfig } from '../sim/config';
 import { step } from '../sim/sim';
 import type { Command, PlayerId, SimEvent, SimState } from '../sim/types';
@@ -8,6 +9,7 @@ export interface Session {
   build: string;
   protocol: number;
   config: SimConfig;
+  roster: Roster; // 開始時に固定したキャラ構成（0013）。署名に含める
   initial: SimState;
 }
 export interface Envelope { matchId: string; epoch: number }

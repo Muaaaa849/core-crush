@@ -1,4 +1,4 @@
-import { duelParticipants } from '../fixtures';
+import { duelParticipants, rosterOf } from '../fixtures';
 // HUDのラウンド表示（progress.md U1・U2、0008）。
 import { describe, expect, it } from 'vitest';
 import { Hud } from '../../src/game/hud';
@@ -9,7 +9,7 @@ function render(events: Parameters<Hud['update']>[1], edit?: (s: ReturnType<type
   const el = { textContent: '' } as HTMLElement;
   const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
   edit?.(state);
-  new Hud(el, config, 'p1').update(state, events, 0);
+  new Hud(el, config, 'p1', rosterOf(state)).update(state, events, 0);
   return el.textContent!;
 }
 
@@ -17,14 +17,14 @@ describe('Hud rounds', () => {
   it('T10-29 shows online confirmation instead of a five second rematch', () => {
     const el = { textContent: '' } as HTMLElement;
     const state = createInitialState({ participants: duelParticipants, firstBall: 'a' });
-    new Hud(el, config, 'p1', true).update(state, [{ kind: 'match-end', at: 0, winner: 'a' }], 0);
+    new Hud(el, config, 'p1', rosterOf(state), true).update(state, [{ kind: 'match-end', at: 0, winner: 'a' }], 0);
     expect(el.textContent).toContain('結果を確認');
     expect(el.textContent).not.toContain('秒後に再戦');
   });
   it('T10-11: shows at most one decimal, rounding up so a living player never shows 0', () => {
     const text = render([], (s) => { s.players[0].hp = 49.48953125; s.players[1].hp = 0.2; });
-    expect(text).toContain('あなた HP 49.5/100');
-    expect(text).toContain('敵 P2 HP 0.2/100');
+    expect(text).toContain('あなた P1 VOLT HP 49.5/100');
+    expect(text).toContain('敵 P2 VOLT HP 0.2/100');
   });
 
   it('names sides from the local player: own side is 味方陣, the other 敵陣', () => {

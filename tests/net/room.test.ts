@@ -7,12 +7,12 @@ describe('room signaling', () => {
   it('T10-29 assigns the roster for all formats and rejects excess joins and different builds', () => {
     for (const [mode, ids] of [['1v1', ['p1', 'p3']], ['1v2', ['p1', 'p3', 'p4']], ['2v2', ['p1', 'p2', 'p3', 'p4']]] as const) {
       const room = make(mode);
-      expect(() => room.join('other', now)).toThrow('build');
-      const joined = ids.map(() => room.join('build', now));
+      expect(() => room.join('other', 'volt', now)).toThrow('build');
+      const joined = ids.map(() => room.join('build', 'volt', now));
       expect(joined.map(p => p.id)).toEqual(ids);
       expect(room.public().players.map(p => p.side)).toEqual(mode === '2v2' ? ['a', 'a', 'b', 'b'] : ids.map((_, i) => i ? 'b' : 'a'));
       expect(new Set(joined.map(p => p.token)).size).toBe(ids.length);
-      expect(() => room.join('build', now)).toThrow('full');
+      expect(() => room.join('build', 'volt', now)).toThrow('full');
       expect(JSON.stringify(room.public())).not.toContain(joined[0].token);
       expect(() => room.authenticate('invalid', now)).toThrow('token');
       expect(() => room.authenticate(joined[0].token, now + ROOM_TTL)).toThrow('expired');
@@ -20,7 +20,7 @@ describe('room signaling', () => {
     expect(() => make('3v3')).toThrow('format');
   });
   it('T10-29 authenticates star signaling and only counts down after every matching load ACK', () => {
-    const room = make('1v1'), host = room.join('build', now), guest = room.join('build', now);
+    const room = make('1v1'), host = room.join('build', 'volt', now), guest = room.join('build', 'volt', now);
     expect(() => room.begin(guest.id, now, [host.id, guest.id])).toThrow('host');
     expect(() => room.begin(host.id, now, [host.id])).toThrow('connected');
     room.begin(host.id, now, [host.id, guest.id]);
@@ -36,7 +36,7 @@ describe('room signaling', () => {
     expect(room.public().phase).toBe('lobby');
   });
   it('T10-29 refuses loading at the 20 second boundary and permits retry', () => {
-    const room = make('1v1'), a = room.join('build', now), b = room.join('build', now);
+    const room = make('1v1'), a = room.join('build', 'volt', now), b = room.join('build', 'volt', now);
     room.begin(a.id, now, [a.id, b.id]);
     room.loaded(a.id, 'same', now);
     expect(() => room.loaded(b.id, 'same', now + 20_000)).toThrow('deadline');
@@ -59,7 +59,7 @@ describe('room signaling', () => {
     expect(() => requests.request(now)).toThrow('limit');
   });
   it('T10-31 authenticates, rate limits and expires credential grants', () => {
-    const room = make('1v1'), a = room.join('build', now);
+    const room = make('1v1'), a = room.join('build', 'volt', now);
     expect(() => room.grant('bad', now)).toThrow('token');
     room.grant(a.token, now);
     expect(() => room.grant(a.token, now + 59_999)).toThrow('limit');
@@ -89,5 +89,31 @@ describe('room signaling', () => {
     await expect(issueIce(env, now, fetcher)).rejects.toThrow('TURN');
     fetcher.mockResolvedValue(new Response('{}', { status: 201 }));
     await expect(issueIce(env, now, fetcher)).rejects.toThrow('TURN');
+  });
+});
+
+describe('C12-3a character declarations', () => {
+  const now = 1000;
+  it('keeps each slot character, lets only the owner change it in the lobby, and rejects unknown or re-declared IDs', () => {
+    const room = new RoomLogic('1v1', 'build', now);
+    expect(() => room.join('build', 'nope', now)).toThrow('character');
+    expect(() => room.join('build', undefined, now)).toThrow('character');
+    const host = room.join('build', 'anchor', now), guest = room.join('build', 'echo', now);
+    expect(room.public().players.map(p => p.characterId)).toEqual(['anchor', 'echo']);
+    room.select(guest.id, 'volt', now);
+    expect(room.public().players.map(p => p.characterId)).toEqual(['anchor', 'volt']);
+    expect(() => room.select(guest.id, 'nope', now)).toThrow('character');
+    expect(() => room.rejoin('build', 'switch', guest.token, now)).toThrow('rejoin');
+    expect(room.rejoin('build', undefined, guest.token, now).id).toBe(guest.id);
+    room.begin(host.id, now, [host.id, guest.id]);
+    expect(() => room.select(guest.id, 'switch', now)).toThrow('progress');
+    expect(room.public().players.map(p => p.characterId)).toEqual(['anchor', 'volt']);
+  });
+
+  it('refuses a saved room without character declarations instead of migrating it', () => {
+    const room = new RoomLogic('1v1', 'build', now); room.join('build', 'volt', now);
+    const saved = structuredClone(room.data);
+    delete (saved.view.players[0] as Partial<typeof saved.view.players[0]>).characterId;
+    expect(() => new RoomLogic('1v1', 'build', now, saved)).toThrow('outdated');
   });
 });

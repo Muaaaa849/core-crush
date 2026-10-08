@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { localMatch } from '../../src/game/match';
+import { evenMatch } from '../fixtures';
 import { defaultConfig as c } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command } from '../../src/sim/types';
@@ -7,7 +7,7 @@ import type { Command } from '../../src/sim/types';
 describe('M8-7 long random matches', () => {
   for (const mode of ['1v1', '1v2', '2v2'] as const) it.each([11, 23, 49])(`T10-12 ${mode} seed %i: living players keep moving and every completed round resets or ends the match`, seed => {
     const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-    let state = createInitialState(localMatch(mode, 'a'));
+    let state = createInitialState(evenMatch(mode, 'a'));
     let seq = 0, completed = 0, resets = 0;
     const stagnant = state.players.map(() => 0);
     const actions = ['primary', 'secondary', 'step', 'summon', 'feint', 'cycle-target'] as const;

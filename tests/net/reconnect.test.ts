@@ -11,7 +11,7 @@ import { canonical } from '../../src/net/messages';
 function setup(mode: MatchMode = '1v1') {
   const room = new RoomLogic(mode, 'build', 0);
   const count = mode === '2v2' ? 4 : mode === '1v2' ? 3 : 2;
-  const slots = Array.from({ length: count }, () => room.join('build', 0));
+  const slots = Array.from({ length: count }, () => room.join('build', 'volt', 0));
   room.begin('p1', 0, slots.map(s => s.id));
   let now = 0;
   const delivery = new MemoryDelivery({ rttMs: 0, jitterMs: 0, loss: 0, seed: 1 });
@@ -114,11 +114,11 @@ it('T10-34 invalidates explicit host departure immediately but retains a confirm
 
 it('T10-33 reuses the authenticated worker slot and rejects duplicate joins and wrong tokens', () => {
   const s = setup('1v2'), guest = s.slots[1], before = s.room.public();
-  expect(s.room.rejoin('build', guest.token, s.now).id).toBe(guest.id);
+  expect(s.room.rejoin('build', undefined, guest.token, s.now).id).toBe(guest.id);
   expect(s.room.public()).toEqual(before);
-  expect(() => s.room.rejoin('other', guest.token, s.now)).toThrow('build');
-  expect(() => s.room.rejoin('build', 'wrong', s.now)).toThrow('token');
-  expect(() => s.room.join('build', s.now)).toThrow('progress');
+  expect(() => s.room.rejoin('other', undefined, guest.token, s.now)).toThrow('build');
+  expect(() => s.room.rejoin('build', undefined, 'wrong', s.now)).toThrow('token');
+  expect(() => s.room.join('build', 'volt', s.now)).toThrow('progress');
 });
 
 it('T10-32 freezes Bot thinking and the entire confirmed sim state without advancing step', () => {

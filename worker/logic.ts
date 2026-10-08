@@ -1,3 +1,4 @@
+import { isCharacterId } from '../src/game/characters';
 import type { MatchMode, PlayerId } from '../src/sim/types';
 import type { IceReply, RoomView, Signal } from '../src/net/room-protocol';
 
@@ -19,14 +20,17 @@ export class RoomLogic {
   constructor(mode: string, build: string, now: number, restored?: RoomData) {
     require(['1v1', '1v2', '2v2'].includes(mode), 'invalid format');
     require(typeof build === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(build), 'invalid build');
+    // キャラ申告のない旧形式の保存部屋は使わせない（移行しない）。
+    if (restored) require(restored.view.players.every(p => isCharacterId(p.characterId)), 'room format outdated; create a new room', 410);
     this.data = restored ?? { view: { mode: mode as MatchMode, build, players: [], phase: 'lobby', expiresAt: now + ROOM_TTL,
       matchId: '', firstBall: 'a', deadline: 0, startAt: 0 }, slots: [], grants: 0 };
   }
   public(): RoomView { return structuredClone(this.data.view); }
   private live(now: number): void { require(now < this.data.view.expiresAt, 'room expired', 410); }
-  join(build: string, now: number): Slot {
+  join(build: string, characterId: unknown, now: number): Slot {
     this.live(now);
     const v = this.data.view;
+    require(isCharacterId(characterId), 'invalid character');
     require(v.phase === 'lobby', 'match in progress', 409);
     require(v.build === build, 'different build', 409);
     const ids: PlayerId[] = v.mode === '2v2' ? ['p1', 'p2', 'p3', 'p4'] : v.mode === '1v2' ? ['p1', 'p3', 'p4'] : ['p1', 'p3'];
@@ -34,7 +38,7 @@ export class RoomLogic {
     // 永続化しても未発行の値を保持するため有限の初期値にする。
     const id = ids[this.data.slots.length], slot = { id, token: randomCode(), lastGrant: -60_000 };
     this.data.slots.push(slot);
-    v.players.push({ id, side: id === 'p1' || id === 'p2' ? 'a' : 'b', loaded: false, confirmed: false });
+    v.players.push({ id, side: id === 'p1' || id === 'p2' ? 'a' : 'b', characterId, loaded: false, confirmed: false });
     return { ...slot };
   }
   authenticate(token: string, now: number): Slot {
@@ -42,9 +46,17 @@ export class RoomLogic {
     const slot = this.data.slots.find(s => s.token === token);
     require(slot, 'invalid token', 401); return slot;
   }
-  rejoin(build: string, token: string, now: number): Slot {
+  rejoin(build: string, characterId: unknown, token: string, now: number): Slot {
     require(this.data.view.build === build, 'different build', 409);
+    require(characterId === undefined, 'character cannot be changed on rejoin');
     return { ...this.authenticate(token, now) };
+  }
+  /** ロビーの間だけ、認証済みの本人枠のキャラを変える。開始後の構成は固定。 */
+  select(id: PlayerId, characterId: unknown, now: number): void {
+    this.live(now); const v = this.data.view;
+    require(v.phase === 'lobby', 'match in progress', 409);
+    require(isCharacterId(characterId), 'invalid character');
+    v.players.find(p => p.id === id)!.characterId = characterId;
   }
   begin(id: PlayerId, now: number, connected: PlayerId[]): void {
     this.live(now); const v = this.data.view;

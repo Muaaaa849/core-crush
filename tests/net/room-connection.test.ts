@@ -6,7 +6,7 @@ import type { OnlineMatch } from '../../src/net/online';
 it('T10-32 advances network time without render frames and reconnects signaling with the same token', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
   vi.setSystemTime(0);
-  const room = new RoomLogic('1v1', 'build', 0), host = room.join('build', 0), guest = room.join('build', 0);
+  const room = new RoomLogic('1v1', 'build', 0), host = room.join('build', 'volt', 0), guest = room.join('build', 'volt', 0);
   const sockets: Socket[] = [];
   class Socket {
     static OPEN = 1;
@@ -45,7 +45,7 @@ it('T10-32 advances network time without render frames and reconnects signaling 
     view: vi.fn(), preparing: m => { match = m; }, status: vi.fn(), lobby: vi.fn(), disconnected: vi.fn(),
   });
   try {
-    await connection.enter('1v1');
+    await connection.enter('1v1', 'volt');
     room.begin(host.id, 0, [host.id, guest.id]); sockets[0].room();
     await vi.advanceTimersByTimeAsync(50);
     room.loaded(host.id, 'same', 50); room.loaded(guest.id, 'same', 50); sockets[0].room();
@@ -63,7 +63,7 @@ it('T10-32 advances network time without render frames and reconnects signaling 
 });
 
 it('T10-34 treats host state loss on reload as silence instead of explicit departure', async () => {
-  const room = new RoomLogic('1v1', 'build', Date.now()), host = room.join('build', Date.now()), guest = room.join('build', Date.now());
+  const room = new RoomLogic('1v1', 'build', Date.now()), host = room.join('build', 'volt', Date.now()), guest = room.join('build', 'volt', Date.now());
   room.begin(host.id, Date.now(), [host.id, guest.id]);
   room.loaded(host.id, 'same', Date.now()); room.loaded(guest.id, 'same', Date.now());
   const admission = { code: 'code', token: host.token, player: host.id, room: room.public() };
@@ -83,7 +83,7 @@ it('T10-34 treats host state loss on reload as silence instead of explicit depar
     view: vi.fn(), preparing: vi.fn(), status: vi.fn(), lobby: vi.fn(), disconnected: vi.fn(),
   });
   try {
-    await connection.enter(undefined, 'code');
+    await connection.enter(undefined, 'volt', 'code');
     expect(sent.some(p => p.kind === 'leave' || p.kind === 'abort')).toBe(false);
   } finally { connection.close(false); vi.unstubAllGlobals(); }
 });

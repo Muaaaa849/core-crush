@@ -1,3 +1,4 @@
+import { rosterOf } from '../fixtures';
 import { expect, it } from 'vitest';
 import { MemoryClient } from '../../src/net/client';
 import { MemoryHost } from '../../src/net/host';
@@ -12,7 +13,7 @@ import { active, incoming } from '../sim/cover-helpers';
 
 it.each(['host', 'p2'])('F12-5/F12-6: %s prediction has no effects, confirmed rejection hits once', peer => {
   const initial = incoming(5000);
-  const s: Session = { matchId: 'm', epoch: 1, build: 'b', protocol: PROTOCOL, config: c, initial };
+  const s: Session = { matchId: 'm', epoch: 1, build: 'b', protocol: PROTOCOL, config: c, roster: rosterOf(initial), initial };
   const h = new MemoryHost(s, { host: 'p1', p2: 'p2', p3: 'p3', p4: 'p4' }); for (const id of ['host', 'p2', 'p3', 'p4']) h.connect(id, s);
   const client = new MemoryClient(s, 'p1'), at = initial.now;
   client.input({ kind: 'secondary' }, at); client.advance(at + 6000);
@@ -37,7 +38,7 @@ it.each(['host', 'p2'])('F12-5/F12-6: %s prediction has no effects, confirmed re
 
 it('F12-5: a confirmed success is presented once after prediction and reordered delivery', () => {
   const initial = incoming(5000), at = initial.now;
-  const s: Session = { matchId: 'm', epoch: 1, build: 'b', protocol: PROTOCOL, config: c, initial };
+  const s: Session = { matchId: 'm', epoch: 1, build: 'b', protocol: PROTOCOL, config: c, roster: rosterOf(initial), initial };
   const h = new MemoryHost(s, { host: 'p1', p2: 'p2', p3: 'p3', p4: 'p4' }); for (const id of ['host', 'p2', 'p3', 'p4']) h.connect(id, s);
   const client = new MemoryClient(s, 'p1'); client.input({ kind: 'secondary' }, at);
   h.receive('host', client.batch(), at); h.advance(at + 12000);
@@ -50,7 +51,7 @@ it('F12-5: a confirmed success is presented once after prediction and reordered 
 });
 
 it('F12-7: OnlineMatch preserves seq and marks restored history consumed across same-epoch sync and resume', () => {
-  const room = new RoomLogic('1v1', 'b', 0); room.join('b', 0); room.join('b', 0); room.begin('p1', 0, ['p1', 'p3']);
+  const room = new RoomLogic('1v1', 'b', 0); room.join('b', 'volt', 0); room.join('b', 'volt', 0); room.begin('p1', 0, ['p1', 'p3']);
   let now = 0;
   const delivery = new MemoryDelivery({ rttMs: 0, jitterMs: 0, loss: 0, seed: 1 });
   const match = new OnlineMatch(room.public(), 'p3', delivery, () => now);

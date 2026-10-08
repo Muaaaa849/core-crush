@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Controls } from '../../src/game/controls';
-import { localMatch } from '../../src/game/match';
+import { localRoster, rosterMatch } from '../../src/game/match';
 import { SimRunner } from '../../src/game/runner';
 import { createInitialState } from '../../src/sim/sim';
 
@@ -11,7 +11,7 @@ describe('local spectator controls', () => {
     const listeners = new Map<string, (e: Record<string, unknown>) => void>();
     vi.stubGlobal('document', { pointerLockElement: canvas, addEventListener: (type: string, listener: (e: Record<string, unknown>) => void) => listeners.set(type, listener) });
     vi.stubGlobal('window', { addEventListener: vi.fn() });
-    const runner = new SimRunner(createInitialState(localMatch('1v1', 'a')));
+    const runner = new SimRunner(createInitialState(rosterMatch(localRoster('1v1', 'volt'), 'a')));
     const controls = new Controls(canvas, runner, 'p1');
     listeners.get('keydown')!({ code: 'KeyW' }); listeners.get('keydown')!({ code: 'KeyD' }); controls.update();
     const command = runner.pending.find(c => c.kind === 'move')!;
@@ -22,7 +22,7 @@ describe('local spectator controls', () => {
     const listeners = new Map<string, (e: Record<string, unknown>) => void>();
     vi.stubGlobal('document', { pointerLockElement: canvas, addEventListener: (type: string, listener: (e: Record<string, unknown>) => void) => listeners.set(type, listener) });
     vi.stubGlobal('window', { addEventListener: vi.fn() });
-    const runner = new SimRunner(createInitialState(localMatch('2v2', 'a')));
+    const runner = new SimRunner(createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a')));
     new Controls(canvas, runner, 'p1');
     listeners.get('keydown')!({ code: 'KeyQ', repeat: false });
     listeners.get('keydown')!({ code: 'KeyQ', repeat: true });
@@ -33,7 +33,7 @@ describe('local spectator controls', () => {
     const listeners = new Map<string, (e: Record<string, unknown>) => void>();
     vi.stubGlobal('document', { pointerLockElement: canvas, addEventListener: (type: string, listener: (e: Record<string, unknown>) => void) => listeners.set(type, listener) });
     vi.stubGlobal('window', { addEventListener: vi.fn() });
-    const runner = new SimRunner(createInitialState(localMatch('2v2', 'a')));
+    const runner = new SimRunner(createInitialState(rosterMatch(localRoster('2v2', 'volt'), 'a')));
     const controls = new Controls(canvas, runner, 'p1');
     runner.state.players[0].hp = 0; controls.yaw = 2;
     listeners.get('mousemove')!({ movementX: 100, movementY: 20 });

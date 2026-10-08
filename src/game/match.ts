@@ -1,10 +1,27 @@
-// 人数選択はsim外で参加枠へ変換する。操作者はp1固定、残りは同じ練習Botを使う（0010）。
-import type { MatchMode, MatchOptions, Participant, Side } from '../sim/types';
+// 開始ロスターをsimの参加枠へ変換する。ローカルとオンラインが同じ変換を使う（0010、0013）。
+import type { MatchMode, MatchOptions, Side } from '../sim/types';
+import { CHARACTERS, isCharacterId, type CharacterId, type Roster } from './characters';
 
-export function localMatch(mode: MatchMode, firstBall: Side): MatchOptions {
-  const participants: Participant[] = [{ id: 'p1', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } }];
-  if (mode === '2v2') participants.push({ id: 'p2', side: 'a', stats: { attack: 5, defense: 5, agility: 5 } });
-  participants.push({ id: 'p3', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } });
-  if (mode !== '1v1') participants.push({ id: 'p4', side: 'b', stats: { attack: 5, defense: 5, agility: 5 } });
+/** ローカル試遊：本人はp1・A陣で選んだキャラ、Botは参加枠固定（p2 ECHO、p3 ANCHOR、p4 SWITCH）。 */
+export function localRoster(mode: MatchMode, self: CharacterId): Roster {
+  const roster = [{ id: 'p1', side: 'a', characterId: self }] as const satisfies Roster;
+  return [
+    ...roster,
+    ...(mode === '2v2' ? [{ id: 'p2', side: 'a', characterId: 'echo' } as const] : []),
+    { id: 'p3', side: 'b', characterId: 'anchor' },
+    ...(mode !== '1v1' ? [{ id: 'p4', side: 'b', characterId: 'switch' } as const] : []),
+  ];
+}
+
+/** ID昇順に並べ、キャラIDから能力を複製する。未知のキャラ・重複IDはエラー（補完しない）。 */
+export function rosterMatch(roster: Roster, firstBall: Side, characters: typeof CHARACTERS = CHARACTERS): MatchOptions {
+  const ids = new Set(roster.map(e => e.id));
+  if (ids.size !== roster.length) throw new Error('参加枠のIDが重複している');
+  const participants = [...roster].sort((a, b) => a.id.localeCompare(b.id)).map(e => {
+    if (characters === CHARACTERS ? !isCharacterId(e.characterId) : !Object.hasOwn(characters, e.characterId)) {
+      throw new Error(`不明なキャラ：${e.characterId}`);
+    }
+    return { id: e.id, side: e.side, stats: { ...characters[e.characterId].stats } };
+  });
   return { participants, firstBall };
 }

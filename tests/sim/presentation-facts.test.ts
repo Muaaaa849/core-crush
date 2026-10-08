@@ -54,7 +54,7 @@ describe('M3-1 event facts', () => {
   });
 
   it('F12-2: reception requires new facts, including finite rally speed', () => {
-    const session = { matchId: 'm', epoch: 1, protocol: PROTOCOL, build: 'b', config: c, initial: active() };
+    const session = { matchId: 'm', epoch: 1, protocol: PROTOCOL, build: 'b', config: c, roster: [], initial: active() };
     const event = { kind: 'parry', at: 0, player: 'p1', grade: 'just', position: { x: 0, y: 1, z: 2 }, rallySpeed: 1 };
     const packet = { ...envelope(session), kind: 'events', events: [{ seq: 1, event }] };
     expect(validMessage(packet as never)).toBe(true);

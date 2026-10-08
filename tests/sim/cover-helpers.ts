@@ -1,11 +1,11 @@
-import { localMatch } from '../../src/game/match';
+import { evenMatch } from '../fixtures';
 import { defaultConfig as c } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, PlayerId, SimEvent, SimState } from '../../src/sim/types';
 
 export const F = c.frame, S = c.timeUnitsPerSecond, radius = c.capsuleRadius + c.ballDiameter / 2;
 export function active(): SimState {
-  const state = createInitialState(localMatch('2v2', 'a'));
+  const state = createInitialState(evenMatch('2v2', 'a'));
   state.now = S; state.match.roundStartsAt = 0;
   state.danger = { side: 'a', expiresAt: state.now + c.dangerDuration };
   state.players.forEach(p => { p.position = { x: 0, y: 0, z: p.side === 'a' ? 8 : -8 }; });

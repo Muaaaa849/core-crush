@@ -1,11 +1,10 @@
-import { duelParticipants } from '../fixtures';
+import { duelParticipants, evenMatch } from '../fixtures';
 // 再実行（0004、0005「テスト」）：試合全体の入力記録から、最初からでも途中保存からでも同じ結果になる。
 // M2の通信（ホストが入力を集めて同じsimを進める）の前提。
 import { describe, expect, it } from 'vitest';
 import { defaultConfig as config } from '../../src/sim/config';
 import { createInitialState, step } from '../../src/sim/sim';
 import type { Command, PlayerId, SimEvent, SimState } from '../../src/sim/types';
-import { localMatch } from '../../src/game/match';
 import { SimRunner, type Controller } from '../../src/game/runner';
 
 function rng(seed: number) {
@@ -78,7 +77,7 @@ describe('whole-match replay', () => {
 
 describe('T10-12 team replay', () => {
   for (const mode of ['1v1', '1v2', '2v2'] as const) it.each([1, 2, 3, 4])(`${mode} seed %i: 60 seconds, render rates and a 30-second snapshot agree`, seed => {
-    const initial = createInitialState(localMatch(mode, seed % 2 ? 'a' : 'b'), config);
+    const initial = createInitialState(evenMatch(mode, seed % 2 ? 'a' : 'b'), config);
     // 部分KOを含む固定ロスターでも60秒の時刻が前進する。
     if (mode === '2v2') initial.players.find(p => p.id === 'p2')!.hp = 0;
     const random = rng(seed), log: Command[][] = [];

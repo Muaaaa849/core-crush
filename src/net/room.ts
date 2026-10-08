@@ -1,3 +1,4 @@
+import type { CharacterId } from '../game/characters';
 import type { MatchMode, PlayerId } from '../sim/types';
 import type { Admission, IceReply, RoomReply, RoomView } from './room-protocol';
 import { OnlineMatch } from './online';
@@ -55,7 +56,7 @@ export class RoomConnection {
   private saveAdmission(): void {
     sessionStorage.setItem(this.storageKey, JSON.stringify({ build: this.build, admission: this.admission, ice: this.ice }));
   }
-  async enter(mode: MatchMode | undefined, code?: string): Promise<void> {
+  async enter(mode: MatchMode | undefined, characterId: CharacterId, code?: string): Promise<void> {
     let token: string | undefined;
     if (!mode && code) {
       try {
@@ -64,7 +65,9 @@ export class RoomConnection {
       } catch { /* 壊れた保存内容は使用しない。 */ }
     }
     this.restored = !!token;
-    this.admission = await this.request<Admission>(mode ? '/rooms' : `/rooms/${code}/join`, mode ? { mode, build: this.build } : { build: this.build }, token);
+    // 復帰はキャラを申告し直さない（部屋が保持する枠のキャラを使う）。
+    this.admission = await this.request<Admission>(mode ? '/rooms' : `/rooms/${code}/join`,
+      mode ? { mode, build: this.build, characterId } : token ? { build: this.build } : { build: this.build, characterId }, token);
     this.saveAdmission();
     if (!this.closed) await this.openSocket();
   }
@@ -102,6 +105,7 @@ export class RoomConnection {
     this.socket.send(JSON.stringify(value));
   }
   begin(): void { this.send({ kind: 'begin' }); }
+  select(characterId: CharacterId): void { this.send({ kind: 'select-character', characterId }); }
   confirm(): void { this.send({ kind: 'confirm', matchId: this.activeId }); }
   private receive(msg: RoomReply): void {
     if (msg.kind === 'error') { this.callbacks.status(`部屋：${msg.reason}`); return; }

@@ -42,3 +42,32 @@ export class Avatar {
     this.mixer.update(animationDt);
   }
 }
+
+/**
+ * キャラ・チームの目印（0013）。共通モデルは材質が1つ（肌込み）なので、キャラ色は胸の発光帯、
+ * チーム色は足元の輪と名札の縁に出す。モデルの拡大率を打ち消して実寸（m）で付ける。
+ */
+export function addMarkers(root: THREE.Object3D, label: string, team: string, colors: { base: string; emissive: string }, showName: boolean): void {
+  const group = new THREE.Group();
+  group.scale.setScalar(1 / root.scale.x);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 8, 32), new THREE.MeshBasicMaterial({ color: colors.emissive }));
+  band.rotation.x = Math.PI / 2; band.position.y = 1.18;
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.012, 6, 32), new THREE.MeshBasicMaterial({ color: colors.base }));
+  trim.rotation.x = Math.PI / 2; trim.position.y = 1.12;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 40), new THREE.MeshBasicMaterial({ color: team, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
+  group.add(band, trim, ring);
+  if (showName) {
+    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = 'rgb(5 6 11 / 0.7)'; g.fillRect(0, 0, 512, 96);
+    g.strokeStyle = team; g.lineWidth = 8; g.strokeRect(4, 4, 504, 88);
+    g.fillStyle = '#ffffff'; g.font = '600 44px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(label, 256, 50);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+    tag.scale.set(1.6, 0.3, 1); tag.position.y = 2.15;
+    group.add(tag);
+  }
+  root.add(group);
+}

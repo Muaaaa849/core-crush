@@ -26,7 +26,7 @@ it('T10-33 replaces the old worker WebSocket and ignores its late messages and c
       storage: { get: async () => undefined, put: vi.fn(), setAlarm: vi.fn() },
       getWebSockets: () => sockets, acceptWebSocket: (socket: Socket) => sockets.push(socket) };
     const room = new Room(ctx as unknown as DurableObjectState, {} as never);
-    const init = await room.fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ code: 'code', mode: '1v1', build: 'build' }) }));
+    const init = await room.fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ code: 'code', mode: '1v1', build: 'build', characterId: 'volt' }) }));
     const admission = await init.json() as { token: string };
     const connect = () => room.fetch(new Request('https://internal/socket', { headers: { Upgrade: 'websocket', 'Sec-WebSocket-Protocol': `corecrush, ${admission.token}` } }));
     expect((await connect()).status).toBe(101);

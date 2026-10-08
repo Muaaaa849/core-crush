@@ -4,7 +4,8 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { Avatar } from './game/avatar';
+import { addMarkers, Avatar } from './game/avatar';
+import { CHARACTERS, playerLabel, skillLines, TEAM_COLORS, type CharacterId, type Roster } from './game/characters';
 import { rollRotation } from './game/ballview';
 import { Bot } from './game/bot';
 import { CameraBlend, cameraPlayerFor } from './game/camera';
@@ -13,7 +14,7 @@ import { coreFace, type CoreFace } from './game/coreface';
 import { createAudioOutput } from './game/audio';
 import { HitStop } from './game/hitstop';
 import { Hud, REMATCH_SECONDS } from './game/hud';
-import { localMatch } from './game/match';
+import { localRoster, rosterMatch } from './game/match';
 import { createPresentation, updatePresentation } from './game/presentation';
 import { SimRunner } from './game/runner';
 import { describeSound, warningSound } from './game/sound';
@@ -126,7 +127,26 @@ const height = new THREE.Box3().setFromObject(character.scene).getSize(new THREE
 character.scene.scale.setScalar(CHARACTER_HEIGHT / height);
 let mode: MatchMode = '1v1';
 const bots: Bot[] = [];
-const newMatch = () => createInitialState(localMatch(mode, Math.random() < 0.5 ? 'a' : 'b'), config);
+// 自分のキャラ（0013）。開始画面の4択から選び、Botは参加枠固定。
+const characterPicker = document.querySelector<HTMLFieldSetElement>('#character')!;
+const rosterPreview = document.querySelector<HTMLElement>('#roster-preview')!;
+characterPicker.append(...Object.entries(CHARACTERS).map(([id, c], i) => {
+  const label = document.createElement('label');
+  label.innerHTML = `<input type="radio" name="character" value="${id}"${i === 0 ? ' checked' : ''} /> <b>${c.name}</b> 攻${c.stats.attack}／防${c.stats.defense}／敏${c.stats.agility}<br><small>${skillLines(id as CharacterId).join('<br>')}</small>`;
+  return label;
+}));
+const selectedCharacter = () => document.querySelector<HTMLInputElement>('input[name="character"]:checked')!.value as CharacterId;
+let localRosterValue: Roster = localRoster(mode, selectedCharacter());
+const currentRoster = (): Roster => onlineMatch?.session.roster ?? localRosterValue;
+function newMatch() {
+  localRosterValue = localRoster(mode, selectedCharacter());
+  return createInitialState(rosterMatch(localRosterValue, Math.random() < 0.5 ? 'a' : 'b'), config);
+}
+function previewRoster(): void {
+  const selected = document.querySelector<HTMLInputElement>('input[name="mode"]:checked')!.value as MatchMode;
+  const roster = localRoster(selected, selectedCharacter());
+  rosterPreview.textContent = roster.map(e => `${e.side.toUpperCase()}陣 ${playerLabel(roster, 'p1', e.id)}${e.id === 'p1' ? '' : '（Bot）'}`).join('　');
+}
 const runner = new SimRunner(newMatch(), config, bots);
 // ローカルの確定イベントは試合ごとに連番を振り、再戦で演出の消費位置を初期化する（0012）。
 let localMatchNumber = 0, localSeq = 0;
@@ -146,8 +166,11 @@ const avatars = new Map<PlayerId, Avatar>();
 function createAvatars(): void {
   for (const avatar of avatars.values()) scene.remove(avatar.root);
   avatars.clear();
+  const roster = currentRoster();
   for (const player of game.state.players) {
     const model = cloneSkinned(character.scene);
+    const entry = roster.find(e => e.id === player.id)!;
+    addMarkers(model, playerLabel(roster, localPlayer, player.id), TEAM_COLORS[entry.side], CHARACTERS[entry.characterId].colors, player.id !== localPlayer);
     scene.add(model); avatars.set(player.id, new Avatar(model, character.animations));
   }
 }
@@ -159,7 +182,7 @@ const modeSelector = document.querySelector<HTMLFieldSetElement>('#match-mode')!
 let rematchAt: number | null = null; // 試合終了後、表示時刻でこの時刻に再戦（0008）
 const controls = new Controls(renderer.domElement, game, localPlayer);
 const hudElement = document.querySelector<HTMLElement>('#hud')!;
-let hud = new Hud(hudElement, config, localPlayer);
+let hud = new Hud(hudElement, config, localPlayer, currentRoster());
 const targets = new TargetView(scene);
 const occlusion = new CameraOcclusion(stage.scene);
 const cameraBlend = new CameraBlend();
@@ -263,8 +286,9 @@ function returnToLobby(): void {
   started = false; onlineMatch = undefined; rematchAt = null; controls.enabled = false;
   document.exitPointerLock(); overlay.hidden = false;
   localPlayer = 'p1'; controls.player = localPlayer;
-  restartLocal(createInitialState(localMatch(connection?.view?.mode ?? mode, 'a'), config));
-  createAvatars(); controls.sync(); hud = new Hud(hudElement, config, localPlayer);
+  localRosterValue = localRoster(connection?.view?.mode ?? mode, selectedCharacter());
+  restartLocal(createInitialState(rosterMatch(localRosterValue, 'a'), config));
+  createAvatars(); controls.sync(); hud = new Hud(hudElement, config, localPlayer, currentRoster());
   confirmButton.hidden = true; startButton.hidden = true;
   cameraBlend.mode = 'tps'; cameraBlend.fps = 0; lastBall.mode = 'absent';
 }
@@ -275,6 +299,7 @@ function leaveRoom(): void {
   startButton.textContent = 'ローカル試遊を開始';
 }
 async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
+  const characterId = selectedCharacter();
   if (!roomOrigin || connection || started) return;
   createButton.disabled = true;
   const joinButton = joinForm.querySelector<HTMLButtonElement>('button')!; joinButton.disabled = true;
@@ -283,7 +308,7 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
     view: (room, invite, player) => {
       onlineEntry.hidden = true; onlineLobby.hidden = false; modeSelector.disabled = true;
       document.querySelector<HTMLInputElement>('#room-code')!.value = invite;
-      roster.textContent = `${room.mode}・あなたは${player.toUpperCase()}\n` + room.players.map(p => `${p.id === 'p1' ? 'ホスト ' : ''}${p.id.toUpperCase()} / ${p.side.toUpperCase()}陣${p.loaded ? ' / ロード済み' : ''}${p.confirmed ? ' / 結果確認済み' : ''}`).join('\n');
+      roster.textContent = `${room.mode}・あなたは${player.toUpperCase()}\n` + room.players.map(p => `${p.id === 'p1' ? 'ホスト ' : ''}${p.id.toUpperCase()} ${CHARACTERS[p.characterId].name} / ${p.side.toUpperCase()}陣${p.loaded ? ' / ロード済み' : ''}${p.confirmed ? ' / 結果確認済み' : ''}`).join('\n');
       beginButton.hidden = player !== 'p1' || room.phase !== 'lobby';
       beginButton.disabled = room.players.length !== (room.mode === '2v2' ? 4 : room.mode === '1v2' ? 3 : 2);
       roomProgress.textContent = room.phase === 'lobby' ? '参加者がそろったらホストが開始します' : room.phase === 'connecting' ? '接続とロードを確認中（20秒以内）' : '全員ロード完了';
@@ -291,7 +316,7 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
     preparing: match => {
       onlineMatch = match; presentedRevision = match.presentationRevision; localPlayer = match.player; controls.player = localPlayer;
       controls.enabled = false; controls.sync(); started = false; rematchAt = null;
-      bots.length = 0; createAvatars(); hud = new Hud(hudElement, config, localPlayer, true);
+      bots.length = 0; createAvatars(); hud = new Hud(hudElement, config, localPlayer, currentRoster(), true);
       startButton.hidden = true; document.exitPointerLock(); overlay.hidden = false;
     },
     lobby: returnToLobby,
@@ -299,10 +324,19 @@ async function enterRoom(selected?: MatchMode, code?: string): Promise<void> {
   }, params.get('relay') === '1');
   connection = next; controls.enabled = false; startButton.hidden = true;
   onlineStatus.textContent = '部屋に接続中…';
-  try { await next.enter(selected, code); }
+  try { await next.enter(selected, characterId, code); }
   catch (error) { leaveRoom(); onlineStatus.textContent = `参加できません：${(error as Error).message}`; }
   finally { createButton.disabled = false; joinButton.disabled = false; }
 }
+// 部屋ではロビーの間だけキャラを申告し直せる。開始後は部屋が拒否する。
+characterPicker.addEventListener('change', () => {
+  previewRoster();
+  if (connection?.view?.phase === 'lobby') {
+    try { connection.select(selectedCharacter()); } catch (error) { onlineStatus.textContent = (error as Error).message; }
+  }
+});
+modeSelector.addEventListener('change', previewRoster);
+previewRoster();
 createButton.addEventListener('click', () => { void enterRoom(document.querySelector<HTMLSelectElement>('#online-mode')!.value as MatchMode); });
 joinForm.addEventListener('submit', e => { e.preventDefault(); void enterRoom(undefined, document.querySelector<HTMLInputElement>('#invite-code')!.value.trim().toLowerCase()); });
 beginButton.addEventListener('click', () => { try { connection?.begin(); } catch (error) { onlineStatus.textContent = (error as Error).message; } });
@@ -327,8 +361,8 @@ startButton.addEventListener('click', () => {
     restartLocal(newMatch());
     bots.length = 0;
     bots.push(...runner.state.players.filter(p => p.id !== 'p1').map(p => new Bot(p.id)));
-    createAvatars(); controls.sync();
-    started = true; modeSelector.disabled = true;
+    createAvatars(); controls.sync(); hud = new Hud(hudElement, config, localPlayer, currentRoster());
+    started = true; modeSelector.disabled = true; characterPicker.disabled = true;
     onlineEntry.hidden = true;
   }
   const canvas = renderer.domElement;
