@@ -1,8 +1,9 @@
 // VFXの描画。線分は1つの使い回すジオメトリへ毎フレーム詰め、閃光は1つの球を使い回す（0012：追加ライト・粒子エディタなし）。
 import * as THREE from 'three/webgpu';
-import { effectSegments, liveEffects, type Effect } from './vfx';
+import { EFFECT_LIMITS, SEGMENTS_PER_KIND, effectSegments, liveEffects, type Effect, type EffectKind } from './vfx';
 
-const MAX_SEGMENTS = 4 * 8 + 12 + 4 * 16 + 2 * 16; // 火花・破片・輪・波紋の上限の合計
+const MAX_SEGMENTS = (Object.keys(EFFECT_LIMITS) as EffectKind[])
+  .reduce((sum, kind) => sum + EFFECT_LIMITS[kind] * SEGMENTS_PER_KIND[kind], 0);
 
 export class VfxView {
   private readonly positions = new Float32Array(MAX_SEGMENTS * 6);
@@ -45,10 +46,11 @@ export class VfxView {
         this.flash.material.color.set(e.color).multiplyScalar((1 - u) * flashScale);
         continue;
       }
-      const { segments, intensity } = effectSegments(e, age, basis, this.ballRadius);
-      this.color.set(e.color).multiplyScalar(intensity);
-      for (const [a, b] of segments) {
+      const { segments, colors, intensity } = effectSegments(e, age, basis, this.ballRadius);
+      for (let i = 0; i < segments.length; i++) {
         if (n >= MAX_SEGMENTS) break;
+        const [a, b] = segments[i];
+        this.color.set(colors[i]).multiplyScalar(intensity);
         this.positions.set([a.x, a.y, a.z, b.x, b.y, b.z], n * 6);
         this.colors.set([this.color.r, this.color.g, this.color.b, this.color.r, this.color.g, this.color.b], n * 6);
         n++;
